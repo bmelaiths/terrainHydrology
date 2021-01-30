@@ -19,7 +19,6 @@ import math
 import DataModel
 import HydrologyFunctions
 import Math
-import TerrainFunctions
 
 
 # Get inputs
@@ -161,7 +160,6 @@ params = HydrologyFunctions.HydrologyParameters(
     shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, riverSlope, slopeRate
 )
 candidates = hydrology.allMouthNodes()
-from IPython.display import clear_output, display
 while len(candidates)!=0:
     selectedCandidate = HydrologyFunctions.selectNode(candidates,zeta)
     HydrologyFunctions.alpha(selectedCandidate, candidates, params)
@@ -176,6 +174,8 @@ print()
 print('Generating terrain ridges...')
 
 cells = DataModel.TerrainHoneycomb(shore, hydrology)
+
+print('Terrain ridges generated')
 
 pos = [node.position for node in hydrology.allNodes()]
 labels = dict(zip(range(len(hydrology)),range(len(hydrology))))
@@ -233,9 +233,10 @@ for n in range(len(hydrology)):
 
 # calculate inherited watershed areas and flow
 for node in hydrology.dfsPostorderNodes():  # search nodes in a depth-first post-ordering manner
-    watershed = node.localWatershed + sum([n.inheritedWatershed for n in hydrology.allUpstream(node.id)])
+    watershed = node.localWatershed + sum([n.inheritedWatershed for n in hydrology.upstream(node.id)])
     node.inheritedWatershed=watershed  # calculate total watershed area
     node.flow = 0.42 * watershed**0.69 # calculate river flow
+
 
 # Calculate ridge elevations
 print('Calculating ridge elevations...')
@@ -263,10 +264,10 @@ nodes = hydrology.allNodes()
 ids = [node.id for node in nodes]
 positions = [node.position for node in nodes]
 normalizer = max([node.flow for node in nodes])
-weights = [ 6*node.flow/normalizer for node in nodes if node.parent is not None ]
+weights = [6*u.flow/normalizer for u,v in hydrology.allEdges()]
 plt.imshow(shore.img)
 nx.draw(hydrology.graph,positions,node_size=10,labels=labels,width=weights)
-plt.savefig(outputDir + '7-river-flow.png')
+plt.savefig(outputDir + '7-river-flow.png', dpi=100)
 
 
 # DEBUG Same thing, but over imgvoronoi instead of the map
@@ -415,7 +416,6 @@ for t in Ts.allTs():
         projected = local_rivers[rividx].interpolate(local_rivers[rividx].project(point))
         distancefromN = point.distance(local_rivers[rividx]) # distance to that point
     else: # handle cases of stub rivers
-        node = hydrology.node(ridx)
         projected = geom.Point(node.x(),node.y(),node.elevation)
         distancefromN = point.distance(projected)
     
@@ -546,6 +546,9 @@ for p in range(numProcs):
     processes[p].join()
     pipes[p][0].close()
 
+plt.clf()
+plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
+plt.savefig(outputDir + 'out-color.png')
 
 immtt = np.array(imgOut)
 normalizedImg = immtt.copy()

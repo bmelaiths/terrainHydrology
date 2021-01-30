@@ -74,7 +74,7 @@ class HydrologyNetwork:
         else:
             return None
     def upstream(self, node):
-        return [self.graph.nodes[n]['primitive'] for n in list(self.graph.successors(node))]
+        return [self.graph.nodes[n]['primitive'] for n in self.graph.successors(node)]
     def adjacentNodes(self, node):
         downstream = self.downstream(node)
         upstream   = self.upstream(node)
@@ -85,6 +85,8 @@ class HydrologyNetwork:
         return [self.graph.nodes[n]['primitive'] for n in nx.descendants(self.graph, node)]
     def allNodes(self):
         return [self.graph.nodes[node]['primitive'] for node in list(self.graph.nodes)]
+    def allEdges(self):
+        return [(self.graph.nodes[u]['primitive'],self.graph.nodes[v]['primitive']) for u,v in self.graph.edges]
     def allMouthNodes(self):
         return [self.graph.nodes[id]['primitive'] for id in self.mouthNodes]
     def allLeaves(self, node):
