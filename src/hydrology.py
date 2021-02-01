@@ -302,6 +302,17 @@ for node in hydrology.allMouthNodes():
     for leafNode in leaves: # essentially, this loops through all the highest nodes of a particular mouth
         # path to the leaf (there's only one, so it's the shortest)
         path = hydrology.pathToNode(node.id,leafNode.id)
+        path.reverse()
+
+        # terminates the path if there is another path with greater flow
+        for ni in range(1,len(path)):
+            print(f'path: {[n.id for n in path]}')
+            print(f'ni: {ni}')
+            print(f'Upstream of node {path[ni].id} ({path[ni].position}): {[n.id for n in hydrology.upstream(path[ni].id)]}')
+            upstreamFlow = max([n.flow for n in hydrology.upstream(path[ni].id)])
+            if upstreamFlow > path[ni-1].flow:
+                path = path[0:ni+1]
+                break
 
         x = np.array([p.x() for p in path])
         y = np.array([p.y() for p in path])
@@ -352,10 +363,10 @@ xlim=ax.get_xlim();
 voronoi_plot_2d(cells.vor, point_size=10, ax=ax,line_colors=['yellow']) # draws the voronoi cells?
 ax.set_ylim(ylim);
 ax.set_xlim(xlim);
-for node in hydrology.allMouthNodes():
-    for river in node.rivers:
-        x = [coord[0] for coord in river.coords]
-        y = [coord[1] for coord in river.coords]
+for mouth in hydrology.allMouthNodes():
+    for leaf in hydrology.allLeaves(mouth.id):
+        x = [coord[0] for coord in leaf.rivers[0].coords]
+        y = [coord[1] for coord in leaf.rivers[0].coords]
         plt.plot(x,y)
 for node in hydrology.allNodes():
     plt.text(node.x(),node.y(),node.id)
