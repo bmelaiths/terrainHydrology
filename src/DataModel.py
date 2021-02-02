@@ -4,13 +4,26 @@ import networkx as nx
 from scipy.spatial import cKDTree
 from scipy.spatial import Voronoi
 from poisson import PoissonGenerator
+from PIL import Image
+
+class RasterData:
+    def __init__(self, inputFileName, resolution):
+        self.raster = Image.open(inputFileName)
+        self.raster = self.raster.convert('L')
+        self.raster = self.raster.load()
+        self.resolution = resolution
+    def __getitem__(self, loc):
+        return self.raster[int(loc[0]/self.resolution),int(loc[1]/self.resolution)]
 
 class ShoreModel:
-    def __init__(self, inputFileName):
+    def __init__(self, inputFileName, resolution):
+        self.resolution = resolution
+
         self.img = cv.imread(inputFileName)
         
         self.imgray = cv.cvtColor(self.img, cv.COLOR_BGR2GRAY) # a black-and-white version of the input image
-        self.shape = self.imgray.shape
+        self.rasterShape = self.imgray.shape
+        self.realShape = (self.imgray.shape[0] * self.resolution, self.imgray.shape[1] * self.resolution)
         ret, thresh = cv.threshold(self.imgray, 127, 255, 0)
         contours, hierarchy = cv.findContours(thresh, cv.RETR_LIST, cv.CHAIN_APPROX_NONE)
         test = cv.cvtColor(thresh, cv.COLOR_GRAY2BGR) # not sure what this line does or why it exists
@@ -28,15 +41,15 @@ class ShoreModel:
         # TODO raise exception if multiple contours
     def distanceToShore(self, loc):
         #    for some reason this method is      y, x
-        return cv.pointPolygonTest(self.contour,(loc[1],loc[0]),True)
+        return cv.pointPolygonTest(self.contour,(loc[1]/self.resolution,loc[0]/self.resolution),True) * self.resolution
     def isOnLand(self, loc):
-        if 0 <= loc[0] < self.shape[0] and 0 <= loc[1] < self.shape[1]:
-            return self.imgray[int(loc[1])][int(loc[0])] != 0
+        if 0 <= loc[0] < self.realShape[0] and 0 <= loc[1] < self.realShape[1]:
+            return self.imgray[int(loc[1]/self.resolution)][int(loc[0]/self.resolution)] != 0
         else:
             return False
     def __getitem__(self, index):
         # TODO ensure that points returned are x,y
-        return (self.contour[index][1],self.contour[index][0])
+        return (self.contour[index][1]*self.resolution,self.contour[index][0]*self.resolution)
     def __len__(self):
         return len(self.contour)
 
@@ -125,23 +138,25 @@ class Q:
         self.vorIndex = iv # the index of the voronoi vertex this represents in vor.vertices
 
 class TerrainHoneycomb:
-    def __init__(self, shore, hydrology):
+    def __init__(self, shore, hydrology, resolution):
+        self.resolution = resolution
+
         self.shore     = shore
         self.hydrology = hydrology
         
         points = [node.position for node in hydrology.allNodes()]
         points.append((0,0))
-        points.append((0,shore.shape[1]))
-        points.append((shore.shape[0],0))
-        points.append((shore.shape[0],shore.shape[1]))
+        points.append((0,shore.realShape[1]))
+        points.append((shore.realShape[0],0))
+        points.append((shore.realShape[0],shore.realShape[1]))
         
         self.vor = Voronoi(points,qhull_options='Qbb Qc Qz Qx')
         
-        self.imgvoronoi = np.zeros(shore.shape, dtype=np.uint16)
+        self.imgvoronoi = np.zeros(shore.rasterShape, dtype=np.uint16)
         for n in range(len(hydrology)):
             if self.vor_region_id(n) == -1:
                 continue
-            positions = self.ridgePositions(n)
+            positions = [(int(p[0]/self.resolution),int(p[1]/self.resolution)) for p in self.ridgePositions(n)]
             cv.fillPoly(
                 self.imgvoronoi,
                 openCVFillPolyArray(positions),
@@ -191,7 +206,7 @@ class TerrainHoneycomb:
             ridges += [(self.qs[vert],) for vert in verts if self.qs[vert] is not None]
             # ridges includes vertices that are not part of a ridge (but only vertices on land)
             self.cellsRidges[n] = ridges
-            print(f'\tCreating ridge primitive {iv} of {len(self.vor.vertices)}\r', end='')
+            print(f'\tOrganizing ridges for cell {n} of {len(hydrology)}\r', end='')
         print()
     def vor_region_id(self, node):
         return self.vor.point_region[node]
@@ -199,7 +214,7 @@ class TerrainHoneycomb:
         ridges = self.vor.regions[self.vor_region_id(node)] # the indices of the vertex boundaries
         return [self.vor.vertices[x] for x in ridges if x != -1] # positions of all the vertices
     def cellArea(self, loc):
-        return np.count_nonzero(self.imgvoronoi == self.imgvoronoi[int(loc[1])][int(loc[0])])
+        return np.count_nonzero(self.imgvoronoi == self.imgvoronoi[int(loc[1]/self.resolution)][int(loc[0]/self.resolution)]) * self.resolution**2
     def cellQs(self, node):
         return [self.qs[vorIdx] for vorIdx in self.vor.regions[self.vor_region_id(node)] if self.qs[vorIdx] is not None]
     def allQs(self):
@@ -218,13 +233,13 @@ class TerrainHoneycomb:
         xulim = int(max(x[0] for x in pts))
         yllim = int(min(x[1] for x in pts))
         yulim = int(max(x[1] for x in pts))
-        return (xllim, xulim, yllim, yulim)
+        return (xllim * self.resolution, xulim * self.resolution, yllim * self.resolution, yulim * self.resolution)
     def isInCell(self, p, n):
-        return self.imgvoronoi[int(p[1])][int(p[0])]==self.vor.point_region[n]+1
+        return self.imgvoronoi[int(p[1]/self.resolution)][int(p[0]/self.resolution)]==self.vor.point_region[n]+1
     def cellRidges(self, n):
         return self.cellsRidges[n]
     def nodeID(self, point):
-        id = list(self.vor.point_region).index(self.imgvoronoi[point[1]][point[0]]-1)
+        id = list(self.vor.point_region).index(self.imgvoronoi[int(point[1]/self.resolution)][int(point[0]/self.resolution)]-1)
         return id if id != -1 else None
 
 class T:

@@ -67,8 +67,8 @@ def rulePa(priority,node, params): # asymetric junction
 def beta(node, priority, candidates, params):
     point = picknewnodepos(node, params)
     if point is not None:
-        slope = 2.0 * params.riverSlope[ int(node.x()) , int(node.y())] / 255
-        newZ = node.elevation + random.random() * params.slopeRate * slope
+        slope = params.slopeRate * params.riverSlope[node.x() , node.y()]/255
+        newZ = node.elevation + slope * params.edgeLength
         candidates.append(params.hydrology.addNode(point, priority=priority, elevation=newZ, parent=node))
     else:
         tao(node, candidates)

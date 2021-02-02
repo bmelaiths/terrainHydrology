@@ -2,7 +2,6 @@
 
 import argparse
 import random
-from PIL import Image
 import matplotlib.pyplot as plt
 import cv2 as cv
 import numpy as np
@@ -69,6 +68,7 @@ outputDir = args.outputDir + '/'
 inputDomain = args.inputDomain
 inputTerrain = args.inputTerrain
 inputRiverSlope = args.inputRiverSlope
+resolution = 279.6 # meters per pixel length
 
 ## Random Number Generation
 globalseed=4314
@@ -87,24 +87,25 @@ riverAngleDev = 1.7 # Used in picknewnodepos(). Standard Deviation of angle for 
 maxTries = 15
 
 # Hydrological slope parameters
-slopeRate = 30 # Maximum rate at which rivers climb
+slopeRate = 0.1 # Maximum rate at which rivers climb in vertical meters per horizontal meter
 
 # Hydrological resolution parameters
-edgeLength = 30
+edgeLength = 8000 #4000 # in meters
 eta = .75   #   eta * edgeLength is the minimum distance from a node to the coast
 sigma = .75 # sigma * edgeLength is the minimum distance between two nodes
 
 ## Terrain Parameters
+terrainSlopeRate = 1.0 # Maximum rate at which ridges climb in vertical meters per horizontal meter
 num_points = 50 # The (rough) number of terrain primitives for each cell
 
 ## Rendering Parameters
-rwidth = 6
+rwidth = edgeLength / 2
 
 ## Multiprocessing Parameters
 numProcs = 4
 
 ## Output Resolution
-outputResolution = 400
+outputResolution = 5000 # in pixels
 radius = edgeLength * 3
 
 
@@ -113,21 +114,15 @@ random.seed(globalseed)
 
 # Load input images
 
-shore = DataModel.ShoreModel(inputDomain)
+shore = DataModel.ShoreModel(inputDomain, resolution)
 plt.imshow(shore.imgOutline)                    # DEBUG
 plt.savefig(outputDir + '0-riverCellNetwork.png') # DEBUG
 
-terrainSlope = Image.open(inputTerrain)
-terrainSlope = terrainSlope.convert('L')
-plt.imshow(terrainSlope)                    # DEBUG
-plt.savefig(outputDir + '1-inputTerrain.png') # DEBUG
-terrainSlope = terrainSlope.load() # Convert to a PixelAccess object, allowing pixel access
+imStretch = (0,int(shore.rasterShape[0]*resolution),int(shore.rasterShape[1]*resolution),0) # used to stretch debug images
 
-riverSlope = Image.open(inputRiverSlope)
-riverSlope = riverSlope.convert('L')
-plt.imshow(riverSlope)                         # DEBUG
-plt.savefig(outputDir + '2-inputRiverSlope.png') # DEBUG
-riverSlope = riverSlope.load()
+terrainSlope = DataModel.RasterData(inputTerrain, resolution)
+
+riverSlope = DataModel.RasterData(inputRiverSlope, resolution)
 
 
 # Generate river mouths
@@ -147,7 +142,7 @@ for i in range(1,N_majorRivers):
 # DEBUG
 imgMouthDots = shore.imgOutline.copy()
 for node in hydrology.allMouthNodes():
-    cv.circle(imgMouthDots, (node.x(),node.y()), int((shore.shape[0]/512)*10), (255,0,0), -1)
+    cv.circle(imgMouthDots, (int(node.x()/resolution),int(node.y()/resolution)), int((shore.rasterShape[0]/512)*10), (255,0,0), -1)
 plt.imshow(imgMouthDots)
 plt.savefig(outputDir + '3-riverMouths.png')
 
@@ -173,17 +168,17 @@ print()
 
 print('Generating terrain ridges...')
 
-cells = DataModel.TerrainHoneycomb(shore, hydrology)
+cells = DataModel.TerrainHoneycomb(shore, hydrology, resolution)
 
 print('Terrain ridges generated')
 
 pos = [node.position for node in hydrology.allNodes()]
 labels = dict(zip(range(len(hydrology)),range(len(hydrology))))
-imgRiverHeights = np.zeros(shore.shape,dtype=np.uint16)
+imgRiverHeights = np.zeros(shore.rasterShape,dtype=np.uint16)
 for n in range(len(hydrology)):
     if cells.vor_region_id(n) == -1:
         continue
-    positions = cells.ridgePositions(n)
+    positions = [(int(p[0]/resolution),int(p[1]/resolution)) for p in cells.ridgePositions(n)]
     #print(f'Node ID: {n}, Positions: {positions}')
     cv.fillPoly(
         imgRiverHeights,
@@ -194,7 +189,7 @@ for n in range(len(hydrology)):
 # DEBUG
 fig = plt.figure(figsize=(20,20))
 ax = fig.add_subplot(111)
-ax.imshow(shore.img)
+ax.imshow(shore.img, extent=imStretch)
 ylim=ax.get_ylim();
 xlim=ax.get_xlim();
 nx.draw(hydrology.graph,pos,node_size=60,labels=labels,ax=ax)
@@ -203,10 +198,12 @@ ax.set_ylim(ylim);
 ax.set_xlim(xlim);
 kernel = cv.getStructuringElement(cv.MORPH_RECT,(2,2))#I have no idea what this is, and it isn't used anywhere else
 plt.savefig(outputDir + '4-riverCellNetwork.png', dpi=100)
+plt.clf()
 
 # DEBUG
 plt.imshow(cells.imgvoronoi)
 plt.savefig(outputDir + '5-imgvoronoi.png')
+plt.clf()
 
 # DEBUG
 plt.imshow(imgRiverHeights, cmap=plt.get_cmap('terrain'))
@@ -247,7 +244,7 @@ for q in cells.allQs():
     nodes = [hydrology.node(n) for n in q.nodes]
     maxElevation = max([node.elevation for node in nodes])
     d = np.linalg.norm(q.position - nodes[0].position)
-    slope = terrainSlope[int(q.position[0]),int(q.position[1])] / 255
+    slope = terrainSlopeRate * terrainSlope[q.position[0],q.position[1]] / 255
     q.elevation = maxElevation + d * slope
 
 
@@ -265,7 +262,7 @@ ids = [node.id for node in nodes]
 positions = [node.position for node in nodes]
 normalizer = max([node.flow for node in nodes])
 weights = [6*u.flow/normalizer for u,v in hydrology.allEdges()]
-plt.imshow(shore.img)
+plt.imshow(shore.img, extent=imStretch)
 nx.draw(hydrology.graph,positions,node_size=10,labels=labels,width=weights)
 plt.savefig(outputDir + '7-river-flow.png', dpi=100)
 
@@ -273,7 +270,7 @@ plt.savefig(outputDir + '7-river-flow.png', dpi=100)
 # DEBUG Same thing, but over imgvoronoi instead of the map
 
 plt.figure(num=None, figsize=(16, 16), dpi=80)
-plt.imshow(imgRiverHeights, plt.get_cmap('terrain'))
+plt.imshow(imgRiverHeights, plt.get_cmap('terrain'), extent=imStretch)
 nx.draw(hydrology.graph,positions,node_size=60,labels=labels,width=weights)
 plt.savefig(outputDir + '8-river-flow-terrain.png')
 
@@ -285,7 +282,7 @@ Ts = DataModel.Terrain(hydrology, cells, num_points)
 # DEBUG
 fig = plt.figure(figsize=(16,16))
 ax = fig.add_subplot(111)
-ax.imshow(cells.imgvoronoi)
+ax.imshow(cells.imgvoronoi, extent=imStretch)
 ax.scatter(*zip(*[t.position for t in Ts.allTs()]), color='r', alpha=0.6, lw=0)
 ylim=ax.get_ylim();
 xlim=ax.get_xlim();
@@ -306,9 +303,9 @@ for node in hydrology.allMouthNodes():
 
         # terminates the path if there is another path with greater flow
         for ni in range(1,len(path)):
-            print(f'path: {[n.id for n in path]}')
-            print(f'ni: {ni}')
-            print(f'Upstream of node {path[ni].id} ({path[ni].position}): {[n.id for n in hydrology.upstream(path[ni].id)]}')
+            #print(f'path: {[n.id for n in path]}')
+            #print(f'ni: {ni}')
+            #print(f'Upstream of node {path[ni].id} ({path[ni].position}): {[n.id for n in hydrology.upstream(path[ni].id)]}')
             upstreamFlow = max([n.flow for n in hydrology.upstream(path[ni].id)])
             if upstreamFlow > path[ni-1].flow:
                 path = path[0:ni+1]
@@ -357,7 +354,7 @@ for node in hydrology.allMouthNodes():
 # DEBUG
 fig = plt.figure(figsize=(20,20))
 ax = fig.add_subplot(111)
-ax.imshow(shore.img)
+ax.imshow(shore.img, extent=imStretch)
 ylim=ax.get_ylim();
 xlim=ax.get_xlim();
 voronoi_plot_2d(cells.vor, point_size=10, ax=ax,line_colors=['yellow']) # draws the voronoi cells?
@@ -446,7 +443,7 @@ for t in Ts.allTs():
 imgOut = np.zeros((outputResolution,outputResolution),dtype=np.double)
 
 def TerrainFunction(prePoint):
-    point = [int(prePoint[0] * (shore.shape[0] / outputResolution)),int(prePoint[1] * (shore.shape[1] / outputResolution))]
+    point = [int(prePoint[0] * (shore.realShape[0] / outputResolution)),int(prePoint[1] * (shore.realShape[1] / outputResolution))]
     
     # if imgray[point[1]][point[0]]==0: This is why a new data model was implemented
     if not shore.isOnLand(point):
@@ -516,7 +513,7 @@ def ht(p,t): # Height of a terrain primitive
 def hr(p,r): # Height of a river primitive?
     d=p.distance(r)
     # TODO profile based on Rosgen classification
-    segma = 0.1 * min(rwidth**2,d**2) # I think this is the river profile (evidently the author can't read Greek)
+    segma = 0.1 * min(rwidth**2,d**2) # I think this is the river profile
     projected = r.interpolate(r.project(p))
     return projected.z+segma
 
@@ -542,9 +539,15 @@ def subroutine(conn, q):
     #conn.send(len(shore))
     conn.close()
 
+# DEBUG
+print(f'Highest riverbed elevation: {max([node.elevation for node in hydrology.allNodes()])}')
+print(f'Highest ridge elevation: {max([q.elevation for q in cells.allQs() if q is not None])}')
+
+
 dataQueue = Queue()
 pipes = []
 processes = []
+outputCounter = 0
 for p in range(numProcs):
     pipes.append(Pipe())
     processes.append(Process(target=subroutine, args=(pipes[p][1],dataQueue)))
@@ -553,12 +556,21 @@ for p in range(numProcs):
 for i in trange(outputResolution):
     data = dataQueue.get()
     imgOut[data[0]] = np.frombuffer(data[1],dtype=np.double)
+
+    if outputCounter > 19:
+        plt.clf()
+        plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
+        plt.colorbar()
+        plt.savefig(outputDir + 'out-color.png')
+        outputCounter = 0
+    outputCounter += 1
 for p in range(numProcs):
     processes[p].join()
     pipes[p][0].close()
 
 plt.clf()
 plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
+plt.colorbar()
 plt.savefig(outputDir + 'out-color.png')
 
 immtt = np.array(imgOut)
