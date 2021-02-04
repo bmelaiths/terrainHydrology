@@ -106,7 +106,7 @@ numProcs = 4
 
 ## Output Resolution
 outputResolution = 1000 # in pixels
-radius = edgeLength * 3
+radius = edgeLength / 3
 
 
 random.seed(globalseed)
