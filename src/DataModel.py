@@ -178,6 +178,7 @@ class TerrainHoneycomb:
         print()
 
         self.cellsRidges = { }
+        self.cellsDownstreamRidges = { }
         for n in range(len(hydrology)):
             connectedNodes = hydrology.upstream(n)
             node = hydrology.node(n)
@@ -189,6 +190,18 @@ class TerrainHoneycomb:
             for ri in range(len(self.vor.ridge_points)):
                 if n not in self.vor.ridge_points[ri]:
                     continue
+                if node.parent is not None:
+                    if self.vor.ridge_points[ri][0] == node.parent.id or self.vor.ridge_points[ri][1] == node.parent.id:
+                        # this is the downstream ridge
+                        v1 = self.vor.vertices[self.vor.ridge_vertices[ri][0]]
+                        v2 = self.vor.vertices[self.vor.ridge_vertices[ri][1]]
+                        if not self.shore.isOnLand(v1) or not self.shore.isOnLand(v2):
+                            # this is a bad way to handle this
+                            self.cellsDownstreamRidges[n] = None
+                        else:
+                            self.cellsDownstreamRidges[n] = (
+                                self.vor.vertices[self.vor.ridge_vertices[ri][0]], self.vor.vertices[self.vor.ridge_vertices[ri][1]]
+                            )
                 # ri points to a ridge of this node
                 if self.vor.ridge_points[ri][0] in connectedNodes or self.vor.ridge_points[ri][1] in connectedNodes:
                     continue
@@ -238,6 +251,8 @@ class TerrainHoneycomb:
         return self.imgvoronoi[int(p[1]/self.resolution)][int(p[0]/self.resolution)]==self.vor.point_region[n]+1
     def cellRidges(self, n):
         return self.cellsRidges[n]
+    def cellOutflowRidge(self, n):
+        return self.cellsDownstreamRidges[n]
     def nodeID(self, point):
         id = list(self.vor.point_region).index(self.imgvoronoi[int(point[1]/self.resolution)][int(point[0]/self.resolution)]-1)
         return id if id != -1 else None

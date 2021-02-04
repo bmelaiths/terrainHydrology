@@ -105,7 +105,7 @@ rwidth = edgeLength / 2
 numProcs = 4
 
 ## Output Resolution
-outputResolution = 5000 # in pixels
+outputResolution = 1000 # in pixels
 radius = edgeLength * 3
 
 
@@ -301,7 +301,7 @@ for node in hydrology.allMouthNodes():
         path = hydrology.pathToNode(node.id,leafNode.id)
         path.reverse()
 
-        # terminates the path if there is another path with greater flow
+        # terminates the path if there is another path with greater flow, and adds the downflow ridge as a point
         for ni in range(1,len(path)):
             #print(f'path: {[n.id for n in path]}')
             #print(f'ni: {ni}')
@@ -310,10 +310,24 @@ for node in hydrology.allMouthNodes():
             if upstreamFlow > path[ni-1].flow:
                 path = path[0:ni+1]
                 break
+        
+        x = [ ]
+        y = [ ]
+        z = [ ]
+        for pi in range(len(path)):
+            p = path[pi]
+            x.append(p.x())
+            y.append(p.y())
+            z.append(p.elevation)
+            if p.parent is not None and pi < len(path)-1 and cells.cellOutflowRidge(p.id) is not None:
+                ridge0, ridge1 = cells.cellOutflowRidge(p.id)
+                x.append((ridge0[0] + ridge1[0])/2)
+                y.append((ridge0[1] + ridge1[1])/2)
+                z.append((p.elevation + p.parent.elevation)/2)
 
-        x = np.array([p.x() for p in path])
-        y = np.array([p.y() for p in path])
-        z = np.array([p.elevation for p in path])
+        #x = np.array([p.x() for p in path])
+        #y = np.array([p.y() for p in path])
+        #z = np.array([p.elevation for p in path])
         
         # it seems to me that, if the path is short, this block
         # adjusts the positions of the first three nodes
