@@ -82,7 +82,7 @@ N_majorRivers=10
 Ps = 0.3 #0.05 ## probability of symetric branch
 Pa = 0 #0.3 ## probability of asymetric branch
 Pc = 1-(Ps+Pa) ## probability of continium (growth)
-zeta = 10 # elevation range to include in candidate node selection
+zeta = 100 # elevation range to include in candidate node selection
 riverAngleDev = 1.7 # Used in picknewnodepos(). Standard Deviation of angle for new node. Increase for less straight rivers
 maxTries = 15
 
@@ -116,6 +116,7 @@ random.seed(globalseed)
 
 shore = DataModel.ShoreModel(inputDomain, resolution)
 plt.imshow(shore.imgOutline)                    # DEBUG
+plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '0-riverCellNetwork.png') # DEBUG
 
 imStretch = (0,int(shore.rasterShape[0]*resolution),int(shore.rasterShape[1]*resolution),0) # used to stretch debug images
@@ -144,6 +145,7 @@ imgMouthDots = shore.imgOutline.copy()
 for node in hydrology.allMouthNodes():
     cv.circle(imgMouthDots, (int(node.x()/resolution),int(node.y()/resolution)), int((shore.rasterShape[0]/512)*10), (255,0,0), -1)
 plt.imshow(imgMouthDots)
+plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '3-riverMouths.png')
 
 
@@ -197,16 +199,19 @@ voronoi_plot_2d(cells.vor, point_size=10, ax=ax,line_colors=['yellow']) # draws 
 ax.set_ylim(ylim);
 ax.set_xlim(xlim);
 kernel = cv.getStructuringElement(cv.MORPH_RECT,(2,2))#I have no idea what this is, and it isn't used anywhere else
+plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '4-riverCellNetwork.png', dpi=100)
 plt.clf()
 
 # DEBUG
 plt.imshow(cells.imgvoronoi)
+plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '5-imgvoronoi.png')
 plt.clf()
 
 # DEBUG
 plt.imshow(imgRiverHeights, cmap=plt.get_cmap('terrain'))
+plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '6-riverHeights.png')
 
 ### Breakdown of the image
@@ -264,6 +269,7 @@ normalizer = max([node.flow for node in nodes])
 weights = [6*u.flow/normalizer for u,v in hydrology.allEdges()]
 plt.imshow(shore.img, extent=imStretch)
 nx.draw(hydrology.graph,positions,node_size=10,labels=labels,width=weights)
+plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '7-river-flow.png', dpi=100)
 
 
@@ -272,6 +278,7 @@ plt.savefig(outputDir + '7-river-flow.png', dpi=100)
 plt.figure(num=None, figsize=(16, 16), dpi=80)
 plt.imshow(imgRiverHeights, plt.get_cmap('terrain'), extent=imStretch)
 nx.draw(hydrology.graph,positions,node_size=60,labels=labels,width=weights)
+plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '8-river-flow-terrain.png')
 
 # Terrain pattern
@@ -279,20 +286,8 @@ plt.savefig(outputDir + '8-river-flow-terrain.png')
 print('Generating terrain primitives...')
 Ts = DataModel.Terrain(hydrology, cells, num_points)
 
-# DEBUG
-fig = plt.figure(figsize=(16,16))
-ax = fig.add_subplot(111)
-ax.imshow(cells.imgvoronoi, extent=imStretch)
-ax.scatter(*zip(*[t.position for t in Ts.allTs()]), color='r', alpha=0.6, lw=0)
-ylim=ax.get_ylim();
-xlim=ax.get_xlim();
-nx.draw(hydrology.graph,positions,node_size=60,labels=labels,ax=ax)
-voronoi_plot_2d(cells.vor, point_size=10, ax=ax,line_colors=['yellow'])
-ax.set_ylim(ylim);
-ax.set_xlim(xlim);
-plt.savefig(outputDir + '9-terrain-primitives', dpi=100)
-
 # Generate river paths
+print('Interpolating river paths...')
 for node in hydrology.allMouthNodes():
     # remember that out_edges gets upstream nodes
     leaves = hydrology.allLeaves(node.id)
@@ -381,9 +376,11 @@ for mouth in hydrology.allMouthNodes():
         plt.plot(x,y)
 for node in hydrology.allNodes():
     plt.text(node.x(),node.y(),node.id)
-plt.savefig(outputDir + 'a-interpolatedRiverCellNetwork.png', dpi=100)
+plt.tight_layout()                                # DEBUG
+plt.savefig(outputDir + '9-interpolatedRiverCellNetwork.png', dpi=100)
 
 # Calculate elevations of terrain primitives
+print('Calculating terrain primitive elevations...')
 progressCounter = 0
 numTs = len(Ts.allTs())
 for t in Ts.allTs():
@@ -449,8 +446,23 @@ for t in Ts.allTs():
     t.elevation = lerpedelevation
     
     progressCounter = progressCounter + 1
-    print(f'\tPrimitives created: {progressCounter} out of {numTs} \r', end='')  # use display(f) if you encounter performance issues
+    print(f'\tPrimitives computed: {progressCounter} out of {numTs} \r', end='')  # use display(f) if you encounter performance issues
+print()
 
+# DEBUG
+print('Generating terrain primitives image...')
+fig = plt.figure(figsize=(16,16))
+ax = fig.add_subplot(111)
+ax.imshow(shore.img, extent=imStretch)
+ax.scatter(*zip(*[t.position for t in Ts.allTs()]), c=[t.elevation for t in Ts.allTs()], cmap=plt.get_cmap('terrain'), s=5, lw=0)
+ylim=ax.get_ylim();
+xlim=ax.get_xlim();
+nx.draw(hydrology.graph,positions,node_size=0,labels=labels,ax=ax)
+voronoi_plot_2d(cells.vor, point_size=1, ax=ax,line_colors=['yellow'])
+ax.set_ylim(ylim);
+ax.set_xlim(xlim);
+plt.tight_layout()                                # DEBUG
+plt.savefig(outputDir + 'a-terrain-primitives.png', dpi=500)
 
 # Render output image
 
@@ -575,6 +587,7 @@ for i in trange(outputResolution):
         plt.clf()
         plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
         plt.colorbar()
+        plt.tight_layout()                                # DEBUG
         plt.savefig(outputDir + 'out-color.png')
         outputCounter = 0
     outputCounter += 1
@@ -585,6 +598,7 @@ for p in range(numProcs):
 plt.clf()
 plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
 plt.colorbar()
+plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + 'out-color.png')
 
 immtt = np.array(imgOut)

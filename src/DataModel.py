@@ -180,7 +180,7 @@ class TerrainHoneycomb:
         self.cellsRidges = { }
         self.cellsDownstreamRidges = { }
         for n in range(len(hydrology)):
-            connectedNodes = hydrology.upstream(n)
+            connectedNodes = [nd.id for nd in hydrology.upstream(n)]
             node = hydrology.node(n)
             if node.parent is not None:
                 connectedNodes.append(node.parent.id)
@@ -198,10 +198,12 @@ class TerrainHoneycomb:
                         if not self.shore.isOnLand(v1) or not self.shore.isOnLand(v2):
                             # this is a bad way to handle this
                             self.cellsDownstreamRidges[n] = None
+                            continue
                         else:
                             self.cellsDownstreamRidges[n] = (
                                 self.vor.vertices[self.vor.ridge_vertices[ri][0]], self.vor.vertices[self.vor.ridge_vertices[ri][1]]
                             )
+                            continue
                 # ri points to a ridge of this node
                 if self.vor.ridge_points[ri][0] in connectedNodes or self.vor.ridge_points[ri][1] in connectedNodes:
                     continue
