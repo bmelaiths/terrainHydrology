@@ -2,7 +2,7 @@
 
 This is a terrain generator inspired by 2013 paper "Terrain Generation Using Procedural Models Based on Hydrology".
 
-
+![Example Terrain](example/out/out-color.png)
 
 ## About
 
@@ -32,7 +32,9 @@ Eventually, the ability to write to a GeoTIFF will be implemented.
 
 ### Example
 
-> `src/hydrology.py -g outline.png -r riverslope.png -t terrainslope.png -o out/`
+```
+src/hydrology.py -g example/in/gamma.png -r example/in/riverslope.png -t example/in/terrainslope.png -o example/out/
+```
 
 ## Documentation
 
