@@ -3,8 +3,24 @@ import math
 
 import Math
 
-def selectNode(candidate_nodes,zeta):
+# imports and definitions for type hinting
+import typing
+import DataModel
+HydroPrimitive = DataModel.HydroPrimitive
+HydrologyNetwork = DataModel.HydrologyNetwork
 
+def selectNode(candidate_nodes: typing.List[HydroPrimitive] , zeta: float) -> HydroPrimitive:
+    """Given a list of candidate nodes, this function selects the next node to expand
+
+    The selection is based on Genevaux et al §4.2.1
+
+    :param candidate_nodes: The nodes that can still be expanded
+    :type candidate_nodes: list[HydroPrimitive]
+    :param zeta: Basically determines how much to prioritize elevation in the selection process (see Genevaux et al §4.2.1)
+    :type zeta: int
+    :return: The node to expand in the next step
+    :rtype: HydroPrimitive
+    """
     lowestCandidateZ = min([node.elevation for node in candidate_nodes]) # elevation of lowest candidate
     subselection = [n for n in candidate_nodes if n.elevation < lowestCandidateZ+zeta ] # 
     subselection.sort(key = lambda r : r.priority,reverse = True)
@@ -13,6 +29,14 @@ def selectNode(candidate_nodes,zeta):
     return subsubselection[0]
 
 class HydrologyParameters:
+    """A simple struct that carries the paramaters relevant to expanding the river network
+
+    It's pretty self-explanatory.
+
+    .. todo::
+       There must be a better way to do this. In the future it might make sense to
+       implement the Factory Pattern to generate the :class:`DataModel.HydrologyNetwork`.
+    """
     def __init__(
         self, shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, riverSlope, slopeRate
     ):
@@ -28,7 +52,16 @@ class HydrologyParameters:
         self.riverSlope = riverSlope
         self.slopeRate = slopeRate
 
-def alpha(node, candidates, params):         # alpha, as in the expansion rules in Table 1
+def alpha(node: HydroPrimitive, candidates: typing.List[HydroPrimitive], params: HydrologyParameters):         # alpha, as in the expansion rules in Table 1
+    """Alpha node expansion rule
+
+    :param node: The node to expand
+    :type node: HydroPrimitive
+    :param candidates: The set of candidate nodes
+    :type candidates: list[HydroPrimitive]
+    :param params: The parameter struct
+    :type params: HydrologyParameters
+    """
     if node.priority==1:
         ruleBase(node, candidates, params)
     else:
@@ -41,30 +74,77 @@ def alpha(node, candidates, params):         # alpha, as in the expansion rules 
             rulePs(node, candidates, params)
 
             
-def ruleBase(node, candidates, params): #filling
+def ruleBase(node: HydroPrimitive, candidates: typing.List[HydroPrimitive], params: HydrologyParameters): #filling
+    """Rule 1 from Table 1 in Genevaux et al
+
+    :param node: The node to expand
+    :type node: HydroPrimitive
+    :param candidates: The set of candidate nodes
+    :type candidates: list[HydroPrimitive]
+    :param params: The parameter struct
+    :type params: HydrologyParameters
+    """
     #tao(priority,node)
     for i in range(random.randint(1,5)):
         beta(node, node.priority, candidates, params)
         
         
-def rulePc(node, candidates, params): #rive growth
+def rulePc(node: HydroPrimitive, candidates: typing.List[HydroPrimitive], params: HydrologyParameters): #rive growth
+    """Rule 2.1 from Table 1 in Genevaux et al
+
+    :param node: The node to expand
+    :type node: HydroPrimitive
+    :param candidates: The set of candidate nodes
+    :type candidates: list[HydroPrimitive]
+    :param params: The parameter struct
+    :type params: HydrologyParameters
+    """
     #tao(priority,node)
     beta(node, node.priority,candidates, params)
     
     
-def rulePs(node, candidates, params): #symetric junction
+def rulePs(node: HydroPrimitive, candidates: typing.List[HydroPrimitive], params: HydrologyParameters): #symetric junction
+    """Rule 2.2 from Table 1 in Genevaux et al
+
+    :param node: The node to expand
+    :type node: HydroPrimitive
+    :param candidates: The set of candidate nodes
+    :type candidates: list[HydroPrimitive]
+    :param params: The parameter struct
+    :type params: HydrologyParameters
+    """
     #tao(priority,node)
     beta(node, node.priority-1, candidates, params)
     beta(node, node.priority-1, candidates, params)
 
     
-def rulePa(priority,node, params): # asymetric junction
+def rulePa(node: HydroPrimitive, candidates: typing.List[HydroPrimitive], params: HydrologyParameters): # asymetric junction
+    """Rule 2.3 from Table 1 in Genevaux et al
+
+    :param node: The node to expand
+    :type node: HydroPrimitive
+    :param candidates: The set of candidate nodes
+    :type candidates: list[HydroPrimitive]
+    :param params: The parameter struct
+    :type params: HydrologyParameters
+    """
     #tao(priority,node)
     beta(node, node.priority, candidates, params)
     beta(random.randint(1,priority-1),node, params)
     
     
-def beta(node, priority, candidates, params):
+def beta(node: HydroPrimitive, priority: int, candidates: typing.List[HydroPrimitive], params: HydrologyParameters):
+    """Instantiates a new node with a given priority
+
+    :param node: The node to expand
+    :type node: HydroPrimitive
+    :param priority: The priority for the new node
+    :type priority: int
+    :param candidates: The set of candidate nodes
+    :type candidates: list[HydroPrimitive]
+    :param params: The parameter struct
+    :type params: HydrologyParameters
+    """
     point = picknewnodepos(node, params)
     if point is not None:
         slope = params.slopeRate * params.riverSlope[node.x() , node.y()]/255
@@ -73,7 +153,14 @@ def beta(node, priority, candidates, params):
     else:
         tao(node, candidates)
 
-def tao(node, candidates):
+def tao(node: HydroPrimitive, candidates: typing.List[HydroPrimitive]):
+    """Removes a node from the set of candidates (rule 3.2 from Table 1 of Genevaux et al)
+
+    :param node: The node to remove
+    :type node: HydroPrimitive
+    :param candidates: The set (list) of candidates
+    :type candidates: list[HydroPrimitive]
+    """
     try:
         candidates.remove(node)
     except:
@@ -81,7 +168,18 @@ def tao(node, candidates):
     finally:
         None
 
-def picknewnodepos(parentnode, params):
+def picknewnodepos(parentnode: HydroPrimitive, params: HydrologyParameters) -> typing.Optional[typing.Tuple[float,float]]:
+    """Tries to pick a new position for a candidate node
+
+    Tries to avoid the coast and crowding other nodes
+
+    :param parentnode: The node to start from
+    :type parentnode: HydroPrimitive
+    :param params: The struct holding the relevant parameters
+    :type params: HydrologyParameters
+    :return: A new position, or None if one could not be found
+    :rtype: tuple[float,float] | None
+    """
     parentsparent = params.hydrology.downstream(parentnode.id) # parent node of parentnode
     
     angle = None
@@ -112,14 +210,35 @@ def picknewnodepos(parentnode, params):
     
     return newNodePos
 
-def coastNormal(node, params): # Gets the angle that is approximately normal to the coast
+def coastNormal(node: HydroPrimitive, params: HydrologyParameters) -> float: # Gets the angle that is approximately normal to the coast
+    """Gets an angle that is (approximately) perpendicular to the coast
+
+    This is why :class:`DataModel.HydroPrimitive` instances that represent
+    a mouth node have a ``contourIndex`` attribute.
+
+    :param node: The node to query
+    :type node: HydroPrimitive:
+    :param params: The struct holding the relevant parameters
+    :type params: HydrologyParameters
+    :return: The angle in radians
+    :rtype: float
+    """
     assert node.contourIndex is not None # assert that this is a mouth node
     p1 = params.shore[node.contourIndex+3]
     p2 = params.shore[node.contourIndex-3]
     theta = math.atan2(p2[1]-p1[1],p2[0]-p1[0])
     return theta + 0.5*math.pi
 
-def isAcceptablePosition(point, params):
+def isAcceptablePosition(point: typing.Tuple[float,float], params: HydrologyParameters) -> bool:
+    """Determines whether or not a point is acceptable as a new node's location
+
+    :param point: The point in question
+    :type point: tuple[float,float]
+    :param params: The struct holding the relevant parameters
+    :type params: HydrologyParameters
+    :return: True if the point meets the criteria, False if otherwise
+    :rtype: bool
+    """
     if point is None:
         return False
     # is the point too close to the seeeeeeeeeeeee?
@@ -138,7 +257,14 @@ def isAcceptablePosition(point, params):
     # otherwise return True
     return True
 
-def calculateHorton_Strahler(selectedCandidate, hydrology):
+def calculateHorton_Strahler(selectedCandidate: HydroPrimitive, hydrology: HydrologyNetwork):
+    """Computes the Horton-Strahler classification of a node
+
+    :param selectedCandidate: The node in question
+    :type selectedCandidate: HydroPrimitive
+    :param hydrology: The hydrological network
+    :type params: HydrologyNetwork
+    """
     #find the leaves from this node and calculate upstream
     leafs = hydrology.allLeaves(selectedCandidate.id)
     workingqueue=leafs
@@ -161,6 +287,11 @@ def calculateHorton_Strahler(selectedCandidate, hydrology):
 
 # I don't think this method is called anywhere
 def calculateHorton_Strahler_():
+    """I'm pretty sure this is just an aborted version of :func:`calculateHorton_Strahler`
+
+    .. todo::
+       This block should probably be deleted in a future version, as it is never used.
+    """
     leafs = [x for x in G.nodes() if G.out_degree(x)==0]
     workingqueue=leafs
     nextQueue=set()
@@ -181,7 +312,20 @@ def calculateHorton_Strahler_():
                 nextQueue.add(parent[0])
         workingqueue=list(nextQueue)
 
-def classify(node, hydrology, edgeLength):
+def classify(node: HydroPrimitive, hydrology: HydrologyNetwork, edgeLength: float):
+    """Computes the Rosgen classification for a stretch of river
+
+    :param node: The node to classify
+    :type node: HydroPrimitive
+    :param hydrology: The hydrological network
+    :type hydrology: HydrologyNetwork
+    :param edgeLength: The length of each edge between nodes
+    :type edgeLength: float
+
+    .. todo::
+       This classification is just a slapdash placeholder. A real classification should
+       be written in the future.
+    """
     # Based on river slope and distance from Gamma
     # TODO: A real classification
     children = hydrology.upstream(node.id)
