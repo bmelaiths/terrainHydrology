@@ -466,14 +466,20 @@ plt.savefig(outputDir + 'a-terrain-primitives.png', dpi=500)
 
 # Render output image
 
-imgOut = np.zeros((outputResolution,outputResolution),dtype=np.double)
+# DEBUG
+print(f'Highest riverbed elevation: {max([node.elevation for node in hydrology.allNodes()])}')
+maxq = max([q.elevation for q in cells.allQs() if q is not None])
+print(f'Highest ridge elevation: {maxq}')
+oceanFloor = 0 - 0.25 * maxq / 0.75
+
+imgOut = np.full((outputResolution,outputResolution), oceanFloor,dtype=np.double)
 
 def TerrainFunction(prePoint):
     point = [int(prePoint[0] * (shore.realShape[0] / outputResolution)),int(prePoint[1] * (shore.realShape[1] / outputResolution))]
     
     # if imgray[point[1]][point[0]]==0: This is why a new data model was implemented
     if not shore.isOnLand(point):
-        return 0
+        return oceanFloor
 
     # Gets and computes influence and elevation values for nearby terrain primitives
     ts = Ts.query_ball_point(point,radius) # Gets all terrain primitives within a radius of the point
@@ -552,9 +558,9 @@ def subroutine(conn, q):
     #print(f'Thread ID: {conn.recv()}')
     threadID = conn.recv()
     for i in range(threadID, outputResolution, numProcs):
-        arr = np.zeros(outputResolution,dtype=np.double)
+        arr = np.full(outputResolution, oceanFloor,dtype=np.double)
         for j in range(outputResolution):
-            arr[j] = max(0,TerrainFunction((j,i)))
+            arr[j] = max(oceanFloor,TerrainFunction((j,i)))
         try:
             q.put((i,arr.tobytes()))
         except:
@@ -564,11 +570,6 @@ def subroutine(conn, q):
     
     #conn.send(len(shore))
     conn.close()
-
-# DEBUG
-print(f'Highest riverbed elevation: {max([node.elevation for node in hydrology.allNodes()])}')
-print(f'Highest ridge elevation: {max([q.elevation for q in cells.allQs() if q is not None])}')
-
 
 dataQueue = Queue()
 pipes = []
@@ -600,6 +601,8 @@ plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
 plt.colorbar()
 plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + 'out-color.png')
+
+imgOut[imgOut==oceanFloor] = 0 # For actual heightmap output, set 'ocean' to zero
 
 immtt = np.array(imgOut)
 normalizedImg = immtt.copy()
