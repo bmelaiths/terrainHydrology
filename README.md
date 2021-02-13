@@ -22,6 +22,14 @@ The program requires three images as inputs. They should all be the same resolut
 1. The river slope map is a grayscale image (though the actual color model does not matter). This map indicates the slope of rivers. Lighter values represent steeper slopes, and darker values represent more level slopes.
 1. The terrain slope map is also a grayscale image. It indicates the slope of terrain independent of the rivers.
 
+Three other parameters must be specified as command line switches.
+
+* `-ri` This is the spatial resolution of the input images in meters per pixel.
+* `p` This is the approximate number of terrain primitives for each cell.
+* `-ro` This is the number of pixels or samples on each side of the output raster
+
+Optionally, `--num-procs` can be used to specify the number of processes to use in rendering the output raster. This will take advantage of the parallel processing capabilities of your CPU, and the number specified here should be equal to the number of cores in your CPU(s). Numbers larger than this obviously will not help, but numbers less than this will reduce performance.
+
 ### Output
 
 A directory must be specified where the script will dump all of its output.
@@ -33,7 +41,7 @@ As this program is in the early stages of development, it produces a number of c
 ### Example
 
 ```
-src/hydrology.py -g example/in/gamma.png -r example/in/riverslope.png -t example/in/terrainslope.png -o example/out/
+src/hydrology.py -g example/in/gamma.png -r example/in/riverslope.png -t example/in/terrainslope.png -o example/out/ 
 ```
 
 ## Documentation

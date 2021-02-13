@@ -36,7 +36,7 @@ parser.add_argument(
     required=True
 )
 parser.add_argument(
-    '-r',
+    '-s',
     '--river-slope',
     help='Slope of the rivers (not terrain slope). Values in grayscale.',
     dest='inputRiverSlope',
@@ -59,6 +59,38 @@ parser.add_argument(
     metavar='output/',
     required=True
 )
+parser.add_argument(
+    '-ri',
+    '--input-resolution',
+    help='The spatial resolution of the input images in meters per pixel',
+    dest='resolution',
+    metavar='87.5',
+    required=True
+)
+parser.add_argument(
+    '-p',
+    '--num-points',
+    help='The (rough) number of terrain primitives for each cell',
+    dest='num_points',
+    metavar='50',
+    required=True
+)
+parser.add_argument(
+    '--num-procs',
+    help='The number of processes/threads to use in rendering. This should be the number of cores you have on your system.',
+    dest='num_procs',
+    metavar='4',
+    default=4,
+    required=False
+)
+parser.add_argument(
+    '-ro',
+    '--output-resolution',
+    help='The number of pixels/samples on each side of the output raster',
+    dest='outputResolution',
+    metavar='1000',
+    required=True
+)
 args = parser.parse_args()
 
 outputDir = args.outputDir + '/'
@@ -70,7 +102,7 @@ outputDir = args.outputDir + '/'
 inputDomain = args.inputDomain
 inputTerrain = args.inputTerrain
 inputRiverSlope = args.inputRiverSlope
-resolution = 279.6 # meters per pixel length
+resolution = float(args.resolution) # meters per pixel length
 
 ## Random Number Generation
 globalseed=4314
@@ -98,16 +130,16 @@ sigma = .75 # sigma * edgeLength is the minimum distance between two nodes
 
 ## Terrain Parameters
 terrainSlopeRate = 1.0 # Maximum rate at which ridges climb in vertical meters per horizontal meter
-num_points = 50 # The (rough) number of terrain primitives for each cell
+num_points = int(args.num_points) # The (rough) number of terrain primitives for each cell
 
 ## Rendering Parameters
 rwidth = edgeLength / 2
 
 ## Multiprocessing Parameters
-numProcs = 4
+numProcs = int(args.num_procs)
 
 ## Output Resolution
-outputResolution = 1000 # in pixels
+outputResolution = int(args.outputResolution) # in pixels
 radius = edgeLength / 3
 
 
