@@ -52,6 +52,12 @@ class ShoreModel:
     :type inputFileName: str
     :param resolution: The resolution of the input image in meters per pixel
     :type resolution: float
+
+    :cvar realShape: The spatial dimensions of the area that the gamma image covers, in meters
+    :vartype realShape: numpy.ndarray[float,float]
+
+    .. note::
+       Shape variables are all in order y,x.
     """
     def __init__(self, inputFileName: str, resolution: float):
         """Constructor
@@ -101,8 +107,8 @@ class ShoreModel:
         :rtype: bool
         """
         
-        if 0 <= loc[0] < self.realShape[0] and 0 <= loc[1] < self.realShape[1]:
-            return self.imgray[int(loc[1]/self.resolution)][int(loc[0]/self.resolution)] != 0
+        if 0 <= loc[0] < self.realShape[1] and 0 <= loc[1] < self.realShape[0]:
+            return self.imgray[int(loc[1]/self.resolution)][int(loc[0]/self.resolution)] == 255 # != 0
         else:
             return False
     def __getitem__(self, index: int):

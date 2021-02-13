@@ -153,7 +153,7 @@ plt.imshow(shore.imgOutline)                    # DEBUG
 plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '0-riverCellNetwork.png') # DEBUG
 
-imStretch = (0,int(shore.rasterShape[0]*resolution),int(shore.rasterShape[1]*resolution),0) # used to stretch debug images
+imStretch = (0,int(shore.rasterShape[1]*resolution),int(shore.rasterShape[0]*resolution),0) # used to stretch debug images
 
 terrainSlope = DataModel.RasterData(inputTerrain, resolution)
 
@@ -509,7 +509,7 @@ oceanFloor = 0 - 0.25 * maxq / 0.75
 imgOut = np.full((outputResolution,outputResolution), oceanFloor,dtype=np.single)
 
 def TerrainFunction(prePoint):
-    point = [int(prePoint[0] * (shore.realShape[0] / outputResolution)),int(prePoint[1] * (shore.realShape[1] / outputResolution))]
+    point = [int(prePoint[0] * (shore.realShape[1] / outputResolution)),int(prePoint[1] * (shore.realShape[0] / outputResolution))]
     
     # if imgray[point[1]][point[0]]==0: This is why a new data model was implemented
     if not shore.isOnLand(point):
@@ -640,7 +640,7 @@ imgOut[imgOut==oceanFloor] = -5000.0 # For actual heightmap output, set 'ocean' 
 imgOut = np.flipud(imgOut) # Adjust to GeoTIFF coordinate system
 
 projection = '+proj=ortho +lat_0=-55.377 +lon_0=-67.765' # Adjust lat_o and lon_0 for location
-transform = Affine.scale(*(shore.img.shape[0]*resolution/outputResolution,shore.img.shape[1]*resolution/outputResolution)) * \
+transform = Affine.scale(*(shore.img.shape[1]*resolution/outputResolution,shore.img.shape[0]*resolution/outputResolution)) * \
             Affine.translation(-outputResolution*0.5,-outputResolution*0.5)
 new_dataset = rasterio.open(
     outputDir + '/out-geo.tif',
