@@ -14,6 +14,8 @@ from shapely.geometry import asLineString
 from multiprocessing import Process, Pipe, Queue
 from tqdm import trange
 import math
+import rasterio
+from rasterio.transform import Affine
 
 import DataModel
 import HydrologyFunctions
@@ -472,7 +474,7 @@ maxq = max([q.elevation for q in cells.allQs() if q is not None])
 print(f'Highest ridge elevation: {maxq}')
 oceanFloor = 0 - 0.25 * maxq / 0.75
 
-imgOut = np.full((outputResolution,outputResolution), oceanFloor,dtype=np.double)
+imgOut = np.full((outputResolution,outputResolution), oceanFloor,dtype=np.single)
 
 def TerrainFunction(prePoint):
     point = [int(prePoint[0] * (shore.realShape[0] / outputResolution)),int(prePoint[1] * (shore.realShape[1] / outputResolution))]
@@ -558,7 +560,7 @@ def subroutine(conn, q):
     #print(f'Thread ID: {conn.recv()}')
     threadID = conn.recv()
     for i in range(threadID, outputResolution, numProcs):
-        arr = np.full(outputResolution, oceanFloor,dtype=np.double)
+        arr = np.full(outputResolution, oceanFloor,dtype=np.single)
         for j in range(outputResolution):
             arr[j] = max(oceanFloor,TerrainFunction((j,i)))
         try:
@@ -582,9 +584,9 @@ for p in range(numProcs):
     pipes[p][0].send(p)
 for i in trange(outputResolution):
     data = dataQueue.get()
-    imgOut[data[0]] = np.frombuffer(data[1],dtype=np.double)
+    imgOut[data[0]] = np.frombuffer(data[1],dtype=np.single)
 
-    if outputCounter > 19:
+    if outputCounter > 50:
         plt.clf()
         plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
         plt.colorbar()
@@ -602,10 +604,24 @@ plt.colorbar()
 plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + 'out-color.png')
 
-imgOut[imgOut==oceanFloor] = 0 # For actual heightmap output, set 'ocean' to zero
+imgOut[imgOut==oceanFloor] = -5000.0 # For actual heightmap output, set 'ocean' to the nodata value
+imgOut = np.flipud(imgOut) # Adjust to GeoTIFF coordinate system
 
-immtt = np.array(imgOut)
-normalizedImg = immtt.copy()
-cv.normalize(immtt,  normalizedImg, 0, 255, cv.NORM_MINMAX)
-normalizedImg = normalizedImg.astype('uint8')
-cv.imwrite(outputDir + "out.png",normalizedImg)
+projection = '+proj=ortho +lat_0=-55.377 +lon_0=-67.765' # Adjust lat_o and lon_0 for location
+transform = Affine.scale(*(shore.img.shape[0]*resolution/outputResolution,shore.img.shape[1]*resolution/outputResolution)) * \
+            Affine.translation(-outputResolution*0.5,-outputResolution*0.5)
+new_dataset = rasterio.open(
+    outputDir + '/out-geo.tif',
+    'w',
+    driver='GTiff',
+    height=imgOut.shape[0],
+    width=imgOut.shape[1],
+    count=1,
+    dtype=imgOut.dtype,
+    crs=projection,
+    transform=transform,
+    nodata=-5000.0
+)
+new_dataset.write(imgOut, 1)
+print(new_dataset.meta)
+new_dataset.close()

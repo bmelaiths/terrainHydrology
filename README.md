@@ -24,11 +24,11 @@ The program requires three images as inputs. They should all be the same resolut
 
 ### Output
 
-An output directory must be specified.
+A directory must be specified where the script will dump all of its output.
+
+There are two outputs that will be useful to users. Firstly, `out-color.png` is a human-friendly elevation map. Secondly, `out.tif` is a GeoTIFF that can be read by GIS software. To adjust the location that the GeoTIFF specifies, edit the `projection` string on line 610.
 
 As this program is in the early stages of development, it produces a number of charts and figures which are helpful for debugging. The final results are written to `out.png` and `out-color.png`. All these files will be placed in the output directory.
-
-Eventually, the ability to write to a GeoTIFF will be implemented.
 
 ### Example
 
