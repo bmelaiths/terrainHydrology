@@ -91,6 +91,20 @@ parser.add_argument(
     metavar='1000',
     required=True
 )
+parser.add_argument(
+    '--lat',
+    help='Center latitude for the output GeoTIFF',
+    dest='latitude',
+    metavar='43.2',
+    required=True
+)
+parser.add_argument(
+    '--lon',
+    help='Center longitude for the output GeoTIFF',
+    dest='longitude',
+    metavar='-103.8',
+    required=True
+)
 args = parser.parse_args()
 
 outputDir = args.outputDir + '/'
@@ -124,7 +138,7 @@ maxTries = 15
 slopeRate = 0.1 # Maximum rate at which rivers climb in vertical meters per horizontal meter
 
 # Hydrological resolution parameters
-edgeLength = 8000 #4000 # in meters
+edgeLength = 2320.5 #4000 # in meters
 eta = .75   #   eta * edgeLength is the minimum distance from a node to the coast
 sigma = .75 # sigma * edgeLength is the minimum distance between two nodes
 
@@ -141,6 +155,8 @@ numProcs = int(args.num_procs)
 ## Output Resolution
 outputResolution = int(args.outputResolution) # in pixels
 radius = edgeLength / 3
+latitude = float(args.latitude)
+longitude = float(args.longitude)
 
 
 random.seed(globalseed)
@@ -639,7 +655,7 @@ plt.savefig(outputDir + 'out-color.png')
 imgOut[imgOut==oceanFloor] = -5000.0 # For actual heightmap output, set 'ocean' to the nodata value
 imgOut = np.flipud(imgOut) # Adjust to GeoTIFF coordinate system
 
-projection = '+proj=ortho +lat_0=-55.377 +lon_0=-67.765' # Adjust lat_o and lon_0 for location
+projection = f'+proj=ortho +lat_0={latitude} +lon_0={longitude}' # Adjust lat_o and lon_0 for location
 transform = Affine.scale(*(shore.img.shape[1]*resolution/outputResolution,shore.img.shape[0]*resolution/outputResolution)) * \
             Affine.translation(-outputResolution*0.5,-outputResolution*0.5)
 new_dataset = rasterio.open(

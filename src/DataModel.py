@@ -466,9 +466,6 @@ class TerrainHoneycomb:
                 openCVFillPolyArray(positions),
                 np.int16(self.vor_region_id(n)+1).item()
             )
-        ret, thresh = cv.threshold(shore.imgray, 127, 1, 0)
-        mask = np.array(thresh, dtype=np.uint16) * (256*256-1)
-        self.imgvoronoi = cv.bitwise_and(self.imgvoronoi,mask)
         
         self.qs = [ ]
         for iv in range(len(self.vor.vertices)):
