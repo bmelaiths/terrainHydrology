@@ -45,7 +45,7 @@ As this program is in the early stages of development, it produces a number of c
 ### Example
 
 ```
-src/hydrology.py -g example/in/gamma.png -s example/in/riverslope.png -t example/in/terrainslope.png -ri 420.106 -p 50 -o example/out/ -ro 1000 --lat -46.9 --lon -83.5
+src/hydrology.py -g example/in/gamma.png -s example/in/riverslope.png -t example/in/terrainslope.png -ri 100 -p 50 -o example/out/ -ro 1000 --lat -46.9 --lon -83.5
 ```
 
 ## Documentation
@@ -60,7 +60,9 @@ or
 
 > make pdf
 
-To generate pdf documentation, you will need the LaTeX toolchain.
+For HTML documentation, you will need to install the readthedocs.org theme.
+
+To generate PDF documentation, you will need the LaTeX toolchain.
 
 ## Dependencies and citations
 

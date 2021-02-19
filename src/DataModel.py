@@ -480,49 +480,53 @@ class TerrainHoneycomb:
 
         self.cellsRidges = { }
         self.cellsDownstreamRidges = { }
-        for n in range(len(hydrology)):
-            connectedNodes = [nd.id for nd in hydrology.upstream(n)]
-            node = hydrology.node(n)
-            if node.parent is not None:
-                connectedNodes.append(node.parent.id)
-            
-            verts = self.vor.regions[self.vor_region_id(n)].copy()
-            ridges = [ ]
-            for ri in range(len(self.vor.ridge_points)):
-                if n not in self.vor.ridge_points[ri]:
-                    continue
-                if node.parent is not None:
-                    if self.vor.ridge_points[ri][0] == node.parent.id or self.vor.ridge_points[ri][1] == node.parent.id:
-                        # this is the downstream ridge
-                        v1 = self.vor.vertices[self.vor.ridge_vertices[ri][0]]
-                        v2 = self.vor.vertices[self.vor.ridge_vertices[ri][1]]
-                        if not self.shore.isOnLand(v1) or not self.shore.isOnLand(v2):
-                            # this is a bad way to handle this
-                            self.cellsDownstreamRidges[n] = None
-                            continue
-                        else:
-                            self.cellsDownstreamRidges[n] = (
-                                self.vor.vertices[self.vor.ridge_vertices[ri][0]], self.vor.vertices[self.vor.ridge_vertices[ri][1]]
-                            )
-                            continue
-                # ri points to a ridge of this node
-                if self.vor.ridge_points[ri][0] in connectedNodes or self.vor.ridge_points[ri][1] in connectedNodes:
-                    continue
-                # ri does not point to a ridge that an edge goes through
+        # Classify all ridges
+        for ri in range(len(self.vor.ridge_vertices)):
+            for n in self.vor.ridge_points[ri]: # Each ridge separates exactly two nodes
+                if n >= len(self.hydrology):
+                    continue # Apparently there are nodes that don't exist; skip these
+                node = hydrology.node(n)
+                otherNode = self.vor.ridge_points[ri][self.vor.ridge_points[ri] != n][0]
+                # if this ridge is the outflow ridge for this node, mark it as such and move on
+                if node.parent is not None and node.parent.id == otherNode:
+                    # this ridge is the outflow ridge for this node
+                    v1 = self.vor.vertices[self.vor.ridge_vertices[ri][0]]
+                    v2 = self.vor.vertices[self.vor.ridge_vertices[ri][1]]
+                    if not self.shore.isOnLand(v1) or not self.shore.isOnLand(v2):
+                        # If one or both vertices is not on land, then don't bother
+                        # trying to make the river flow through the ridge neatly
+                        self.cellsDownstreamRidges[n] = None
+                    else:
+                        self.cellsDownstreamRidges[n] = (v1, v2)
+                    break # the outflow ridge of this node is an inflow ridge for the other one
+                if otherNode in [nd.id for nd in hydrology.upstream(n)]:
+                    continue # this is an inflow ridge, so it need not be considered further
+                # the ridge at ri is not transected by a river
+                if n not in self.cellsRidges:
+                    self.cellsRidges[n] = [ ]
                 vertex0 = self.qs[self.vor.ridge_vertices[ri][0]]
                 vertex1 = self.qs[self.vor.ridge_vertices[ri][1]]
                 if vertex0 is None or vertex1 is None:
                     continue
-                # both ends of the ridge are on land
-                if vertex0.vorIndex in verts:
-                    verts.remove(vertex0.vorIndex)
-                if vertex1.vorIndex in verts:
-                    verts.remove(vertex1.vorIndex)
-                ridges.append((vertex0, vertex1))
-            ridges += [(self.qs[vert],) for vert in verts if self.qs[vert] is not None]
-            # ridges includes vertices that are not part of a ridge (but only vertices on land)
-            self.cellsRidges[n] = ridges
-            print(f'\tOrganizing ridges for cell {n} of {len(hydrology)}\r', end='')
+                self.cellsRidges[n].append((vertex0,vertex1))
+            print(f'\tClassifying ridge {ri} of {len(self.vor.ridge_vertices)}\r', end='')
+        print()
+
+        # Add vertices that are not attached to ridges
+        for n in range(len(self.hydrology)):
+            verts = self.vor.regions[self.vor_region_id(n)].copy()
+            if n not in self.cellsRidges:
+                self.cellsRidges[n] = [ ]
+            # Eliminate vertices that are attached to ridges
+            for ridge in self.cellsRidges[n]:
+                for q in ridge:
+                    if q is not None and q.vorIndex in verts:
+                        verts.remove(q.vorIndex)
+            for v in verts:
+                if not self.shore.isOnLand(self.vor.vertices[v]):
+                    continue
+                self.cellsRidges[n].append((self.qs[v],))
+            print(f'\tFinding unaffiliated vertices for node {n} of {len(hydrology)}\r', end='')
         print()
     def vor_region_id(self, node: int) -> int:
         """Returns the index of the *voronoi region*
@@ -617,7 +621,7 @@ class TerrainHoneycomb:
         :return: True of point ``p`` is in the cell that corresponds to ``n``
         :rtype: bool
         """
-        return self.imgvoronoi[int(p[1]/self.resolution)][int(p[0]/self.resolution)]==self.vor.point_region[n]+1
+        return self.shore.isOnLand(p) and self.imgvoronoi[int(p[1]/self.resolution)][int(p[0]/self.resolution)]==self.vor.point_region[n]+1
     def cellRidges(self, n: int) -> typing.List[tuple]:
         """Returns the mountain ridges of a cell
 
