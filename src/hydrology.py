@@ -105,6 +105,14 @@ parser.add_argument(
     metavar='-103.8',
     required=True
 )
+parser.add_argument(
+    '--debug-dpi',
+    help='Manually specify the resolution of the debug images. Use for high-resolution inputs',
+    dest='debugdpi',
+    metavar='500',
+    default=100,
+    required=False
+)
 args = parser.parse_args()
 
 outputDir = args.outputDir + '/'
@@ -158,6 +166,8 @@ radius = edgeLength / 3
 latitude = float(args.latitude)
 longitude = float(args.longitude)
 
+## Debug parameters
+debugdpi = args.debugdpi
 
 random.seed(globalseed)
 
@@ -167,7 +177,7 @@ random.seed(globalseed)
 shore = DataModel.ShoreModel(inputDomain, resolution)
 plt.imshow(shore.imgOutline)                    # DEBUG
 plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '0-riverCellNetwork.png') # DEBUG
+plt.savefig(outputDir + '0-riverCellNetwork.png', dpi=debugdpi) # DEBUG
 
 imStretch = (0,int(shore.rasterShape[1]*resolution),int(shore.rasterShape[0]*resolution),0) # used to stretch debug images
 
@@ -196,7 +206,7 @@ for node in hydrology.allMouthNodes():
     cv.circle(imgMouthDots, (int(node.x()/resolution),int(node.y()/resolution)), int((shore.rasterShape[0]/512)*10), (255,0,0), -1)
 plt.imshow(imgMouthDots)
 plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '3-riverMouths.png')
+plt.savefig(outputDir + '3-riverMouths.png', dpi=debugdpi)
 
 
 # Generate river nodes
@@ -244,25 +254,25 @@ ax = fig.add_subplot(111)
 ax.imshow(shore.img, extent=imStretch)
 ylim=ax.get_ylim();
 xlim=ax.get_xlim();
-nx.draw(hydrology.graph,pos,node_size=60,labels=labels,ax=ax)
-voronoi_plot_2d(cells.vor, point_size=10, ax=ax,line_colors=['yellow']) # draws the voronoi cells?
+nx.draw(hydrology.graph,pos,node_size=1,labels=labels,ax=ax)
+voronoi_plot_2d(cells.vor, point_size=1, ax=ax,line_colors=['yellow'], show_vertices=False) # draws the voronoi cells?
 ax.set_ylim(ylim);
 ax.set_xlim(xlim);
 kernel = cv.getStructuringElement(cv.MORPH_RECT,(2,2))#I have no idea what this is, and it isn't used anywhere else
 plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '4-riverCellNetwork.png', dpi=100)
+plt.savefig(outputDir + '4-riverCellNetwork.png', dpi=debugdpi)
 plt.clf()
 
 # DEBUG
 plt.imshow(cells.imgvoronoi)
 plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '5-imgvoronoi.png')
+plt.savefig(outputDir + '5-imgvoronoi.png', dpi=debugdpi)
 plt.clf()
 
 # DEBUG
 plt.imshow(imgRiverHeights, cmap=plt.get_cmap('terrain'))
 plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '6-riverHeights.png')
+plt.savefig(outputDir + '6-riverHeights.png', dpi=debugdpi)
 
 ### Breakdown of the image
 # Giant red circles identify river mouths
@@ -318,9 +328,9 @@ positions = [node.position for node in nodes]
 normalizer = max([node.flow for node in nodes])
 weights = [6*u.flow/normalizer for u,v in hydrology.allEdges()]
 plt.imshow(shore.img, extent=imStretch)
-nx.draw(hydrology.graph,positions,node_size=10,labels=labels,width=weights)
+nx.draw(hydrology.graph,positions,node_size=1,labels=labels,width=weights)
 plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '7-river-flow.png', dpi=100)
+plt.savefig(outputDir + '7-river-flow.png', dpi=debugdpi)
 
 
 # DEBUG Same thing, but over imgvoronoi instead of the map
@@ -329,7 +339,7 @@ plt.figure(num=None, figsize=(16, 16), dpi=80)
 plt.imshow(imgRiverHeights, plt.get_cmap('terrain'), extent=imStretch)
 nx.draw(hydrology.graph,positions,node_size=60,labels=labels,width=weights)
 plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '8-river-flow-terrain.png')
+plt.savefig(outputDir + '8-river-flow-terrain.png', dpi=debugdpi)
 
 # Terrain pattern
 
@@ -416,7 +426,7 @@ ax = fig.add_subplot(111)
 ax.imshow(shore.img, extent=imStretch)
 ylim=ax.get_ylim();
 xlim=ax.get_xlim();
-voronoi_plot_2d(cells.vor, point_size=10, ax=ax,line_colors=['yellow']) # draws the voronoi cells?
+voronoi_plot_2d(cells.vor, point_size=10, ax=ax,line_colors=['yellow'], show_vertices=False) # draws the voronoi cells?
 ax.set_ylim(ylim);
 ax.set_xlim(xlim);
 for mouth in hydrology.allMouthNodes():
@@ -427,7 +437,7 @@ for mouth in hydrology.allMouthNodes():
 for node in hydrology.allNodes():
     plt.text(node.x(),node.y(),node.id)
 plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '9-interpolatedRiverCellNetwork.png', dpi=100)
+plt.savefig(outputDir + '9-interpolatedRiverCellNetwork.png', dpi=debugdpi)
 
 # Calculate elevations of terrain primitives
 print('Calculating terrain primitive elevations...')
@@ -508,11 +518,11 @@ ax.scatter(*zip(*[t.position for t in Ts.allTs()]), c=[t.elevation for t in Ts.a
 ylim=ax.get_ylim();
 xlim=ax.get_xlim();
 nx.draw(hydrology.graph,positions,node_size=0,labels=labels,ax=ax)
-voronoi_plot_2d(cells.vor, point_size=1, ax=ax,line_colors=['yellow'])
+voronoi_plot_2d(cells.vor, point_size=1, ax=ax,line_colors=['yellow'], show_vertices=False)
 ax.set_ylim(ylim);
 ax.set_xlim(xlim);
 plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + 'a-terrain-primitives.png', dpi=500)
+plt.savefig(outputDir + 'a-terrain-primitives.png', dpi=debugdpi)
 
 # Render output image
 
@@ -634,7 +644,7 @@ for i in trange(outputResolution):
     data = dataQueue.get()
     imgOut[data[0]] = np.frombuffer(data[1],dtype=np.single)
 
-    if outputCounter > 50:
+    if outputCounter > outputResolution/10:
         plt.clf()
         plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
         plt.colorbar()
