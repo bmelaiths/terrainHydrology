@@ -113,6 +113,14 @@ parser.add_argument(
     default=100,
     required=False
 )
+parser.add_argument(
+    '--num-rivers',
+    help='The number of drainages along the coast',
+    dest='numRivers',
+    metavar='10',
+    default=10,
+    required=False
+)
 args = parser.parse_args()
 
 outputDir = args.outputDir + '/'
@@ -132,7 +140,7 @@ globalseed=4314
 ## Hydrology Parameters
 
 # Number of river mouths
-N_majorRivers=10
+N_majorRivers=args.numRivers
 
 # Branching Parameters
 Ps = 0.3 #0.05 ## probability of symetric branch
