@@ -121,6 +121,13 @@ parser.add_argument(
     default=10,
     required=False
 )
+parser.add_argument(
+    '--dry-run',
+    help='Only calculate the height of river nodes and exit. Useful for designing landscapes',
+    action='store_true',
+    dest='dryRun',
+    required=False
+)
 args = parser.parse_args()
 
 outputDir = args.outputDir + '/'
@@ -238,9 +245,10 @@ print()
 
 print('Generating terrain ridges...')
 
-cells = DataModel.TerrainHoneycomb(shore, hydrology, resolution)
+cells = DataModel.TerrainHoneycomb(shore, hydrology, resolution, args.dryRun)
 
 print('Terrain ridges generated')
+print('Writing debug images...')
 
 pos = [node.position for node in hydrology.allNodes()]
 labels = dict(zip(range(len(hydrology)),range(len(hydrology))))
@@ -308,25 +316,13 @@ for node in hydrology.dfsPostorderNodes():  # search nodes in a depth-first post
     node.flow = 0.42 * watershed**0.69 # calculate river flow
 
 
-# Calculate ridge elevations
-print('Calculating ridge elevations...')
-
-for q in cells.allQs():
-    if q is None:
-        continue
-    nodes = [hydrology.node(n) for n in q.nodes]
-    maxElevation = max([node.elevation for node in nodes])
-    d = np.linalg.norm(q.position - nodes[0].position)
-    slope = terrainSlopeRate * terrainSlope[q.position[0],q.position[1]] / 255
-    q.elevation = maxElevation + d * slope
-
-
-# Classify river nodees
-
+# Classify river nodes
+print('Classifying river nodes...')
 for n in range(len(hydrology)):
     HydrologyFunctions.classify(hydrology.node(n), hydrology, edgeLength)
 
 
+print('Writing more debug images...')
 # DEBUG This is a node graph, like the voronoi graph earlier. But the arrows are weighted by flow
 
 plt.figure(num=None, figsize=(16, 16), dpi=80)
@@ -348,6 +344,22 @@ plt.imshow(imgRiverHeights, plt.get_cmap('terrain'), extent=imStretch)
 nx.draw(hydrology.graph,positions,node_size=60,labels=labels,width=weights)
 plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '8-river-flow-terrain.png', dpi=debugdpi)
+
+
+if args.dryRun:
+    exit()
+
+# Calculate ridge elevations
+print('Calculating ridge elevations...')
+
+for q in cells.allQs():
+    if q is None:
+        continue
+    nodes = [hydrology.node(n) for n in q.nodes]
+    maxElevation = max([node.elevation for node in nodes])
+    d = np.linalg.norm(q.position - nodes[0].position)
+    slope = terrainSlopeRate * terrainSlope[q.position[0],q.position[1]] / 255
+    q.elevation = maxElevation + d * slope
 
 # Terrain pattern
 
