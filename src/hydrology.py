@@ -128,6 +128,13 @@ parser.add_argument(
     dest='dryRun',
     required=False
 )
+parser.add_argument(
+    '--label-cells',
+    help='Include if you want cells in debug images be labeled',
+    action='store_false',
+    dest='labelCells',
+    required=False
+)
 args = parser.parse_args()
 
 outputDir = args.outputDir + '/'
@@ -147,7 +154,7 @@ globalseed=4314
 ## Hydrology Parameters
 
 # Number of river mouths
-N_majorRivers=args.numRivers
+N_majorRivers=int(args.numRivers)
 
 # Branching Parameters
 Ps = 0.3 #0.05 ## probability of symetric branch
@@ -182,7 +189,8 @@ latitude = float(args.latitude)
 longitude = float(args.longitude)
 
 ## Debug parameters
-debugdpi = args.debugdpi
+debugdpi = int(args.debugdpi)
+labelCells = args.labelCells
 
 random.seed(globalseed)
 
@@ -270,7 +278,11 @@ ax = fig.add_subplot(111)
 ax.imshow(shore.img, extent=imStretch)
 ylim=ax.get_ylim();
 xlim=ax.get_xlim();
-nx.draw(hydrology.graph,pos,node_size=1,labels=labels,ax=ax)
+
+if labelCells:
+    nx.draw(hydrology.graph,pos,node_size=1,labels=labels,ax=ax)
+else:
+    nx.draw(hydrology.graph,pos,node_size=1,ax=ax)
 voronoi_plot_2d(cells.vor, point_size=1, ax=ax,line_colors=['yellow'], show_vertices=False) # draws the voronoi cells?
 ax.set_ylim(ylim);
 ax.set_xlim(xlim);
@@ -287,6 +299,7 @@ plt.clf()
 
 # DEBUG
 plt.imshow(imgRiverHeights, cmap=plt.get_cmap('terrain'))
+plt.colorbar()
 plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '6-riverHeights.png', dpi=debugdpi)
 
@@ -332,7 +345,10 @@ positions = [node.position for node in nodes]
 normalizer = max([node.flow for node in nodes])
 weights = [6*u.flow/normalizer for u,v in hydrology.allEdges()]
 plt.imshow(shore.img, extent=imStretch)
-nx.draw(hydrology.graph,positions,node_size=1,labels=labels,width=weights)
+if labelCells:
+    nx.draw(hydrology.graph,positions,node_size=1,labels=labels,width=weights)
+else:
+    nx.draw(hydrology.graph,positions,node_size=1,width=weights)
 plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '7-river-flow.png', dpi=debugdpi)
 
@@ -341,7 +357,10 @@ plt.savefig(outputDir + '7-river-flow.png', dpi=debugdpi)
 
 plt.figure(num=None, figsize=(16, 16), dpi=80)
 plt.imshow(imgRiverHeights, plt.get_cmap('terrain'), extent=imStretch)
-nx.draw(hydrology.graph,positions,node_size=60,labels=labels,width=weights)
+if labelCells:
+    nx.draw(hydrology.graph,positions,node_size=60,labels=labels,width=weights)
+else:
+    nx.draw(hydrology.graph,positions,node_size=60,width=weights)
 plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '8-river-flow-terrain.png', dpi=debugdpi)
 
@@ -537,7 +556,10 @@ ax.imshow(shore.img, extent=imStretch)
 ax.scatter(*zip(*[t.position for t in Ts.allTs()]), c=[t.elevation for t in Ts.allTs()], cmap=plt.get_cmap('terrain'), s=5, lw=0)
 ylim=ax.get_ylim();
 xlim=ax.get_xlim();
-nx.draw(hydrology.graph,positions,node_size=0,labels=labels,ax=ax)
+if labelCells:
+    nx.draw(hydrology.graph,positions,node_size=0,labels=labels,ax=ax)
+else:
+    nx.draw(hydrology.graph,positions,node_size=0,ax=ax)
 voronoi_plot_2d(cells.vor, point_size=1, ax=ax,line_colors=['yellow'], show_vertices=False)
 ax.set_ylim(ylim);
 ax.set_xlim(xlim);
