@@ -34,7 +34,7 @@ kdtree.o : kdtree.cpp kdtree.hpp
 buildRivers.o : buildRivers.cpp kdtree.hpp
 
 buildRivers: buildRivers.o kdtree.o test
-	g++ buildRivers.o kdtree.o -o $@
+	g++ buildRivers.o kdtree.o -lopencv_core -lopencv_imgproc -lopencv_highgui -o $@
 
 clean :
 	@ rm -vf buildRivers kdtreetest *.gch *.o
