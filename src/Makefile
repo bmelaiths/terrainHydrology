@@ -1,4 +1,4 @@
-CPPFLAGS += -g -Wall
+CPPFLAGS += -g -Wall -fopenmp
 
 GTEST_DIR = tst/googletest/googletest
 GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
@@ -31,10 +31,12 @@ test : kdtreetest
 
 kdtree.o : kdtree.cpp kdtree.hpp
 
-buildRivers.o : buildRivers.cpp kdtree.hpp
+hydrology.o : hydrology.cpp hydrology.hpp
 
-buildRivers: buildRivers.o kdtree.o test
-	g++ buildRivers.o kdtree.o -lopencv_core -lopencv_imgproc -lopencv_highgui -o $@
+buildRivers.o : buildRivers.cpp hydrology.hpp kdtree.hpp
+
+buildRivers: buildRivers.o hydrology.o kdtree.o
+	g++ buildRivers.o hydrology.o kdtree.o $(CPPFLAGS) -lopencv_core -lopencv_imgproc -lopencv_highgui -o $@
 
 clean :
 	@ rm -vf buildRivers kdtreetest *.gch *.o

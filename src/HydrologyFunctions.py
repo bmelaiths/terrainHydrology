@@ -1,5 +1,6 @@
 import random
 import math
+import struct
 
 import Math
 
@@ -38,7 +39,7 @@ class HydrologyParameters:
        implement the Factory Pattern to generate the :class:`DataModel.HydrologyNetwork`.
     """
     def __init__(
-        self, shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, riverSlope, slopeRate
+        self, shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, riverSlope, slopeRate, candidates
     ):
         self.shore = shore
         self.hydrology = hydrology
@@ -51,6 +52,40 @@ class HydrologyParameters:
         self.eta = eta
         self.riverSlope = riverSlope
         self.slopeRate = slopeRate
+        self.candidates = candidates
+    
+    def toBinary(self):
+        binary = struct.pack('!f', self.Pa)
+        binary = binary + struct.pack('!f', self.Pc)
+        binary = binary + struct.pack('!f', self.edgeLength)
+        binary = binary + struct.pack('!f', self.sigma)
+        binary = binary + struct.pack('!f', self.eta)
+        binary = binary + struct.pack('!f', self.slopeRate)
+        binary = binary + struct.pack('!H', self.maxTries)
+        binary = binary + struct.pack('!f', self.riverAngleDev)
+
+        binary = binary + struct.pack('!I', self.riverSlope.xSize)
+        binary = binary + struct.pack('!I', self.riverSlope.ySize)
+        binary = binary + self.riverSlope.toBinary()
+
+        # print('ToBinary complete!')
+
+        binary = binary + struct.pack('!I', len(self.candidates))
+        for candidate in self.candidates:
+            binary = binary + struct.pack('!f', float(candidate.x()))
+            binary = binary + struct.pack('!f', float(candidate.y()))
+            binary = binary + struct.pack('!I', candidate.priority)
+            binary = binary + struct.pack('!Q', candidate.contourIndex)
+        
+        binary = binary + struct.pack('!f', self.shore.resolution)
+        binary = binary + struct.pack('!Q', len(self.shore.contour))
+        for point in self.shore.contour:
+            # point = point[0]
+            # points in a contour array are y,x
+            binary = binary + struct.pack('!Q', point[0])
+            binary = binary + struct.pack('!Q', point[1])
+        
+        return binary
 
 def alpha(node: HydroPrimitive, candidates: typing.List[HydroPrimitive], params: HydrologyParameters):         # alpha, as in the expansion rules in Table 1
     """Alpha node expansion rule

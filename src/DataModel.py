@@ -5,6 +5,7 @@ from scipy.spatial import cKDTree
 from scipy.spatial import Voronoi
 from poisson import PoissonGenerator
 from PIL import Image
+import struct
 
 import typing
 
@@ -28,6 +29,8 @@ class RasterData:
     """
     def __init__(self, inputFileName: str, resolution: float):
         self.raster = Image.open(inputFileName)
+        self.xSize = self.raster.size[0]
+        self.ySize = self.raster.size[1]
         self.raster = self.raster.convert('L')
         self.raster = self.raster.load()
         self.resolution = resolution
@@ -40,6 +43,21 @@ class RasterData:
         :rtype: float
         """
         return self.raster[int(loc[0]/self.resolution),int(loc[1]/self.resolution)]
+    def toBinary(self):
+        binary = None
+        for y in range(self.ySize):
+            # print(f'Working on row {y}')
+            row = None
+            for x in range(self.xSize):
+                if row is not None:
+                    row = row + struct.pack('!f', self.raster[x,y])
+                else:
+                    row = struct.pack('!f', self.raster[x,y])
+            if binary is not None:
+                binary = binary + row
+            else:
+                binary = row
+        return binary
 
 class ShoreModel:
     """This class represents the land area.

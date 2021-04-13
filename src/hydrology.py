@@ -135,6 +135,13 @@ parser.add_argument(
     dest='labelCells',
     required=False
 )
+parser.add_argument(
+    '--accelerate',
+    help='Accelerate Your Life™ with some native code',
+    action='store_true',
+    dest='accelerate',
+    required=False
+)
 args = parser.parse_args()
 
 outputDir = args.outputDir + '/'
@@ -236,15 +243,35 @@ plt.savefig(outputDir + '3-riverMouths.png', dpi=debugdpi)
 
 print('Generating rivers...')
 
-params = HydrologyFunctions.HydrologyParameters(
-    shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, riverSlope, slopeRate
-)
 candidates = hydrology.allMouthNodes()
-while len(candidates)!=0:
-    selectedCandidate = HydrologyFunctions.selectNode(candidates,zeta)
-    HydrologyFunctions.alpha(selectedCandidate, candidates, params)
-    HydrologyFunctions.calculateHorton_Strahler(selectedCandidate, hydrology)
-    print(f'\tNodes Created: {len(hydrology)} \r', end='')  # use display(f) if you encounter performance issues
+params = HydrologyFunctions.HydrologyParameters(
+    shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, riverSlope, slopeRate, candidates
+)
+if not args.accelerate:
+    while len(candidates)!=0:
+        selectedCandidate = HydrologyFunctions.selectNode(candidates,zeta)
+        HydrologyFunctions.alpha(selectedCandidate, candidates, params)
+        HydrologyFunctions.calculateHorton_Strahler(selectedCandidate, hydrology)
+        print(f'\tNodes Created: {len(hydrology)} \r', end='')  # use display(f) if you encounter performance issues
+else:
+    import subprocess
+    import os.path
+    import struct
+    # file = open('binaryFile', 'w+b')
+    # file.write(params.toBinary())
+    # file.close()
+    buildRiversExe = 'buildRivers'
+    if not os.path.exists(buildRiversExe):
+        print('The executable does not exist. Run "make" to build it.')
+        exit()
+    proc = subprocess.run(
+        ['./' + buildRiversExe],
+        input = params.toBinary(),
+        capture_output=True
+    )
+    result = proc.stdout
+    print(f'Result: {struct.unpack("B", result[0:1])[0]}')
+    exit()
 
 print()
 
