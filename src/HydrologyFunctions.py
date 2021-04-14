@@ -39,7 +39,7 @@ class HydrologyParameters:
        implement the Factory Pattern to generate the :class:`DataModel.HydrologyNetwork`.
     """
     def __init__(
-        self, shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, riverSlope, slopeRate, candidates
+        self, shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, zeta, riverSlope, slopeRate, candidates
     ):
         self.shore = shore
         self.hydrology = hydrology
@@ -50,6 +50,7 @@ class HydrologyParameters:
         self.edgeLength = edgeLength
         self.sigma = sigma
         self.eta = eta
+        self.zeta = zeta
         self.riverSlope = riverSlope
         self.slopeRate = slopeRate
         self.candidates = candidates
@@ -60,6 +61,7 @@ class HydrologyParameters:
         binary = binary + struct.pack('!f', self.edgeLength)
         binary = binary + struct.pack('!f', self.sigma)
         binary = binary + struct.pack('!f', self.eta)
+        binary = binary + struct.pack('!f', self.zeta)
         binary = binary + struct.pack('!f', self.slopeRate)
         binary = binary + struct.pack('!H', self.maxTries)
         binary = binary + struct.pack('!f', self.riverAngleDev)

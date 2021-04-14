@@ -15,7 +15,7 @@ class HydrologyParameters
     int maxTries;
     float riverAngleDev;
     float edgeLength;
-    float sigma, eta;
+    float sigma, eta, zeta;
     float slopeRate;
 
     Raster riverSlope;

@@ -25,6 +25,7 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
   fread(&edgeLength,       sizeof(float), 1, stream);
   fread(&sigma,            sizeof(float), 1, stream);
   fread(&eta,              sizeof(float), 1, stream);
+  fread(&zeta,             sizeof(float), 1, stream);
   fread(&slopeRate,        sizeof(float), 1, stream);
   uint16_t maxTriesIn;
   fread(&maxTriesIn,      sizeof(uint16_t), 1, stream);
@@ -34,6 +35,7 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
   edgeLength =    float_swap(edgeLength);
   sigma =         float_swap(sigma);
   eta =           float_swap(eta);
+  zeta =          float_swap(zeta);
   slopeRate =     float_swap(slopeRate);
   maxTries =   (int) be16toh(maxTriesIn);
   riverAngleDev = float_swap(riverAngleDev);

@@ -19,3 +19,7 @@ isMouthNode(isMouthNode), contourIndex(contourIndex)
 {
 
 }
+
+bool ComparePrimitive::operator() (const Primitive& a, const Primitive& b) const {
+  return a.priority < b.priority;
+}

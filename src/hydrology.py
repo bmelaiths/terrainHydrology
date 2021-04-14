@@ -245,7 +245,7 @@ print('Generating rivers...')
 
 candidates = hydrology.allMouthNodes()
 params = HydrologyFunctions.HydrologyParameters(
-    shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, riverSlope, slopeRate, candidates
+    shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, zeta, riverSlope, slopeRate, candidates
 )
 if not args.accelerate:
     while len(candidates)!=0:
@@ -270,7 +270,8 @@ else:
         capture_output=True
     )
     result = proc.stdout
-    print(f'Result: {struct.unpack("B", result[0:1])[0]}')
+    print(f'Selected Candidate X: {struct.unpack("!I", result[0:4])[0]}')
+    print(f'Selected Candidate Y: {struct.unpack("!I", result[4:8])[0]}')
     exit()
 
 print()
