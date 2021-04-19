@@ -26,6 +26,8 @@ class HydrologyParameters
 
     std::vector<cv::Point> contour;
 
+    Hydrology hydrology;
+
     public:
     HydrologyParameters(FILE *stream);
     

@@ -1,14 +1,13 @@
 #include <stdio.h>
 #include <vector>
 #include <endian.h>
+#include <stdlib.h>
 
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 
-#include "point.hpp"
-#include "kdtree.hpp"
-#include "hydrology.hpp"
 #include "hydrologyParameters.hpp"
+#include "hydrologyFunctions.hpp"
 
 /*
 A list of data structures that will be used:
@@ -74,35 +73,6 @@ void openCVtest(HydrologyParameters& params) {
   cv::imshow("See if this works", drawing);
 
   cv::waitKey(10000);
-}
-
-Primitive selectNode(HydrologyParameters& params) {
-  float lowestCandidateZ = params.candidates[0].elevation;
-  for (size_t i = 0; i < params.candidates.size(); i++)
-  {
-    if (params.candidates[i].elevation < lowestCandidateZ)
-    {
-      lowestCandidateZ = params.candidates[i].elevation;
-    }
-    
-  }
-
-  std::vector<Primitive> subselection;
-  for (size_t i = 0; i < params.candidates.size(); i++)
-  {
-    if (params.candidates[i].elevation < (lowestCandidateZ + params.zeta))
-    {
-      subselection.push_back(params.candidates[i]);
-    }
-  }
-
-  std::sort(
-    params.candidates.begin(),
-    params.candidates.end(),
-    ComparePrimitive()
-  );
-
-  return subselection[0];
 }
 
 int main() {

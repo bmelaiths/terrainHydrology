@@ -29,9 +29,9 @@ kdtreetest : kdtreetest.o kdtree.o gtest-all.o gtest_main.o
 test : kdtreetest
 	@ ./$<
 
-kdtree.o : kdtree.cpp kdtree.hpp
+kdtree.o : kdtree.cpp kdtree.hpp point.hpp
 
-hydrology.o : hydrology.cpp hydrology.hpp
+hydrology.o : hydrology.cpp hydrology.hpp point.hpp
 
 buildRivers.o : buildRivers.cpp hydrology.hpp kdtree.hpp raster.hpp
 
@@ -39,8 +39,10 @@ hydrologyParameters.o : hydrologyParameters.cpp raster.hpp hydrology.hpp
 
 raster.o : raster.cpp raster.hpp
 
-buildRivers: raster.o hydrologyParameters.o buildRivers.o hydrology.o kdtree.o
-	g++ buildRivers.o raster.o hydrologyParameters.o hydrology.o kdtree.o $(CPPFLAGS) -lopencv_core -lopencv_imgproc -lopencv_highgui -o $@
+hydrologyFunctions.o : hydrologyFunctions.cpp hydrologyFunctions.hpp hydrology.hpp hydrologyParameters.hpp
+
+buildRivers: hydrologyFunctions.o raster.o hydrologyParameters.o buildRivers.o hydrology.o kdtree.o
+	g++ hydrologyFunctions.o buildRivers.o raster.o hydrologyParameters.o hydrology.o kdtree.o $(CPPFLAGS) -lopencv_core -lopencv_imgproc -lopencv_highgui -o $@
 
 clean :
 	@ rm -vf buildRivers kdtreetest *.gch *.o

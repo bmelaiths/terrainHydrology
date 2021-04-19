@@ -20,6 +20,11 @@ isMouthNode(isMouthNode), contourIndex(contourIndex)
 
 }
 
+Edge::Edge(Primitive node0, Primitive node1)
+: node0(node0), node1(node1)
+{
+}
+
 bool ComparePrimitive::operator() (const Primitive& a, const Primitive& b) const {
   return a.priority < b.priority;
 }
