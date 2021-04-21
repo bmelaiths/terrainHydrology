@@ -64,6 +64,7 @@ Primitive Hydrology::addRegularNode
   return node;
 }
 
+//note: this method may double-count edges that have both ends in the area
 std::vector<Edge> Hydrology::edgesWithinRadius(Point loc, float radius)
 {
   std::vector<size_t> closeIdxes = tree.rangeSearch(loc, radius);

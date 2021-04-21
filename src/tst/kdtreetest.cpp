@@ -5,13 +5,9 @@ namespace
 {
     TEST(KDTreeTest, CreationTest)
     {
-        std::vector<Point>  initPoints;
-        std::vector<size_t>  initIdxes;
+        KDTree tree;
 
-        initPoints.push_back(Point(3.0f, 6.0f));
-        initIdxes.push_back(0);
-
-        KDTree tree(initPoints, initIdxes);
+        tree.insert(Point(3.0f, 6.0f), 0);
 
         std::vector<size_t> structure = tree.breadthFirstSearch();
 
@@ -19,25 +15,16 @@ namespace
     }
 
     TEST(KDTreeTest, StructureTest) {
-        std::vector<Point>  initPoints;
-        std::vector<size_t>  initIdxes;
+        KDTree tree;
 
-        initPoints.push_back(Point(3.0f, 6.0f));
-        initIdxes.push_back(0);
-        initPoints.push_back(Point(17.0f, 15.0f));
-        initIdxes.push_back(2);
-        initPoints.push_back(Point(13.0f, 15.0f));
-        initIdxes.push_back(4);
-        initPoints.push_back(Point(6.0f, 12.0f));
-        initIdxes.push_back(3);
-        initPoints.push_back(Point(9.0f, 1.0f));
-        initIdxes.push_back(5);
-        initPoints.push_back(Point(2.0f, 7.0f));
-        initIdxes.push_back(1);
-        initPoints.push_back(Point(10.0f, 19.0f));
-        initIdxes.push_back(6);
+        tree.insert(Point(3.0f, 6.0f),0);
+        tree.insert(Point(17.0f, 15.0f),2);
+        tree.insert(Point(13.0f, 15.0f),4);
+        tree.insert(Point(6.0f, 12.0f),3);
+        tree.insert(Point(9.0f, 1.0f),5);
+        tree.insert(Point(2.0f, 7.0f),1);
+        tree.insert(Point(10.0f, 19.0f),6);
 
-        KDTree tree(initPoints, initIdxes);
         std::vector<size_t> structure = tree.breadthFirstSearch();
 
         for (size_t i = 0; i < 7; i++)
@@ -47,25 +34,16 @@ namespace
     }
 
     TEST(KDTreeTest, RangeSearchTest) {
-        std::vector<Point>  initPoints;
-        std::vector<size_t>  initIdxes;
+        KDTree tree;
 
-        initPoints.push_back(Point(3.0f, 6.0f));
-        initIdxes.push_back(0);
-        initPoints.push_back(Point(17.0f, 15.0f));
-        initIdxes.push_back(2);
-        initPoints.push_back(Point(13.0f, 15.0f));
-        initIdxes.push_back(4);
-        initPoints.push_back(Point(6.0f, 12.0f));
-        initIdxes.push_back(3);
-        initPoints.push_back(Point(9.0f, 1.0f));
-        initIdxes.push_back(5);
-        initPoints.push_back(Point(2.0f, 7.0f));
-        initIdxes.push_back(1);
-        initPoints.push_back(Point(10.0f, 19.0f));
-        initIdxes.push_back(6);
+        tree.insert(Point(3.0f, 6.0f),0);
+        tree.insert(Point(17.0f, 15.0f),2);
+        tree.insert(Point(13.0f, 15.0f),4);
+        tree.insert(Point(6.0f, 12.0f),3);
+        tree.insert(Point(9.0f, 1.0f),5);
+        tree.insert(Point(2.0f, 7.0f),1);
+        tree.insert(Point(10.0f, 19.0f),6);
 
-        KDTree tree(initPoints, initIdxes);
         std::vector<size_t> searchResults = tree.rangeSearch(Point(2.0f,6.0f), 2.0f);
 
         ASSERT_EQ(searchResults.size(), 2);
@@ -74,47 +52,27 @@ namespace
     }
 
     TEST(KDTreeTest, RangeSearchTestII) {
-        std::vector<Point>  initPoints;
-        std::vector<size_t>  initIdxes;
+        KDTree tree;
 
-        initPoints.push_back(Point(7,5));
-        initIdxes.push_back(0);
-        initPoints.push_back(Point(7,3));
-        initIdxes.push_back(1);
-        initPoints.push_back(Point(2,3));
-        initIdxes.push_back(2);
-        initPoints.push_back(Point(7,10));
-        initIdxes.push_back(3);
-        initPoints.push_back(Point(9,8));
-        initIdxes.push_back(4);
-        initPoints.push_back(Point(4,8));
-        initIdxes.push_back(5);
-        initPoints.push_back(Point(5,3));
-        initIdxes.push_back(6);
-        initPoints.push_back(Point(8,3));
-        initIdxes.push_back(7);
-        initPoints.push_back(Point(3,1));
-        initIdxes.push_back(8);
-        initPoints.push_back(Point(7,9));
-        initIdxes.push_back(9);
-        initPoints.push_back(Point(3,6));
-        initIdxes.push_back(10);
-        initPoints.push_back(Point(2,5));
-        initIdxes.push_back(11);
-        initPoints.push_back(Point(3,10));
-        initIdxes.push_back(12);
-        initPoints.push_back(Point(0,4));
-        initIdxes.push_back(13);
-        initPoints.push_back(Point(5,6));
-        initIdxes.push_back(14);
-        initPoints.push_back(Point(1,6));
-        initIdxes.push_back(15);
-        initPoints.push_back(Point(10,5));
-        initIdxes.push_back(16);
-        initPoints.push_back(Point(0,2));
-        initIdxes.push_back(17);
+        tree.insert(Point(7,5),0);
+        tree.insert(Point(7,3),1);
+        tree.insert(Point(2,3),2);
+        tree.insert(Point(7,10),3);
+        tree.insert(Point(9,8),4);
+        tree.insert(Point(4,8),5);
+        tree.insert(Point(5,3),6);
+        tree.insert(Point(8,3),7);
+        tree.insert(Point(3,1),8);
+        tree.insert(Point(7,9),9);
+        tree.insert(Point(3,6),10);
+        tree.insert(Point(2,5),11);
+        tree.insert(Point(3,10),12);
+        tree.insert(Point(0,4),13);
+        tree.insert(Point(5,6),14);
+        tree.insert(Point(1,6),15);
+        tree.insert(Point(10,5),16);
+        tree.insert(Point(0,2),17);
 
-        KDTree tree(initPoints, initIdxes);
         std::vector<size_t> searchResults = tree.rangeSearch(Point(2,5), 1.5);
 
         ASSERT_EQ(searchResults.size(), 3);

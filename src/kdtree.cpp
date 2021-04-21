@@ -49,6 +49,13 @@ void KDTree::insert(Point loc, size_t idx)
 {
     Node* newNode = new Node(loc, idx);
 
+    if (root == NULL)
+    {
+        root = newNode;
+        return;
+    }
+    
+
     Node* finalNode = root;
     Node* nextNode = NULL;
     bool isXlevel = true;

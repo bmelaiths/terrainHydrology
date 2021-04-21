@@ -26,8 +26,16 @@ kdtreetest.o : tst/kdtreetest.cpp kdtree.hpp $(GTEST_HEADERS)
 kdtreetest : kdtreetest.o kdtree.o gtest-all.o gtest_main.o
 	g++ $(CPPFLAGS) -lpthread $^ -o $@
 
-test : kdtreetest
-	@ ./$<
+hydrologytest.o : tst/hydrologytest.cpp hydrology.hpp $(GTEST_HEADERS)
+	@ echo "Compiling Hydrology Test..."
+	@ g++ $(CPPFLAGS) -isystem $(GTEST_DIR)/include $^ -c
+
+hydrologytest : hydrologytest.o hydrology.o kdtree.o gtest-all.o gtest_main.o
+	g++ $(CPPFLAGS) -lpthread $^ -o $@
+
+test : kdtreetest hydrologytest
+	@ ./kdtreetest
+	@ ./hydrologytest
 
 kdtree.o : kdtree.cpp kdtree.hpp point.hpp
 
@@ -45,5 +53,5 @@ buildRivers: hydrologyFunctions.o raster.o hydrologyParameters.o buildRivers.o h
 	g++ hydrologyFunctions.o buildRivers.o raster.o hydrologyParameters.o hydrology.o kdtree.o $(CPPFLAGS) -lopencv_core -lopencv_imgproc -lopencv_highgui -o $@
 
 clean :
-	@ rm -vf buildRivers kdtreetest *.gch *.o
+	@ rm -vf buildRivers kdtreetest hydrologytest *.gch *.o
 	@ cd $(GTEST_DIR)/scripts/test/ && make clean
