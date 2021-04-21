@@ -4,24 +4,27 @@
 #include <vector>
 
 #include "point.hpp"
+#include "kdtree.hpp"
 
 class Primitive
 {
   public:
-  int id;
+  size_t id, parent, child;
+  bool isMouthNode, hasChild = false;
   Point loc;
   float elevation;
   int priority;
-  bool isMouthNode;
   int contourIndex;
-  int parent;
 
   public:
   Primitive();
   Primitive
-  (
-    Point loc, float elevation, int priority,
-    bool isMouthNode, int contourIndex
+  ( //for mouth nodes
+    size_t id, Point loc, float elevation, int priority, int contourIndex
+  );
+  Primitive
+  ( //for regular nodes
+    size_t id, size_t parentID, Point loc, float elevation, int priority
   );
   //a trivial implicitly-declared destructor will be sufficient
 };
@@ -42,15 +45,16 @@ class Hydrology
 
   public:
   std::vector<Primitive> indexedNodes;
+  KDTree tree;
 
   public:
-  Hydrology(/* args */);
-  ~Hydrology();
-
-  Primitive addNode(
-    Point loc, float elevation, int priority, int parent
+  Primitive addMouthNode(
+    Point loc, float elevation, int priority, int contourIndex
   );
-  std::vector<Edge> edgesWithinRadius();
+  Primitive addRegularNode(
+    Point loc, float elevation, int priority, size_t parent
+  );
+  std::vector<Edge> edgesWithinRadius(Point loc, float radius);
 };
 
 class ComparePrimitive

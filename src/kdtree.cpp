@@ -2,25 +2,6 @@
 
 #include <queue>
 
-KDTree::KDTree(std::vector<Point> initPoints, std::vector<size_t> initIdxes)
-{
-    root = new Node(initPoints[0], initIdxes[0]);
-    allNodes.push_back(root);
-
-    for (size_t i = 1; i < initIdxes.size(); i++)
-    {
-        insert(initPoints[i], initIdxes[i]);
-    }
-}
-
-KDTree::~KDTree()
-{
-    for (Node* item : allNodes)
-    {
-        delete item;
-    } 
-}
-
 //this method tries to insert the node at this level, but if there is already
 //a node in its place, it returns a pointer to that node, else, it returns a
 //pointer to the node it tried to insert

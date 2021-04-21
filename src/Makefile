@@ -41,8 +41,8 @@ raster.o : raster.cpp raster.hpp
 
 hydrologyFunctions.o : hydrologyFunctions.cpp hydrologyFunctions.hpp hydrology.hpp hydrologyParameters.hpp
 
-buildRivers: hydrologyFunctions.o raster.o hydrologyParameters.o buildRivers.o hydrology.o kdtree.o
-	g++ hydrologyFunctions.o buildRivers.o raster.o hydrologyParameters.o hydrology.o kdtree.o $(CPPFLAGS) -lopencv_core -lopencv_imgproc -lopencv_highgui -o $@
+buildRivers: kdtree.o hydrologyFunctions.o raster.o hydrologyParameters.o buildRivers.o hydrology.o kdtree.o
+	g++ kdtree.o hydrologyFunctions.o buildRivers.o raster.o hydrologyParameters.o hydrology.o kdtree.o $(CPPFLAGS) -lopencv_core -lopencv_imgproc -lopencv_highgui -o $@
 
 clean :
 	@ rm -vf buildRivers kdtreetest *.gch *.o

@@ -2,20 +2,32 @@
 
 Primitive::Primitive()
 :
-loc(Point(0,0)), elevation(0.0f), priority(0),
-isMouthNode(false), contourIndex(0)
+id(0), parent(0), isMouthNode(false), loc(Point(0,0)),
+elevation(0.0f), priority(0), contourIndex(0)
 {
 
 }
 
 Primitive::Primitive
 (
-  Point loc, float elevation, int priority,
-  bool isMouthNode, int contourIndex
+  size_t id, Point loc, float elevation,
+  int priority, int contourIndex
 )
 :
-loc(loc), elevation(elevation), priority(priority),
-isMouthNode(isMouthNode), contourIndex(contourIndex)
+id(id), isMouthNode(true), loc(loc), elevation(elevation),
+priority(priority), contourIndex(contourIndex)
+{
+
+}
+
+Primitive::Primitive
+(
+  size_t id, size_t parentID, Point loc,
+  float elevation, int priority
+)
+:
+id(id), parent(parentID), isMouthNode(false), loc(loc),
+elevation(elevation), priority(priority)
 {
 
 }
@@ -23,6 +35,54 @@ isMouthNode(isMouthNode), contourIndex(contourIndex)
 Edge::Edge(Primitive node0, Primitive node1)
 : node0(node0), node1(node1)
 {
+}
+
+Primitive Hydrology::addMouthNode
+(Point loc, float elevation, int priority, int contourIndex)
+{
+  Primitive node(indexedNodes.size(), loc, elevation, priority, contourIndex);
+
+  tree.insert(loc, indexedNodes.size());
+
+  indexedNodes.push_back(node);
+
+  return node;
+}
+
+Primitive Hydrology::addRegularNode
+(Point loc, float elevation, int priority, size_t parent)
+{
+  Primitive node(indexedNodes.size(), parent, loc, elevation, priority);
+
+  tree.insert(loc, indexedNodes.size());
+
+  indexedNodes[parent].child = indexedNodes.size();
+  indexedNodes[parent].hasChild = true;
+
+  indexedNodes.push_back(node);
+
+  return node;
+}
+
+std::vector<Edge> Hydrology::edgesWithinRadius(Point loc, float radius)
+{
+  std::vector<size_t> closeIdxes = tree.rangeSearch(loc, radius);
+
+  std::vector<Edge> edges;
+  for (size_t closeIdx : closeIdxes)
+  {
+    Primitive idxNode = indexedNodes[closeIdx];
+    if (!idxNode.isMouthNode)
+    {
+      edges.push_back(Edge(idxNode, indexedNodes[idxNode.parent]));
+    }
+    if (idxNode.hasChild)
+    {
+      edges.push_back(Edge(indexedNodes[idxNode.child], idxNode));
+    }
+  }
+
+  return edges;
 }
 
 bool ComparePrimitive::operator() (const Primitive& a, const Primitive& b) const {

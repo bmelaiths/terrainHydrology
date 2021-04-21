@@ -87,7 +87,7 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
     contourIndex = be64toh(contourIndex);
 
     candidates.push_back(
-      Primitive(Point(x,y), 0.0f, priority, true, contourIndex)
+      hydrology.addMouthNode(Point(x,y), 0.0f, priority, contourIndex)
     );
 
     // printf("Node %d: (%f, %f), priority %d, contour index %ld\n",

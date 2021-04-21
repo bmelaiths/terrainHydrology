@@ -89,7 +89,9 @@ bool isAcceptablePosition(Point testLoc, HydrologyParameters& params) {
     return false;
   }
   
-  std::vector<Edge> edges = params.hydrology.edgesWithinRadius();
+  std::vector<Edge> edges = params.hydrology.edgesWithinRadius(
+    testLoc, 2 * params.edgeLength
+  );
   for (Edge edge : edges)
   {
     float dist = point_segment_distance(
@@ -176,7 +178,7 @@ void beta
     ;
     float newZ = node.elevation + slope * params.edgeLength;
     params.candidates.push_back(
-      params.hydrology.addNode(
+      params.hydrology.addRegularNode(
         newLoc, newZ, priority, node.id
       )
     );

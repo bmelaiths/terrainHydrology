@@ -22,15 +22,11 @@ struct Node
 class KDTree
 {
     private:
-    Node* root;
+    Node* root = NULL;
     std::vector<Node*> allNodes; // this will be good for the destructor
 
     private:
     Node* tryInsert(Node* finalNode, bool isXlevel, Node* toIns);
-
-    public:
-    KDTree(std::vector<Point> initPoints, std::vector<size_t> initIdxes);
-    ~KDTree();
 
     public:
     void insert(Point loc, size_t idx);
