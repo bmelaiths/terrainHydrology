@@ -17,20 +17,16 @@ class HydrologyParameters
     float edgeLength;
     float sigma, eta, zeta;
     float slopeRate;
+    float resolution;
 
     Raster riverSlope;
 
-    std::vector<Primitive> candidates;
-
-    float resolution;
-
     std::vector<cv::Point> contour;
 
+    std::vector<Primitive> candidates;
     Hydrology hydrology;
-
-    public:
-    HydrologyParameters(FILE *stream);
-    
 };
+
+HydrologyParameters readParamsFromStream(FILE *stream);
 
 #endif

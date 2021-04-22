@@ -85,7 +85,3 @@ std::vector<Edge> Hydrology::edgesWithinRadius(Point loc, float radius)
 
   return edges;
 }
-
-bool ComparePrimitive::operator() (const Primitive& a, const Primitive& b) const {
-  return a.priority < b.priority;
-}

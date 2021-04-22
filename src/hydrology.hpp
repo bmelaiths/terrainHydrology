@@ -57,10 +57,4 @@ class Hydrology
   std::vector<Edge> edgesWithinRadius(Point loc, float radius);
 };
 
-class ComparePrimitive
-{
-  public:
-  bool operator() (const Primitive& a, const Primitive& b) const;
-};
-
 #endif

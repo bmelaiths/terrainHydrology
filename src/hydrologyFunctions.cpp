@@ -6,6 +6,10 @@
 
 #define FLOAT_THRESH 0.1f
 
+bool comparePrimitives(const Primitive& a, const Primitive& b) {
+  return a.priority > b.priority;
+}
+
 Primitive selectNode(HydrologyParameters& params) {
   float lowestCandidateZ = params.candidates[0].elevation;
   for (size_t i = 0; i < params.candidates.size(); i++)
@@ -27,12 +31,23 @@ Primitive selectNode(HydrologyParameters& params) {
   }
 
   std::sort(
-    params.candidates.begin(),
-    params.candidates.end(),
-    ComparePrimitive()
+    subselection.begin(),
+    subselection.end(),
+    comparePrimitives
   );
 
-  return subselection[0];
+  size_t idx = 0;
+  Primitive lowestElevation = subselection[idx];
+  while (idx < subselection.size() && subselection[idx].priority == subselection[0].priority)
+  {
+    if (subselection[idx].elevation < lowestElevation.elevation)
+    {
+      lowestElevation = subselection[idx];
+    }
+    idx++;
+  }
+
+  return lowestElevation;
 }
 
 float point_segment_distance(float px, float py, float x1, float y1, float x2, float y2) {

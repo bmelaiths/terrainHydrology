@@ -18,27 +18,29 @@ float float_swap(float value) {
     return val.f;
 }
 
-HydrologyParameters::HydrologyParameters(FILE *stream)
+HydrologyParameters readParamsFromStream(FILE *stream)
 {
-  fread(&Pa,               sizeof(float), 1, stream);
-  fread(&Pc,               sizeof(float), 1, stream);
-  fread(&edgeLength,       sizeof(float), 1, stream);
-  fread(&sigma,            sizeof(float), 1, stream);
-  fread(&eta,              sizeof(float), 1, stream);
-  fread(&zeta,             sizeof(float), 1, stream);
-  fread(&slopeRate,        sizeof(float), 1, stream);
+  HydrologyParameters params;
+
+  fread(&params.Pa,               sizeof(float), 1, stream);
+  fread(&params.Pc,               sizeof(float), 1, stream);
+  fread(&params.edgeLength,       sizeof(float), 1, stream);
+  fread(&params.sigma,            sizeof(float), 1, stream);
+  fread(&params.eta,              sizeof(float), 1, stream);
+  fread(&params.zeta,             sizeof(float), 1, stream);
+  fread(&params.slopeRate,        sizeof(float), 1, stream);
   uint16_t maxTriesIn;
   fread(&maxTriesIn,      sizeof(uint16_t), 1, stream);
-  fread(&riverAngleDev,    sizeof(float), 1, stream);
-  Pa =            float_swap(Pa);
-  Pc =            float_swap(Pc);
-  edgeLength =    float_swap(edgeLength);
-  sigma =         float_swap(sigma);
-  eta =           float_swap(eta);
-  zeta =          float_swap(zeta);
-  slopeRate =     float_swap(slopeRate);
-  maxTries =   (int) be16toh(maxTriesIn);
-  riverAngleDev = float_swap(riverAngleDev);
+  fread(&params.riverAngleDev,    sizeof(float), 1, stream);
+  params.Pa =            float_swap(params.Pa);
+  params.Pc =            float_swap(params.Pc);
+  params.edgeLength =    float_swap(params.edgeLength);
+  params.sigma =         float_swap(params.sigma);
+  params.eta =           float_swap(params.eta);
+  params.zeta =          float_swap(params.zeta);
+  params.slopeRate =     float_swap(params.slopeRate);
+  params.maxTries =   (int) be16toh(maxTriesIn);
+  params.riverAngleDev = float_swap(params.riverAngleDev);
 
   // printf("Pa: %f\n", Pa);
   // printf("Pc: %f\n", Pc);
@@ -55,13 +57,13 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
   rasterXsize = be32toh(rasterXsize);
   rasterYsize = be32toh(rasterYsize);
   float riverSlopeIn;
-  riverSlope.setSize(rasterXsize);
+  params.riverSlope.setSize(rasterXsize);
   for (uint32_t y = 0; y < rasterYsize; y++)
   {
     for (uint32_t x = 0; x < rasterXsize; x++)
     {
       fread(&riverSlopeIn, sizeof(float), 1, stream);
-      riverSlope.set(x, y, float_swap(riverSlopeIn));
+      params.riverSlope.set(x, y, float_swap(riverSlopeIn));
       // printf("Point (%d, %d): %f\n", x, y, riverSlopeIn);
     }
   }
@@ -86,8 +88,10 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
     priority = be32toh(priority);
     contourIndex = be64toh(contourIndex);
 
-    candidates.push_back(
-      hydrology.addMouthNode(Point(x,y), 0.0f, priority, contourIndex)
+    params.candidates.push_back(
+      params.hydrology.addMouthNode(
+        Point(x,y), 0.0f, priority, contourIndex
+      )
     );
 
     // printf("Node %d: (%f, %f), priority %d, contour index %ld\n",
@@ -96,9 +100,9 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
   }
 
   uint64_t contourLength;
-  fread(&resolution, sizeof(float), 1, stream);
+  fread(&params.resolution, sizeof(float), 1, stream);
   fread(&contourLength, sizeof(uint64_t), 1, stream);
-  resolution = float_swap(resolution);
+  params.resolution = float_swap(params.resolution);
   contourLength = be64toh(contourLength);
   // printf("Spatial resolution: %f\n", resolution);
   // printf("Number of contour points: %ld\n", contourLength);
@@ -114,6 +118,8 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
   for (uint64_t i = 0; i < contourLength; i++)
   {
     // Points in a contour array are y,x
-    contour.push_back(cv::Point2f(inPoints[i][X],inPoints[i][Y]));
+    params.contour.push_back(cv::Point2f(inPoints[i][X],inPoints[i][Y]));
   }
+
+  return params;
 }
