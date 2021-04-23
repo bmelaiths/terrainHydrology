@@ -86,7 +86,7 @@ int main() {
     exit(1);
   }
 
-  HydrologyParameters params(input);
+  HydrologyParameters params = readParamsFromStream(input);
 
 
   // perform computatons

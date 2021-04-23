@@ -12,6 +12,10 @@ void Raster::set(size_t col, size_t row, float datum) {
     data[row * size + col] = datum;
 }
 
+void Raster::setResolution(float resolution) {
+    this->resolution = resolution;
+}
+
 float Raster::get(float x, float y) {
     size_t row = (size_t) (x / resolution);
     size_t col = (size_t) (y / resolution);

@@ -34,11 +34,11 @@ hydrologytest : hydrologytest.o hydrology.o kdtree.o gtest-all.o gtest_main.o
 	g++ $(CPPFLAGS) -lpthread $^ -o $@
 
 hydrofunctionstest.o : tst/hydrofunctionstest.cpp hydrologyFunctions.hpp 
-	@ echo "Compiling Hydrology Fnctions Test..."
+	@ echo "Compiling Hydrology Functions Test..."
 	@ g++ $(CPPFLAGS) -isystem $(GTEST_DIR)/include $^ -c
 
 hydrofunctionstest : hydrofunctionstest.o hydrologyFunctions.o hydrology.o kdtree.o raster.o gtest-all.o gtest_main.o
-	g++ $(CPPFLAGS) -lpthread -lopencv_imgproc $^ -o $@
+	g++ $(CPPFLAGS) -lpthread -lopencv_core -lopencv_imgproc -lopencv_highgui $^ -o $@
 
 test : kdtreetest hydrologytest hydrofunctionstest
 	@ ./kdtreetest

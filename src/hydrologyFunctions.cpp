@@ -54,19 +54,22 @@ float point_segment_distance(float px, float py, float x1, float y1, float x2, f
   float dx = x2 - x1;
   float dy = y2 - y1;
 
-  if (abs(dx) < FLOAT_THRESH && abs(dy) < FLOAT_THRESH)
+  if (abs(dx) < FLOAT_THRESH && abs(dy) < 0)  // the segment's just a point
   {
     return hypotf32(px - x1, py - y1);
   }
 
+  // Calculate the t that minimizes the distance.
   float t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy);
 
-  if (t < FLOAT_THRESH)
+  // See if this represents one of the segment's
+  // end points or a point in the middle.
+  if (t < 0)
   {
     dx = px - x1;
     dy = py - y1;
   }
-  else if (t > FLOAT_THRESH)
+  else if (t > 1)
   {
     dx = px - x2;
     dy = py - y2;
@@ -78,28 +81,25 @@ float point_segment_distance(float px, float py, float x1, float y1, float x2, f
     dx = px - near_x;
     dy = py - near_y;
   }
-  
+
   return hypotf32(dx, dy);
 }
 
-bool isAcceptablePosition(Point testLoc, HydrologyParameters& params) {
+bool isAcceptablePosition(Point testLoc, size_t parentID, HydrologyParameters& params) {
   if (testLoc.x < 0)
   {
     return false;
   }
   
-  if (
-    cv::pointPolygonTest(
-      params.contour,
-      cv::Point2f(
-        (float) testLoc.x / params.resolution,
-        (float) testLoc.y / params.resolution
-      ),
-      true
-    )
-    <
-    params.edgeLength * params.eta
-  )
+  float distToGamma = params.resolution * (float) cv::pointPolygonTest(
+    params.contour,
+    cv::Point2f(
+      (float) testLoc.x / params.resolution,
+      (float) testLoc.y / params.resolution
+    ),
+    true
+  );
+  if (distToGamma < params.edgeLength * params.eta)
   {
     return false;
   }
@@ -109,6 +109,12 @@ bool isAcceptablePosition(Point testLoc, HydrologyParameters& params) {
   );
   for (Edge edge : edges)
   {
+    //TODO this is unnecessary as long as sigma is less that 1.0
+    if (edge.node0.id == parentID || edge.node1.id == parentID)
+    {
+      continue;
+    }
+    
     float dist = point_segment_distance(
       testLoc.x, testLoc.y,
       edge.node0.loc.x, edge.node0.loc.y,
@@ -124,15 +130,15 @@ bool isAcceptablePosition(Point testLoc, HydrologyParameters& params) {
 
 float coastNormal(Primitive candidate, HydrologyParameters& params) {
   Point p1(
-    params.contour[candidate.contourIndex+3].x * params.resolution,
-    params.contour[candidate.contourIndex+3].y * params.resolution
+    params.contour[candidate.contourIndex+3].x,
+    params.contour[candidate.contourIndex+3].y
   );
   Point p2(
-    params.contour[candidate.contourIndex-3].x * params.resolution,
-    params.contour[candidate.contourIndex-3].y * params.resolution
+    params.contour[candidate.contourIndex-3].x,
+    params.contour[candidate.contourIndex-3].y
   );
-  float theta = atan2(p2.y - p1.y, p2.x - p2.y);
-  return theta + 0.5 * M_PI;
+  float theta = atan2(p2.y - p1.y, p2.x - p1.x);
+  return theta + M_PI_2f32;
 }
 
 Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
@@ -156,7 +162,6 @@ Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
 
   float newAngle;
   Point newLoc(-1,-1);
-  // for i in range(params.maxTries):
   for (size_t i = 0; i < params.maxTries; i++)
   {
     newAngle = angle + distribution(generator);
@@ -164,7 +169,7 @@ Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
       candidate.loc.x + cosf32(newAngle) * params.edgeLength,
       candidate.loc.y + sinf32(newAngle) * params.edgeLength
     );
-    if (isAcceptablePosition(newLoc, params))
+    if (isAcceptablePosition(newLoc, candidate.id, params))
     {
       break;
     }

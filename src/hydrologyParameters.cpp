@@ -121,5 +121,7 @@ HydrologyParameters readParamsFromStream(FILE *stream)
     params.contour.push_back(cv::Point2f(inPoints[i][X],inPoints[i][Y]));
   }
 
+  params.riverSlope.setResolution(params.resolution);
+
   return params;
 }

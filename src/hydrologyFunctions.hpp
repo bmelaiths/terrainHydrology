@@ -6,7 +6,7 @@
 
 Primitive selectNode(HydrologyParameters& params);
 
-bool isAcceptablePosition(Point testLoc, HydrologyParameters& params);
+bool isAcceptablePosition(Point testLoc, size_t parentID, HydrologyParameters& params);
 
 float coastNormal(Primitive candidate, HydrologyParameters& params);
 
