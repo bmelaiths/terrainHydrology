@@ -228,7 +228,7 @@ dist = len(shore)/N_majorRivers
 for i in range(1,N_majorRivers):
     idx = int((firstIdx+i*dist+random.gauss(0, dist/6))%len(shore))
     point = shore[idx]
-    hydrology.addNode(point, 0, random.randint(1,N_majorRivers), contourIndex=idx)
+    hydrology.addNode(point, 0, 1, contourIndex=idx)
 
 # DEBUG
 imgMouthDots = shore.imgOutline.copy()
@@ -247,11 +247,11 @@ candidates = hydrology.allMouthNodes()
 params = HydrologyFunctions.HydrologyParameters(
     shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, zeta, riverSlope, slopeRate, candidates
 )
+
 if not args.accelerate:
     while len(candidates)!=0:
         selectedCandidate = HydrologyFunctions.selectNode(candidates,zeta)
         HydrologyFunctions.alpha(selectedCandidate, candidates, params)
-        HydrologyFunctions.calculateHorton_Strahler(selectedCandidate, hydrology)
         print(f'\tNodes Created: {len(hydrology)} \r', end='')  # use display(f) if you encounter performance issues
 else:
     import subprocess
