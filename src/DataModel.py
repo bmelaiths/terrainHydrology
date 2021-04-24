@@ -252,6 +252,32 @@ class HydrologyNetwork:
         self.nodeCounter += 1
         allpoints_list = np.array([self.graph.nodes[n]['primitive'].position for n in range(self.nodeCounter)])
         self.graphkd = cKDTree(allpoints_list)
+        
+        # Classify the new leaf
+        node.priority = 1
+
+        # Classify priorities of affected nodes
+        classifyNode = node.parent
+        while True:
+            if classifyNode is None:
+                break
+            children = self.upstream(classifyNode.id)
+            maxNumber = max([child.priority for child in children])
+            numMax = len([child.priority for child in children if child.priority == maxNumber])
+            if numMax > 1 and classifyNode.priority < maxNumber + 1:
+                # if there is more than one child with the maximum number,
+                # and the parent isn't already set for it, then change it
+                classifyNode.priority = maxNumber + 1
+            elif classifyNode.priority < maxNumber:
+                # if the parent isn't already set for the maximum number,
+                # change it
+                classifyNode.priority = maxNumber
+            else:
+                # if the parent does not need to be changed at all, then
+                # none of its ancestors do, and the graph is fully adjsuted
+                break
+            classifyNode = classifyNode.parent
+
         return node
     def query_ball_point(self, loc: typing.Tuple[float,float], radius: float) -> typing.List[int]:
         """Gets all nodes that are within a certain distance of a location
