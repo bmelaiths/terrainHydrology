@@ -6,25 +6,54 @@
 
 #define FLOAT_THRESH 0.1f
 
-bool comparePrimitives(const Primitive& a, const Primitive& b) {
-  return a.priority > b.priority;
-}
+class ComparePrimitives
+{
+  private:
+  HydrologyParameters& params;
+
+  public:
+  ComparePrimitives(HydrologyParameters& params)
+  : params(params)
+  {}
+  ~ComparePrimitives() {}
+  bool operator() (const size_t a, const size_t b) {
+    return
+    (
+      params.hydrology.getNode(a).priority
+      >
+      params.hydrology.getNode(b).priority
+    );
+  }
+};
 
 Primitive selectNode(HydrologyParameters& params) {
-  float lowestCandidateZ = params.candidates[0].elevation;
+  float lowestCandidateZ = params.hydrology.getNode(
+    params.candidates[0]
+  ).elevation;
   for (size_t i = 0; i < params.candidates.size(); i++)
   {
-    if (params.candidates[i].elevation < lowestCandidateZ)
+    if
+    (
+      params.hydrology.getNode(params.candidates[i]).elevation
+      <
+      lowestCandidateZ
+    )
     {
-      lowestCandidateZ = params.candidates[i].elevation;
+      lowestCandidateZ = params.hydrology.getNode(
+        params.candidates[i]
+      ).elevation;
     }
-    
   }
 
-  std::vector<Primitive> subselection;
+  std::vector<size_t> subselection;
   for (size_t i = 0; i < params.candidates.size(); i++)
   {
-    if (params.candidates[i].elevation < (lowestCandidateZ + params.zeta))
+    if
+    (
+      params.hydrology.getNode(params.candidates[i]).elevation
+      <
+      (lowestCandidateZ + params.zeta)
+    )
     {
       subselection.push_back(params.candidates[i]);
     }
@@ -33,16 +62,28 @@ Primitive selectNode(HydrologyParameters& params) {
   std::sort(
     subselection.begin(),
     subselection.end(),
-    comparePrimitives
+    ComparePrimitives(params)
   );
 
   size_t idx = 0;
-  Primitive lowestElevation = subselection[idx];
-  while (idx < subselection.size() && subselection[idx].priority == subselection[0].priority)
+  Primitive lowestElevation = params.hydrology.getNode(subselection[idx]);
+  while
+  (
+    idx < subselection.size()
+    &&
+    params.hydrology.getNode(subselection[idx]).priority
+    ==
+    params.hydrology.getNode(subselection[0]).priority
+  )
   {
-    if (subselection[idx].elevation < lowestElevation.elevation)
+    if
+    (
+      params.hydrology.getNode(subselection[idx]).elevation
+      <
+      lowestElevation.elevation
+    )
     {
-      lowestElevation = subselection[idx];
+      lowestElevation = params.hydrology.getNode(subselection[idx]);
     }
     idx++;
   }
@@ -200,7 +241,7 @@ void beta
     params.candidates.push_back(
       params.hydrology.addRegularNode(
         newLoc, newZ, priority, node.id
-      )
+      ).id
     );
   }
   else

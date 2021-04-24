@@ -9,8 +9,9 @@
 class Primitive
 {
   public:
-  size_t id, parent, child;
-  bool isMouthNode, hasChild = false;
+  size_t id, parent;
+  std::vector<size_t> children;
+  bool isMouthNode;
   Point loc;
   float elevation;
   int priority;
@@ -55,6 +56,7 @@ class Hydrology
     Point loc, float elevation, int priority, size_t parent
   );
   std::vector<Edge> edgesWithinRadius(Point loc, float radius);
+  Primitive getNode(size_t idx);
 };
 
 #endif

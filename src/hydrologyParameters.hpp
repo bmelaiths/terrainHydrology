@@ -23,7 +23,7 @@ class HydrologyParameters
 
     std::vector<cv::Point> contour;
 
-    std::vector<Primitive> candidates;
+    std::vector<size_t> candidates;
     Hydrology hydrology;
 };
 

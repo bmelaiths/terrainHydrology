@@ -56,8 +56,7 @@ Primitive Hydrology::addRegularNode
 
   tree.insert(loc, indexedNodes.size());
 
-  indexedNodes[parent].child = indexedNodes.size();
-  indexedNodes[parent].hasChild = true;
+  indexedNodes[parent].children.push_back(node.id);
 
   indexedNodes.push_back(node);
 
@@ -77,11 +76,14 @@ std::vector<Edge> Hydrology::edgesWithinRadius(Point loc, float radius)
     {
       edges.push_back(Edge(idxNode, indexedNodes[idxNode.parent]));
     }
-    if (idxNode.hasChild)
+    for (size_t i = 0; i < idxNode.children.size(); i++)
     {
-      edges.push_back(Edge(indexedNodes[idxNode.child], idxNode));
+      edges.push_back(Edge(idxNode, indexedNodes[idxNode.children[i]]));
     }
   }
-
   return edges;
+}
+
+Primitive Hydrology::getNode(size_t idx) {
+  return indexedNodes[idx];
 }
