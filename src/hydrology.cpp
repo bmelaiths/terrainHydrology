@@ -60,6 +60,51 @@ Primitive Hydrology::addRegularNode
 
   indexedNodes.push_back(node);
 
+  // Classify new leaf
+  indexedNodes[node.id].priority = 1;
+
+  //loop invariants:
+  //classifyNode is a copy of a node whose parent had to be changed
+  Primitive classifyNode = getNode(parent);
+  while (true)
+  {
+    int maxPriority = getNode(classifyNode.children[0]).priority;
+    int numMax = 1;
+    for (size_t i = 0; i < classifyNode.children.size(); i++)
+    {
+      if (getNode(classifyNode.children[i]).priority == maxPriority)
+      {
+        numMax++;
+        continue;
+      }
+      if (getNode(classifyNode.children[i]).priority > maxPriority)
+      {
+        maxPriority = getNode(classifyNode.children[i]).priority;
+        numMax = 1;
+      }
+    }
+
+    if (numMax > 1 && classifyNode.priority < numMax + 1)
+    {
+      indexedNodes[classifyNode.id].priority = numMax + 1;
+    }
+    else if (classifyNode.priority < numMax)
+    {
+      indexedNodes[classifyNode.id].priority = numMax;
+    }
+    else
+    {
+      break;
+    }
+    
+    if (classifyNode.isMouthNode)
+    {
+      break;
+    }
+    
+    classifyNode = getNode(classifyNode.parent);
+  }
+
   return node;
 }
 
