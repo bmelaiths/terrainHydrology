@@ -499,6 +499,41 @@ namespace
 
         EXPECT_FALSE(isAcceptablePosition(Point(250*params.resolution,134*params.resolution),0,params)); //too close to the seeee
     }
+    TEST(HydrologyFunctionsTests, IsAcceptablePositionRealDataTestI)
+    {
+        FILE *input = fopen("./binaryFile", "rb");
+
+        if (input == NULL)
+        {
+            printf("Unable to open file\n");
+            exit(1);
+        }
+
+        HydrologyParameters params = readParamsFromStream(input);
+
+        Primitive testNode(10, 6, Point(105000.0, 70100.0), 0.0, 10);
+
+        ASSERT_FALSE(isAcceptablePosition(testNode.loc, 6, params));
+    }
+    TEST(HydrologyFunctionsTests, IsAcceptablePositionRealDataTestII)
+    {
+        FILE *input = fopen("./binaryFile", "rb");
+
+        if (input == NULL)
+        {
+            printf("Unable to open file\n");
+            exit(1);
+        }
+
+        HydrologyParameters params = readParamsFromStream(input);
+
+        Point testLoc(
+            params.hydrology.indexedNodes[6].loc.x-params.edgeLength,
+            params.hydrology.indexedNodes[6].loc.y
+        );
+
+        ASSERT_TRUE(isAcceptablePosition(testLoc, 6, params));
+    }
     TEST(HydrologyFunctionsTests, CoastNormalTest) {
         /*
            NOTE: This test depends on cv::findContours always generating

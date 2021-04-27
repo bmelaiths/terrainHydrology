@@ -260,6 +260,7 @@ else:
     # file = open('src/binaryFile', 'w+b')
     # file.write(params.toBinary())
     # file.close()
+    # exit()
     buildRiversExe = 'src/buildRivers'
     if not os.path.exists(buildRiversExe):
         print('The executable does not exist. Run "make" to build it.')
@@ -346,9 +347,6 @@ plt.savefig(outputDir + '6-riverHeights.png', dpi=debugdpi)
 # Yellow lines outline the voronoi cells around each river node
 # Yellow dots identify the vertices of the voronoi cells
 
-if args.accelerate:
-    #TMP DEBUG
-    exit()
 
 # Calculate watershed areas
 print('Calculating watershed areas...')

@@ -72,7 +72,7 @@ void openCVtest(HydrologyParameters& params) {
 
   cv::imshow("See if this works", drawing);
 
-  cv::waitKey(10000);
+  cv::waitKey(50000);
 }
 
 int main() {
@@ -91,6 +91,17 @@ int main() {
   #endif
 
   HydrologyParameters params = readParamsFromStream(INPUT);
+
+  // for(size_t candidate : params.candidates)
+  // {
+  //   printf
+  //   (
+  //     "Candidate %ld: (%f, %f)\n",
+  //     candidate,
+  //     params.hydrology.indexedNodes[candidate].loc.x,
+  //     params.hydrology.indexedNodes[candidate].loc.y
+  //   );
+  // }
 
   /* Create a shoreline */
   // const int r = 1000;
@@ -141,8 +152,8 @@ int main() {
   const uint8_t anotherNode = 0x2e, allDone = 0x21;
 
   while (
-    params.candidates.size() > 0 &&
-    params.hydrology.indexedNodes.size() < 100
+    params.candidates.size() > 0 // &&
+    // params.hydrology.indexedNodes.size() < 100
   )
   {
     Primitive selectedCandidate = selectNode(params);

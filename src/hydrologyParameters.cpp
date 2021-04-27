@@ -118,7 +118,7 @@ HydrologyParameters readParamsFromStream(FILE *stream)
   for (uint64_t i = 0; i < contourLength; i++)
   {
     // Points in a contour array are y,x
-    params.contour.push_back(cv::Point2f(inPoints[i][X],inPoints[i][Y]));
+    params.contour.push_back(cv::Point2f(inPoints[i][Y],inPoints[i][X]));
   }
 
   params.riverSlope.setResolution(params.resolution);
