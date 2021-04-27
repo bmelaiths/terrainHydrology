@@ -23,7 +23,7 @@ testsuite.o : tst/testsuite.cpp $(GTEST_HEADERS)
 	@ echo "Compiling Tests..."
 	@ g++ $(CPPFLAGS) -isystem $(GTEST_DIR)/include $^ -c
 
-testsuite : testsuite.o gtest-all.o gtest_main.o hydrologyFunctions.o hydrology.o kdtree.o raster.o
+testsuite : testsuite.o gtest-all.o gtest_main.o hydrologyFunctions.o hydrologyParameters.o hydrology.o kdtree.o raster.o
 	g++ $(CPPFLAGS) -lpthread -lopencv_core -lopencv_imgproc -lopencv_highgui $^ -o $@
 
 test : testsuite

@@ -1,5 +1,9 @@
 #include "hydrology.hpp"
 
+#include <string.h>
+#include <stdlib.h>
+#include <endian.h>
+
 Primitive::Primitive()
 :
 id(0), parent(0), isMouthNode(false), loc(Point(0,0)),
@@ -14,7 +18,7 @@ Primitive::Primitive
   int priority, int contourIndex
 )
 :
-id(id), isMouthNode(true), loc(loc), elevation(elevation),
+id(id), parent(id), isMouthNode(true), loc(loc), elevation(elevation),
 priority(priority), contourIndex(contourIndex)
 {
 
@@ -30,6 +34,66 @@ id(id), parent(parentID), isMouthNode(false), loc(loc),
 elevation(elevation), priority(priority)
 {
 
+}
+
+size_t Primitive::binarySize()
+{
+  return
+  (
+    sizeof(size_t) * (2 + children.size()) +
+    sizeof(uint8_t) * 1 +
+    sizeof(float) * 3
+  );
+}
+
+float float_tobe(float value) {
+    union v {
+        float f;
+        uint32_t i;
+    };
+
+    union v val;
+
+    val.f = value;
+    val.i = htobe32(val.i);
+
+    return val.f;
+}
+
+void Primitive::toBinary(uint8_t *buffer)
+{
+  size_t idx = 0;
+
+  uint64_t ID = htobe64((uint64_t)id);
+  memcpy(buffer + idx, &ID, sizeof(uint64_t));
+  idx += sizeof(size_t);
+
+  uint64_t PARENT = htobe64((uint64_t)parent);
+  memcpy(buffer + idx, &PARENT, sizeof(uint64_t));
+  idx += sizeof(size_t);
+
+  uint8_t numChildren = (uint8_t) children.size();
+  memcpy(buffer + idx, &numChildren, sizeof(uint8_t));
+  idx += sizeof(uint8_t);
+
+  for (size_t child = 0; child < children.size(); child++)
+  {
+    uint64_t childID = htobe64((uint64_t)children[child]);
+    memcpy(buffer + idx, &childID, sizeof(uint64_t));
+    idx += sizeof(uint64_t);
+  }
+
+  float locX = float_tobe(loc.x);
+  memcpy(buffer + idx, &locX, sizeof(float));
+  idx += sizeof(float);
+
+  float locY = float_tobe(loc.y);
+  memcpy(buffer + idx, &locY, sizeof(float));
+  idx += sizeof(float);
+
+  float ELEV = float_tobe(elevation);
+  memcpy(buffer + idx, &ELEV, sizeof(float));
+  idx += sizeof(float);
 }
 
 Edge::Edge(Primitive node0, Primitive node1)
@@ -131,4 +195,26 @@ std::vector<Edge> Hydrology::edgesWithinRadius(Point loc, float radius)
 
 Primitive Hydrology::getNode(size_t idx) {
   return indexedNodes[idx];
+}
+
+void writeBinary(Hydrology hydrology, FILE *stream)
+{
+  uint64_t numPrimitives = htobe64((uint64_t) hydrology.indexedNodes.size());
+  fwrite(&numPrimitives, sizeof(uint64_t), 1, stream);
+  fflush(stream);
+
+  uint8_t *buffer;
+  for (size_t i = 0; i < hydrology.indexedNodes.size(); i++)
+  {
+    size_t size = hydrology.indexedNodes[i].binarySize();
+    buffer = new uint8_t[size];
+
+    hydrology.indexedNodes[i].toBinary(buffer);
+
+    fwrite(buffer, size, 1, stream);
+
+    delete buffer;
+
+    fflush(stream);
+  }
 }

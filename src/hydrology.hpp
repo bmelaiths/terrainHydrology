@@ -2,6 +2,8 @@
 #define HYDROLOGY_H
 
 #include <vector>
+#include <stdio.h>
+#include <stdint.h>
 
 #include "point.hpp"
 #include "kdtree.hpp"
@@ -28,6 +30,8 @@ class Primitive
     size_t id, size_t parentID, Point loc, float elevation, int priority
   );
   //a trivial implicitly-declared destructor will be sufficient
+  size_t binarySize();
+  void toBinary(uint8_t *buffer);
 };
 
 class Edge
@@ -58,5 +62,7 @@ class Hydrology
   std::vector<Edge> edgesWithinRadius(Point loc, float radius);
   Primitive getNode(size_t idx);
 };
+
+void writeBinary(Hydrology hydrology, FILE *stream);
 
 #endif

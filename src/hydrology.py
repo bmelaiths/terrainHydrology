@@ -257,22 +257,28 @@ else:
     import subprocess
     import os.path
     import struct
-    # file = open('binaryFile', 'w+b')
+    # file = open('src/binaryFile', 'w+b')
     # file.write(params.toBinary())
     # file.close()
-    buildRiversExe = 'buildRivers'
+    buildRiversExe = 'src/buildRivers'
     if not os.path.exists(buildRiversExe):
         print('The executable does not exist. Run "make" to build it.')
         exit()
-    proc = subprocess.run(
+    proc = subprocess.Popen(
         ['./' + buildRiversExe],
-        input = params.toBinary(),
-        capture_output=True
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE
     )
-    result = proc.stdout
-    print(f'Selected Candidate X: {struct.unpack("!I", result[0:4])[0]}')
-    print(f'Selected Candidate Y: {struct.unpack("!I", result[4:8])[0]}')
-    exit()
+    proc.stdin.write(params.toBinary())
+    nodesCreated = 0
+    readByte = proc.stdout.read(1)
+    nodesCreated = nodesCreated + 1
+    while struct.unpack('B', readByte)[0] == 0x2e:
+        print(f'\tNodes Created: {nodesCreated} \r', end='')
+        readByte = proc.stdout.read(1)
+        nodesCreated = nodesCreated + 1
+    print()
+    hydrology = DataModel.HydrologyNetwork(stream=proc.stdout)
 
 print()
 
@@ -340,6 +346,9 @@ plt.savefig(outputDir + '6-riverHeights.png', dpi=debugdpi)
 # Yellow lines outline the voronoi cells around each river node
 # Yellow dots identify the vertices of the voronoi cells
 
+if args.accelerate:
+    #TMP DEBUG
+    exit()
 
 # Calculate watershed areas
 print('Calculating watershed areas...')

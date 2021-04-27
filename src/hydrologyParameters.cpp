@@ -91,7 +91,7 @@ HydrologyParameters readParamsFromStream(FILE *stream)
     params.candidates.push_back(
       params.hydrology.addMouthNode(
         Point(x,y), 0.0f, priority, contourIndex
-      )
+      ).id
     );
 
     // printf("Node %d: (%f, %f), priority %d, contour index %ld\n",

@@ -20,6 +20,7 @@ class Raster {
     Raster();
     ~Raster();
     void set(size_t col, size_t row, float datum);
+    void set(float datum);
     void setResolution(float resolution);
     float get(float x, float y);
     void setSize(size_t size);

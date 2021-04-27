@@ -29,4 +29,6 @@ class HydrologyParameters
 
 HydrologyParameters readParamsFromStream(FILE *stream);
 
+float float_swap(float value);
+
 #endif

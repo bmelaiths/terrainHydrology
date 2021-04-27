@@ -118,14 +118,14 @@ namespace
             Point(9.0f, 6.0f), 0.0f, 0, node3.id
         );
 
-        ASSERT_EQ(node0.id, 0);
-        ASSERT_EQ(node1.id, 1);
-        ASSERT_EQ(node2.id, 2);
-        ASSERT_EQ(node3.id, 3);
-        ASSERT_EQ(node4.id, 4);
-        ASSERT_EQ(node5.id, 5);
-        ASSERT_EQ(node6.id, 6);
-        ASSERT_EQ(node7.id, 7);
+        ASSERT_EQ(node0.id, (size_t)0);
+        ASSERT_EQ(node1.id, (size_t)1);
+        ASSERT_EQ(node2.id, (size_t)2);
+        ASSERT_EQ(node3.id, (size_t)3);
+        ASSERT_EQ(node4.id, (size_t)4);
+        ASSERT_EQ(node5.id, (size_t)5);
+        ASSERT_EQ(node6.id, (size_t)6);
+        ASSERT_EQ(node7.id, (size_t)7);
     }
 
     TEST(HydrologyTest, BallPointSearch)
@@ -309,7 +309,7 @@ namespace
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
-        params.eta = 1.5;
+        params.eta = 0.95;
         params.sigma = 1.1;
 
         Primitive mouth = params.hydrology.addMouthNode(
@@ -352,7 +352,7 @@ namespace
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
-        params.eta = 1.5;
+        params.eta = 0.95;
         params.sigma = 1.1;
 
         Primitive mouth = params.hydrology.addMouthNode(
@@ -395,7 +395,7 @@ namespace
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
-        params.eta = 1.5;
+        params.eta = 0.95;
         params.sigma = 1.1;
 
         Primitive mouth = params.hydrology.addMouthNode(
@@ -438,7 +438,7 @@ namespace
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
-        params.eta = 1.5;
+        params.eta = 0.95;
         params.sigma = 1.1;
 
         Primitive mouth = params.hydrology.addMouthNode(
@@ -481,7 +481,7 @@ namespace
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
-        params.eta = 1.5;
+        params.eta = 0.95;
         params.sigma = 1.1;
 
         Primitive mouth = params.hydrology.addMouthNode(
@@ -563,8 +563,8 @@ namespace
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
-        params.eta = 1.5;
-        params.sigma = 1.1;
+        params.eta = 0.95;
+        params.sigma = 0.95;
         params.riverAngleDev = 0.05;
         params.maxTries = 15;
 
@@ -583,5 +583,137 @@ namespace
 
         Point newLoc = pickNewNodeLoc(child0, params);
         ASSERT_TRUE(isAcceptablePosition(newLoc, child0.id, params));
+    }
+    TEST(PrimitiveTests, ToBinaryIDTest)
+    {
+        Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
+        node.children.push_back(2);
+
+        uint8_t *buffer = new uint8_t[node.binarySize()];
+
+        node.toBinary(buffer);
+
+        uint64_t nodeID;
+        memcpy(&nodeID, buffer, sizeof(uint64_t));
+        ASSERT_EQ((uint64_t)1, be64toh(nodeID));
+
+        delete buffer;
+    }
+    TEST(PrimitiveTests, ToBinaryParentTest)
+    {
+        Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
+        node.children.push_back(2);
+
+        uint8_t *buffer = new uint8_t[node.binarySize()];
+
+        node.toBinary(buffer);
+
+        uint64_t parent;
+        memcpy(&parent, buffer + sizeof(uint64_t), sizeof(uint64_t));
+        ASSERT_EQ((uint64_t)1, be64toh(parent));
+
+        delete buffer;
+    }
+    TEST(PrimitiveTests, ToChildrenTest)
+    {
+        Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
+        node.children.push_back(2);
+        node.children.push_back(7);
+
+        uint8_t *buffer = new uint8_t[node.binarySize()];
+
+        node.toBinary(buffer);
+
+        uint8_t numChildren;
+        memcpy(&numChildren, buffer + sizeof(uint64_t) * 2, sizeof(uint8_t));
+        ASSERT_EQ(node.children.size(), numChildren);
+
+        uint64_t childID;
+        for (size_t child = 0; child < numChildren; child++)
+        {
+            memcpy
+            (
+                &childID,
+                buffer + sizeof(uint64_t)*2 + sizeof(uint8_t) + sizeof(uint64_t)*child,
+                sizeof(uint64_t)
+            );
+            ASSERT_EQ(node.children[child], be64toh(childID));
+        }
+
+        delete buffer;
+    }
+    TEST(PrimitiveTests, ToBinaryLocXTest)
+    {
+        Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
+        node.children.push_back(2);
+        node.children.push_back(7);
+
+        uint8_t *buffer = new uint8_t[node.binarySize()];
+
+        node.toBinary(buffer);
+
+        float locX;
+        memcpy(
+            &locX,
+            buffer
+                + sizeof(uint64_t)*2
+                + sizeof(uint8_t)
+                + sizeof(uint64_t)*2,
+            sizeof(float)
+        );
+        locX = float_swap(locX);
+        ASSERT_LT(abs(3.14-locX), 0.001);
+
+        delete buffer;
+    }
+    TEST(PrimitiveTests, ToBinaryLocYTest)
+    {
+        Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
+        node.children.push_back(2);
+        node.children.push_back(7);
+
+        uint8_t *buffer = new uint8_t[node.binarySize()];
+
+        node.toBinary(buffer);
+
+        float locY;
+        memcpy(
+            &locY,
+            buffer
+                + sizeof(uint64_t)*2
+                + sizeof(uint8_t)
+                + sizeof(uint64_t)*2
+                + sizeof(float),
+            sizeof(float)
+        );
+        locY = float_swap(locY);
+        ASSERT_LT(abs(5.2-locY), 0.001);
+
+        delete buffer;
+    }
+    TEST(PrimitiveTests, ToBinaryElevationTest)
+    {
+        Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
+        node.children.push_back(2);
+        node.children.push_back(7);
+
+        uint8_t *buffer = new uint8_t[node.binarySize()];
+
+        node.toBinary(buffer);
+
+        float elevation;
+        memcpy(
+            &elevation,
+            buffer
+                + sizeof(uint64_t)*2
+                + sizeof(uint8_t)
+                + sizeof(uint64_t)*2
+                + sizeof(float)*2,
+            sizeof(float)
+        );
+        elevation = float_swap(elevation);
+        ASSERT_LT(abs(12.1-elevation), 0.001);
+
+        delete buffer;
     }
 }

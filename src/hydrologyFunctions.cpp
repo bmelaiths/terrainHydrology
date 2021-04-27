@@ -150,12 +150,6 @@ bool isAcceptablePosition(Point testLoc, size_t parentID, HydrologyParameters& p
   );
   for (Edge edge : edges)
   {
-    //TODO this is unnecessary as long as sigma is less that 1.0
-    if (edge.node0.id == parentID || edge.node1.id == parentID)
-    {
-      continue;
-    }
-    
     float dist = point_segment_distance(
       testLoc.x, testLoc.y,
       edge.node0.loc.x, edge.node0.loc.y,
@@ -224,7 +218,17 @@ Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
 }
 
 void tao(Primitive node, HydrologyParameters& params) {
-  params.candidates.erase(params.candidates.begin() + node.id);
+  // params.candidates.erase(params.candidates.begin() + node.id);
+  size_t candidateIdx = 0;
+  for (size_t i = 0; i < params.candidates.size(); i++)
+  {
+    if (params.candidates[i] == node.id)
+    {
+      candidateIdx = i;
+      params.candidates.erase(params.candidates.begin() + candidateIdx);
+      break;
+    }
+  }
 }
 
 void beta
@@ -251,7 +255,8 @@ void beta
 }
 
 void ruleBase(Primitive candidate, HydrologyParameters& params) {
-  int numBranches = (int) (rand() * 4) + 1;
+  //int numBranches = (int) (rand() * 4) + 1;
+  const int numBranches = 5;
   for (int i = 0; i < numBranches; i++)
   {
     beta(candidate, candidate.priority, params);

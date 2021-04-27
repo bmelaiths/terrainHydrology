@@ -78,6 +78,9 @@ void openCVtest(HydrologyParameters& params) {
 int main() {
   //gather inputs
 
+  #define INPUT stdin
+  // #define FILEINPUT
+  #ifdef FILEINPUT
   FILE *input = fopen("./binaryFile", "rb");
 
   if (input == NULL)
@@ -85,31 +88,83 @@ int main() {
     printf("Unable to open file\n");
     exit(1);
   }
+  #endif
 
-  HydrologyParameters params = readParamsFromStream(input);
+  HydrologyParameters params = readParamsFromStream(INPUT);
 
+  /* Create a shoreline */
+  // const int r = 1000;
+  // cv::Mat src = cv::Mat::zeros( cv::Size( 4*r, 4*r ), CV_8U );
+  // std::vector<cv::Point2f> vert(6);
+  // vert[0] = cv::Point( 1500, 1340 );
+  // vert[1] = cv::Point( 1000, 2000 );
+  // vert[2] = cv::Point( 1500, 2860 );
+  // vert[3] = cv::Point( 2500, 2860 );
+  // vert[4] = cv::Point( 3000, 2000 );
+  // vert[5] = cv::Point( 2500, 1340 );
+  // for( int i = 0; i < 6; i++ )
+  // {
+  //   cv::line( src, vert[i],  vert[(i+1)%6], cv::Scalar( 255 ), 3 );
+  // }
+  // std::vector<std::vector<cv::Point> > contours;
+  // cv::findContours( 
+  //   src, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE
+  // );
+
+  // HydrologyParameters params;
+  // params.Pa = 0.3;
+  // params.Pc = 0.3;
+  // params.maxTries = 15;
+  // params.riverAngleDev = 1.0;
+  // params.edgeLength = 10.0;
+  // params.sigma = 0.75;
+  // params.eta = 0.75;
+  // params.zeta = 50.0;
+  // params.slopeRate = 1.0;
+  // params.resolution = 1.0;
+  // params.riverSlope.setResolution(1.0);
+  // params.riverSlope.setSize(3500);
+  // params.riverSlope.set(1.0);
+  // params.contour = contours[0];
+  // const size_t contourIndex = 175;
+  // params.candidates.push_back(
+  //   params.hydrology.addMouthNode(
+  //     Point(params.contour[contourIndex].x,params.contour[contourIndex].y),
+  //     0.0, 1, contourIndex
+  //   ).id
+  // );
 
   // perform computatons
 
   // openCVtest(params);
 
-  Primitive selected = selectNode(params);
+  const uint8_t anotherNode = 0x2e, allDone = 0x21;
 
+  while (
+    params.candidates.size() > 0 &&
+    params.hydrology.indexedNodes.size() < 100
+  )
+  {
+    Primitive selectedCandidate = selectNode(params);
+    alpha(selectedCandidate, params);
+    // printf("\tNodes generated: %ld\r", params.hydrology.indexedNodes.size());
+    fwrite(&anotherNode, sizeof(uint8_t), 1, stdout);
+    fflush(stdout);
+  }
+  fwrite(&allDone, sizeof(uint8_t), 1, stdout);
+  fflush(stdout);
 
   //export outputs
-  // uint8_t result = 'a';
-  // fwrite(&result, sizeof(uint8_t), 1, stdout);
-  uint32_t xNetworkOrder, yNetworkOrder;
-  xNetworkOrder = htobe32((uint32_t)selected.loc.x);
-  yNetworkOrder = htobe32((uint32_t)selected.loc.y);
-  fwrite(&xNetworkOrder, sizeof(float), 1, stdout);
-  fwrite(&yNetworkOrder, sizeof(float), 1, stdout);
-  fflush(stdout);
+
+  writeBinary(params.hydrology, stdout);
+
+  // printf("Number of nodes: %ld\n", params.hydrology.indexedNodes.size());
 
 
   //free resources
+  #ifdef FILEINPUT
+  fclose(INPUT);
+  #endif
 
-  fclose(input);
-
-    return 0;
+  return 0;
 }
