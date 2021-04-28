@@ -180,7 +180,7 @@ float coastNormal(Primitive candidate, HydrologyParameters& params) {
 Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
   float angle;
   // if candidate has no parent
-  if (candidate.isMouthNode)
+  if (candidate.parent == NULL)
   {
     angle = coastNormal(candidate, params);
   }

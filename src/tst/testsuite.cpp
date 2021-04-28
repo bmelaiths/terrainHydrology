@@ -245,6 +245,25 @@ namespace
 
         ASSERT_EQ(selected.id, (size_t)3);
     }
+    TEST(HydrologyTest, NodeAdditionTest)
+    {
+        HydrologyParameters params;
+
+        Primitive mouth = params.hydrology.addMouthNode(
+            Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
+        );
+        /*Primitive child0 = */params.hydrology.addRegularNode(
+            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+        );
+        Primitive child1 = params.hydrology.addRegularNode(
+            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+        );
+        /*Primitive child0 = */params.hydrology.addRegularNode(
+            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.id
+        );
+
+        ASSERT_EQ(params.hydrology.indexedNodes.size(), 4);
+    }
     TEST(HydrologyFunctionsTests, IsAcceptablePositionAcceptableTest)
     {
         /* Create a shoreline */
@@ -622,7 +641,8 @@ namespace
     TEST(PrimitiveTests, ToBinaryIDTest)
     {
         Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
-        node.children.push_back(2);
+        Primitive child(2, &node, Point(0,0), 0.0, 0);
+        node.children.push_back(&child);
 
         uint8_t *buffer = new uint8_t[node.binarySize()];
 
@@ -637,7 +657,8 @@ namespace
     TEST(PrimitiveTests, ToBinaryParentTest)
     {
         Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
-        node.children.push_back(2);
+        Primitive child(2, &node, Point(0,0), 0.0, 0);
+        node.children.push_back(&child);
 
         uint8_t *buffer = new uint8_t[node.binarySize()];
 
@@ -652,8 +673,10 @@ namespace
     TEST(PrimitiveTests, ToChildrenTest)
     {
         Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
-        node.children.push_back(2);
-        node.children.push_back(7);
+        Primitive child0(2, &node, Point(0,0), 0.0, 0);
+        Primitive child1(7, &node, Point(0,0), 0.0, 0);
+        node.children.push_back(&child0);
+        node.children.push_back(&child1);
 
         uint8_t *buffer = new uint8_t[node.binarySize()];
 
@@ -672,7 +695,7 @@ namespace
                 buffer + sizeof(uint64_t)*2 + sizeof(uint8_t) + sizeof(uint64_t)*child,
                 sizeof(uint64_t)
             );
-            ASSERT_EQ(node.children[child], be64toh(childID));
+            ASSERT_EQ(node.children[child]->id, be64toh(childID));
         }
 
         delete buffer;
@@ -680,8 +703,10 @@ namespace
     TEST(PrimitiveTests, ToBinaryLocXTest)
     {
         Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
-        node.children.push_back(2);
-        node.children.push_back(7);
+        Primitive child0(2, &node, Point(0,0), 0.0, 0);
+        Primitive child1(7, &node, Point(0,0), 0.0, 0);
+        node.children.push_back(&child0);
+        node.children.push_back(&child1);
 
         uint8_t *buffer = new uint8_t[node.binarySize()];
 
@@ -704,8 +729,10 @@ namespace
     TEST(PrimitiveTests, ToBinaryLocYTest)
     {
         Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
-        node.children.push_back(2);
-        node.children.push_back(7);
+        Primitive child0(2, &node, Point(0,0), 0.0, 0);
+        Primitive child1(7, &node, Point(0,0), 0.0, 0);
+        node.children.push_back(&child0);
+        node.children.push_back(&child1);
 
         uint8_t *buffer = new uint8_t[node.binarySize()];
 
@@ -729,8 +756,10 @@ namespace
     TEST(PrimitiveTests, ToBinaryElevationTest)
     {
         Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
-        node.children.push_back(2);
-        node.children.push_back(7);
+        Primitive child0(2, &node, Point(0,0), 0.0, 0);
+        Primitive child1(7, &node, Point(0,0), 0.0, 0);
+        node.children.push_back(&child0);
+        node.children.push_back(&child1);
 
         uint8_t *buffer = new uint8_t[node.binarySize()];
 

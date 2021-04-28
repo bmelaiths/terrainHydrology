@@ -15,7 +15,6 @@ class Primitive
   size_t id;
   Primitive *parent;
   std::vector<Primitive*> children;
-  bool isMouthNode;
   Point loc;
   float elevation;
   int priority;

@@ -6,7 +6,7 @@
 
 Primitive::Primitive()
 :
-id(0), parent(NULL), isMouthNode(false), loc(Point(0,0)),
+id(0), parent(NULL), loc(Point(0,0)),
 elevation(0.0f), priority(0), contourIndex(0)
 {
 
@@ -18,7 +18,7 @@ Primitive::Primitive
   int priority, int contourIndex
 )
 :
-id(id), parent(NULL), isMouthNode(true), loc(loc), elevation(elevation),
+id(id), parent(NULL), loc(loc), elevation(elevation),
 priority(priority), contourIndex(contourIndex)
 {
 
@@ -30,7 +30,7 @@ Primitive::Primitive
   float elevation, int priority
 )
 :
-id(id), parent(parentID), isMouthNode(false), loc(loc),
+id(id), parent(parentID), loc(loc),
 elevation(elevation), priority(priority)
 {
 
@@ -87,7 +87,7 @@ void Primitive::toBinary(uint8_t *buffer)
 
   for (size_t child = 0; child < children.size(); child++)
   {
-    uint64_t childID = htobe64((uint64_t)children[child]);
+    uint64_t childID = htobe64((uint64_t)children[child]->id);
     memcpy(buffer + idx, &childID, sizeof(uint64_t));
     idx += sizeof(uint64_t);
   }
@@ -174,7 +174,7 @@ Primitive Hydrology::addRegularNode
       break;
     }
     
-    if (classifyNode->isMouthNode)
+    if (classifyNode->parent == NULL)
     {
       break;
     }
@@ -194,7 +194,7 @@ std::vector<Edge> Hydrology::edgesWithinRadius(Point loc, float radius)
   for (Primitive* closeIdx : closeIdxes)
   {
     // Primitive idxNode = indexedNodes[closeIdx];
-    if (!closeIdx->isMouthNode)
+    if (closeIdx->parent != NULL)
     {
       edges.push_back(Edge(*closeIdx, *closeIdx->parent));
     }
