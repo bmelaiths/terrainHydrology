@@ -13,7 +13,7 @@ namespace
 {
     TEST(KDTreeTest, CreationTest)
     {
-        KDTree tree;
+        KDTree<size_t> tree;
 
         tree.insert(Point(3.0f, 6.0f), 0);
 
@@ -23,7 +23,7 @@ namespace
     }
 
     TEST(KDTreeTest, StructureTest) {
-        KDTree tree;
+        KDTree<size_t> tree;
 
         tree.insert(Point(3.0f, 6.0f),0);
         tree.insert(Point(17.0f, 15.0f),2);
@@ -42,7 +42,7 @@ namespace
     }
 
     TEST(KDTreeTest, RangeSearchTest) {
-        KDTree tree;
+        KDTree<size_t> tree;
 
         tree.insert(Point(3.0f, 6.0f),0);
         tree.insert(Point(17.0f, 15.0f),2);
@@ -60,7 +60,7 @@ namespace
     }
 
     TEST(KDTreeTest, RangeSearchTestII) {
-        KDTree tree;
+        KDTree<size_t> tree;
 
         tree.insert(Point(7,5),0);
         tree.insert(Point(7,3),1);

@@ -50,7 +50,7 @@ class Hydrology
 
   public:
   std::vector<Primitive> indexedNodes;
-  KDTree tree;
+  KDTree<size_t> tree;
 
   public:
   Primitive addMouthNode(
