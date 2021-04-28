@@ -24,8 +24,8 @@ Node* KDTree::tryInsert(Node* finalNode, bool isXlevel, Node* toIns)
             //else NOT
     
     //if this is an x level, then we compare x values, else y values
-    float nodeCompValue = isXlevel ? finalNode->loc.x : finalNode->loc.y;
-    float insCompValue  = isXlevel ?     toIns->loc.x : toIns->loc.y    ;
+    float nodeCompValue = isXlevel ? finalNode->loc.x() : finalNode->loc.y();
+    float insCompValue  = isXlevel ?     toIns->loc.x() : toIns->loc.y()    ;
 
     if (insCompValue < nodeCompValue)
     { //work on the left side of the tree
@@ -103,17 +103,17 @@ std::vector<size_t> KDTree::rangeSearch(Point loc, float radius)
         float queryCompValue, otherQueryCompValue;
         if (isXlevel)
         { //if this is an X level, evaluate the x values
-            nodeCompValue = v->loc.x;
-            otherNodeCompValue = v->loc.y;
-            queryCompValue = loc.x;
-            otherQueryCompValue = loc.y;
+            nodeCompValue = v->loc.x();
+            otherNodeCompValue = v->loc.y();
+            queryCompValue = loc.x();
+            otherQueryCompValue = loc.y();
         }
         else
         {
-            nodeCompValue = v->loc.y;
-            otherNodeCompValue = v->loc.x;
-            queryCompValue = loc.y;
-            otherQueryCompValue = loc.x;
+            nodeCompValue = v->loc.y();
+            otherNodeCompValue = v->loc.x();
+            queryCompValue = loc.y();
+            otherQueryCompValue = loc.x();
         }
 
         //based on the relevant dimension, decide what to do

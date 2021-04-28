@@ -1,4 +1,5 @@
 #include "hydrologyFunctions.hpp"
+#include "point.hpp"
 
 #include <random>
 
@@ -127,7 +128,7 @@ float point_segment_distance(float px, float py, float x1, float y1, float x2, f
 }
 
 bool isAcceptablePosition(Point testLoc, size_t parentID, HydrologyParameters& params) {
-  if (testLoc.x < 0)
+  if (testLoc.x() < 0)
   {
     return false;
   }
@@ -135,8 +136,8 @@ bool isAcceptablePosition(Point testLoc, size_t parentID, HydrologyParameters& p
   float distToGamma = params.resolution * (float) cv::pointPolygonTest(
     params.contour,
     cv::Point2f(
-      (float) testLoc.x / params.resolution,
-      (float) testLoc.y / params.resolution
+      (float) testLoc.x() / params.resolution,
+      (float) testLoc.y() / params.resolution
     ),
     true
   );
@@ -151,9 +152,9 @@ bool isAcceptablePosition(Point testLoc, size_t parentID, HydrologyParameters& p
   for (Edge edge : edges)
   {
     float dist = point_segment_distance(
-      testLoc.x, testLoc.y,
-      edge.node0.loc.x, edge.node0.loc.y,
-      edge.node1.loc.x, edge.node1.loc.y
+      testLoc.x(), testLoc.y(),
+      edge.node0.loc.x(), edge.node0.loc.y(),
+      edge.node1.loc.x(), edge.node1.loc.y()
     );
     if (dist < params.sigma * params.edgeLength)
     {
@@ -172,7 +173,7 @@ float coastNormal(Primitive candidate, HydrologyParameters& params) {
     params.contour[candidate.contourIndex-3].x,
     params.contour[candidate.contourIndex-3].y
   );
-  float theta = atan2(p2.y - p1.y, p2.x - p1.x);
+  float theta = atan2(p2.y() - p1.y(), p2.x() - p1.x());
   return theta + M_PI_2f32;
 }
 
@@ -187,8 +188,8 @@ Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
   {
     // else 'angle will be the direction of the river
     angle = atan2(
-      candidate.loc.y - params.hydrology.indexedNodes[candidate.parent].loc.y,
-      candidate.loc.x - params.hydrology.indexedNodes[candidate.parent].loc.x
+      candidate.loc.y() - params.hydrology.indexedNodes[candidate.parent].loc.y(),
+      candidate.loc.x() - params.hydrology.indexedNodes[candidate.parent].loc.x()
     );
   }
 
@@ -201,8 +202,8 @@ Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
   {
     newAngle = angle + params.distribution(params.generator);
     newLoc = Point(
-      candidate.loc.x + cosf32(newAngle) * params.edgeLength,
-      candidate.loc.y + sinf32(newAngle) * params.edgeLength
+      candidate.loc.x() + cosf32(newAngle) * params.edgeLength,
+      candidate.loc.y() + sinf32(newAngle) * params.edgeLength
     );
     if (isAcceptablePosition(newLoc, candidate.id, params))
     {
@@ -235,11 +236,11 @@ void beta
 (Primitive node, int priority, HydrologyParameters& params)
 {
   Point newLoc = pickNewNodeLoc(node, params);
-  if (newLoc.x != -1)
+  if (newLoc.x() != -1)
   {
     float slope =
       params.slopeRate *
-      params.riverSlope.get(node.loc.x, node.loc.y) / 255
+      params.riverSlope.get(node.loc.x(), node.loc.y()) / 255
     ;
     float newZ = node.elevation + slope * params.edgeLength;
     params.candidates.push_back(

@@ -83,11 +83,11 @@ void Primitive::toBinary(uint8_t *buffer)
     idx += sizeof(uint64_t);
   }
 
-  float locX = float_tobe(loc.x);
+  float locX = float_tobe(loc.x());
   memcpy(buffer + idx, &locX, sizeof(float));
   idx += sizeof(float);
 
-  float locY = float_tobe(loc.y);
+  float locY = float_tobe(loc.y());
   memcpy(buffer + idx, &locY, sizeof(float));
   idx += sizeof(float);
 

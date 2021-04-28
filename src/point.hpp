@@ -3,11 +3,15 @@
 
 struct Point
 {
-    float x,y;
+    private:
+    float xLoc,yLoc;
 
+    public:
     Point(float x, float y)
-    : x(x), y(y)
+    : xLoc(x), yLoc(y)
     {};
+    float x() {return xLoc;};
+    float y() {return yLoc;};
 };
 
 #endif
