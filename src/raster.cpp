@@ -27,8 +27,8 @@ void Raster::setResolution(float resolution) {
 }
 
 float Raster::get(float x, float y) {
-    size_t row = (size_t) (x / resolution);
-    size_t col = (size_t) (y / resolution);
+    size_t col = (size_t) (x / resolution);
+    size_t row = (size_t) (y / resolution);
     return data[row * size + col];
 }
 

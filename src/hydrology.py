@@ -278,7 +278,6 @@ else:
         print(f'\tNodes Created: {nodesCreated} \r', end='')
         readByte = proc.stdout.read(1)
         nodesCreated = nodesCreated + 1
-    print()
     hydrology = DataModel.HydrologyNetwork(stream=proc.stdout)
 
 print()

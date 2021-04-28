@@ -235,47 +235,36 @@ class HydrologyNetwork:
             return
 
         buffer = stream.read(8)
-
         numberNodes = struct.unpack('!Q', buffer)[0]
-        print(f'Total nodes: {numberNodes}')
 
         for i in range(numberNodes):
-            # for ni in range(numberNodes):
             buffer = stream.read(8)
             nodeID = struct.unpack('!Q', buffer)[0]
-            print(f'Node ID: {nodeID}')
 
             buffer = stream.read(8)
             parentID = struct.unpack('!Q', buffer)[0]
-            print(f'Parent ID: {parentID}')
-            # the parent ID of a mouth node will be its own ID
 
             buffer = stream.read(1)
             numChildren = struct.unpack('!B', buffer)[0]
-            print(f'Number of children: {numChildren}')
 
-            for i in range(numChildren):
+            for chiild in range(numChildren):
                 buffer = stream.read(8)
                 childID = struct.unpack('!Q', buffer)[0]
-                print(f'Child {i} ID: {childID}')
 
             buffer = stream.read(4)
             locX = struct.unpack('!f', buffer)[0]
-            print(f'X location: {locX}')
 
             buffer = stream.read(4)
             locY = struct.unpack('!f', buffer)[0]
-            print(f'Y location: {locY}')
 
             buffer = stream.read(4)
             elevation = struct.unpack('!f', buffer)[0]
-            print(f'Elevation: {elevation}')
 
             self.addNode(
                 (locX, locY),
                 elevation,
                 0, # Does priority actually matter elsewhere?
-                parent = self.node(parentID) if parentID != nodeID else None
+                parent = self.node(parentID) if parentID != nodeID else None # the parent ID of a mouth node will be its own ID
             )
     def addNode(self, loc: typing.Tuple[float,float], elevation: float, priority: int, contourIndex: int=None, parent: int=None) -> HydroPrimitive:
         """Creates and adds a HydrologyPrimitive to the network
@@ -305,7 +294,7 @@ class HydrologyNetwork:
         :rtype: HydroPrimitive
         """
         node = HydroPrimitive(self.nodeCounter, loc, elevation, priority, parent)
-        if contourIndex is not None:
+        if parent is None or contourIndex is not None:
             node.contourIndex = contourIndex
             self.mouthNodes.append(self.nodeCounter)
         self.graph.add_node(

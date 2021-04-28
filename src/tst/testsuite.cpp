@@ -751,4 +751,21 @@ namespace
 
         delete buffer;
     }
+    // TEST(RasterTests, ReadRasterTest)
+    // {
+    //     FILE *input = fopen("./binaryFile", "rb");
+
+    //     if (input == NULL)
+    //     {
+    //         printf("Unable to open file\n");
+    //         exit(1);
+    //     }
+
+    //     HydrologyParameters params = readParamsFromStream(input);
+
+    //     ASSERT_EQ(params.riverSlope.get(1095*100,100*100),78);
+    //     ASSERT_EQ(params.riverSlope.get(682*100,1206*100),78);
+    //     ASSERT_EQ(params.riverSlope.get(984*100,15*100),34);
+    //     ASSERT_EQ(params.riverSlope.get(875*100,924*100),15);
+    // }
 }
