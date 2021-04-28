@@ -123,5 +123,7 @@ HydrologyParameters readParamsFromStream(FILE *stream)
 
   params.riverSlope.setResolution(params.resolution);
 
+  params.distribution = std::normal_distribution<float>(0.0, params.riverAngleDev);
+
   return params;
 }

@@ -192,14 +192,14 @@ Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
     );
   }
 
-  std::default_random_engine generator;
-  std::normal_distribution<float> distribution(0.0, params.riverAngleDev);
+  // std::default_random_engine generator;
+  // std::normal_distribution<float> distribution(0.0, params.riverAngleDev);
 
   float newAngle;
   Point newLoc(-1,-1);
   for (size_t i = 0; i < params.maxTries; i++)
   {
-    newAngle = angle + distribution(generator);
+    newAngle = angle + params.distribution(params.generator);
     newLoc = Point(
       candidate.loc.x + cosf32(newAngle) * params.edgeLength,
       candidate.loc.y + sinf32(newAngle) * params.edgeLength
