@@ -2,6 +2,7 @@
 #define HYDROLOGY_H
 
 #include <vector>
+#include <list>
 #include <stdio.h>
 #include <stdint.h>
 
@@ -11,8 +12,9 @@
 class Primitive
 {
   public:
-  size_t id, parent;
-  std::vector<size_t> children;
+  size_t id;
+  Primitive *parent;
+  std::vector<Primitive*> children;
   bool isMouthNode;
   Point loc;
   float elevation;
@@ -27,7 +29,7 @@ class Primitive
   );
   Primitive
   ( //for regular nodes
-    size_t id, size_t parentID, Point loc, float elevation, int priority
+    size_t id, Primitive *parent, Point loc, float elevation, int priority
   );
   //a trivial implicitly-declared destructor will be sufficient
   size_t binarySize();
@@ -49,8 +51,9 @@ class Hydrology
   /* data */
 
   public:
-  std::vector<Primitive> indexedNodes;
-  KDTree<size_t> tree;
+  std::list<Primitive> primitiveStorage;
+  std::vector<Primitive*> indexedNodes;
+  KDTree<Primitive*> tree;
 
   public:
   Primitive addMouthNode(

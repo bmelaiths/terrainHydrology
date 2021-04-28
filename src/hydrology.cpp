@@ -6,7 +6,7 @@
 
 Primitive::Primitive()
 :
-id(0), parent(0), isMouthNode(false), loc(Point(0,0)),
+id(0), parent(NULL), isMouthNode(false), loc(Point(0,0)),
 elevation(0.0f), priority(0), contourIndex(0)
 {
 
@@ -18,7 +18,7 @@ Primitive::Primitive
   int priority, int contourIndex
 )
 :
-id(id), parent(id), isMouthNode(true), loc(loc), elevation(elevation),
+id(id), parent(NULL), isMouthNode(true), loc(loc), elevation(elevation),
 priority(priority), contourIndex(contourIndex)
 {
 
@@ -26,7 +26,7 @@ priority(priority), contourIndex(contourIndex)
 
 Primitive::Primitive
 (
-  size_t id, size_t parentID, Point loc,
+  size_t id, Primitive *parentID, Point loc,
   float elevation, int priority
 )
 :
@@ -68,7 +68,16 @@ void Primitive::toBinary(uint8_t *buffer)
   memcpy(buffer + idx, &ID, sizeof(uint64_t));
   idx += sizeof(size_t);
 
-  uint64_t PARENT = htobe64((uint64_t)parent);
+  uint64_t PARENT;
+  if (parent == NULL)
+  {
+    PARENT = ID;
+  }
+  else
+  {
+    PARENT = htobe64((uint64_t)parent->id);
+  }
+  
   memcpy(buffer + idx, &PARENT, sizeof(uint64_t));
   idx += sizeof(size_t);
 
@@ -104,97 +113,101 @@ Edge::Edge(Primitive node0, Primitive node1)
 Primitive Hydrology::addMouthNode
 (Point loc, float elevation, int priority, int contourIndex)
 {
-  Primitive node(indexedNodes.size(), loc, elevation, priority, contourIndex);
+  primitiveStorage.push_back(
+    Primitive(indexedNodes.size(), loc, elevation, priority, contourIndex)
+  );
 
-  tree.insert(loc, indexedNodes.size());
+  tree.insert(loc, &primitiveStorage.back());
+  indexedNodes.push_back(&primitiveStorage.back());
 
-  indexedNodes.push_back(node);
-
-  return node;
+  return primitiveStorage.back();
 }
 
 Primitive Hydrology::addRegularNode
 (Point loc, float elevation, int priority, size_t parent)
 {
-  Primitive node(indexedNodes.size(), parent, loc, elevation, priority);
+  primitiveStorage.push_back(
+    Primitive(indexedNodes.size(), indexedNodes[parent], loc, elevation, priority)
+  );
+  
+  Primitive* node = &primitiveStorage.back();
 
-  tree.insert(loc, indexedNodes.size());
-
-  indexedNodes[parent].children.push_back(node.id);
-
+  tree.insert(loc, node);
   indexedNodes.push_back(node);
 
+  node->parent->children.push_back(node);
+
   // Classify new leaf
-  indexedNodes[node.id].priority = 1;
+  node->priority = 1;
 
   //loop invariants:
-  //classifyNode is a copy of a node whose parent had to be changed
-  Primitive classifyNode = getNode(parent);
+  //classifyNode is a pointer to a node whose parent had to be changed
+  Primitive* classifyNode = node->parent;
   while (true)
   {
-    int maxPriority = getNode(classifyNode.children[0]).priority;
+    int maxPriority = classifyNode->children[0]->priority;
     int numMax = 1;
-    for (size_t i = 0; i < classifyNode.children.size(); i++)
+    for (size_t i = 0; i < classifyNode->children.size(); i++)
     {
-      if (getNode(classifyNode.children[i]).priority == maxPriority)
+      if (classifyNode->children[i]->priority == maxPriority)
       {
         numMax++;
         continue;
       }
-      if (getNode(classifyNode.children[i]).priority > maxPriority)
+      if (classifyNode->children[i]->priority > maxPriority)
       {
-        maxPriority = getNode(classifyNode.children[i]).priority;
+        maxPriority = classifyNode->children[i]->priority;
         numMax = 1;
       }
     }
 
-    if (numMax > 1 && classifyNode.priority < numMax + 1)
+    if (numMax > 1 && classifyNode->priority < numMax + 1)
     {
-      indexedNodes[classifyNode.id].priority = numMax + 1;
+      indexedNodes[classifyNode->id]->priority = numMax + 1;
     }
-    else if (classifyNode.priority < numMax)
+    else if (classifyNode->priority < numMax)
     {
-      indexedNodes[classifyNode.id].priority = numMax;
+      indexedNodes[classifyNode->id]->priority = numMax;
     }
     else
     {
       break;
     }
     
-    if (classifyNode.isMouthNode)
+    if (classifyNode->isMouthNode)
     {
       break;
     }
     
-    classifyNode = getNode(classifyNode.parent);
+    classifyNode = classifyNode->parent;
   }
 
-  return node;
+  return *node;
 }
 
 //note: this method may double-count edges that have both ends in the area
 std::vector<Edge> Hydrology::edgesWithinRadius(Point loc, float radius)
 {
-  std::vector<size_t> closeIdxes = tree.rangeSearch(loc, radius);
+  std::vector<Primitive*> closeIdxes = tree.rangeSearch(loc, radius);
 
   std::vector<Edge> edges;
-  for (size_t closeIdx : closeIdxes)
+  for (Primitive* closeIdx : closeIdxes)
   {
-    Primitive idxNode = indexedNodes[closeIdx];
-    if (!idxNode.isMouthNode)
+    // Primitive idxNode = indexedNodes[closeIdx];
+    if (!closeIdx->isMouthNode)
     {
-      edges.push_back(Edge(idxNode, indexedNodes[idxNode.parent]));
+      edges.push_back(Edge(*closeIdx, *closeIdx->parent));
     }
-    for (size_t i = 0; i < idxNode.children.size(); i++)
+    for (size_t i = 0; i < closeIdx->children.size(); i++)
     {
-      edges.push_back(Edge(idxNode, indexedNodes[idxNode.children[i]]));
+      edges.push_back(Edge(*closeIdx, *closeIdx->children[i]));
     }
   }
   return edges;
 }
 
 Primitive Hydrology::getNode(size_t idx) {
-  return indexedNodes[idx];
+  return *indexedNodes[idx];
 }
 
 void writeBinary(Hydrology hydrology, FILE *stream)
@@ -206,10 +219,10 @@ void writeBinary(Hydrology hydrology, FILE *stream)
   uint8_t *buffer;
   for (size_t i = 0; i < hydrology.indexedNodes.size(); i++)
   {
-    size_t size = hydrology.indexedNodes[i].binarySize();
+    size_t size = hydrology.indexedNodes[i]->binarySize();
     buffer = new uint8_t[size];
 
-    hydrology.indexedNodes[i].toBinary(buffer);
+    hydrology.indexedNodes[i]->toBinary(buffer);
 
     fwrite(buffer, size, 1, stream);
 

@@ -188,8 +188,8 @@ Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
   {
     // else 'angle will be the direction of the river
     angle = atan2(
-      candidate.loc.y() - params.hydrology.indexedNodes[candidate.parent].loc.y(),
-      candidate.loc.x() - params.hydrology.indexedNodes[candidate.parent].loc.x()
+      candidate.loc.y() - candidate.parent->loc.y(),
+      candidate.loc.x() - candidate.parent->loc.x()
     );
   }
 
