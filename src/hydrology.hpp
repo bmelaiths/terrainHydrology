@@ -9,9 +9,11 @@
 #include "point.hpp"
 #include "kdtree.hpp"
 
+class Hydrology;
+
 class Primitive
 {
-  public:
+  private:
   size_t id;
   Primitive *parent;
   std::vector<Primitive*> children;
@@ -19,6 +21,9 @@ class Primitive
   float elevation;
   int priority;
   int contourIndex;
+
+  public:
+  friend Hydrology;
 
   public:
   Primitive();
@@ -33,6 +38,16 @@ class Primitive
   //a trivial implicitly-declared destructor will be sufficient
   size_t binarySize();
   void toBinary(uint8_t *buffer);
+
+  size_t getID();
+  Primitive* getParent();
+  bool hasParent();
+  std::vector<Primitive*> getChildren();
+  size_t numChildren();
+  Point getLoc();
+  float getElevation();
+  int getPriority();
+  int getContourIndex();
 };
 
 class Edge

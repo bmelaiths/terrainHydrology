@@ -105,6 +105,24 @@ void Primitive::toBinary(uint8_t *buffer)
   idx += sizeof(float);
 }
 
+size_t Primitive::getID() {return id;}
+
+Primitive* Primitive::getParent() {return parent;}
+
+bool Primitive::hasParent() {return parent != NULL;}
+
+std::vector<Primitive*> Primitive::getChildren() {return children;}
+
+size_t Primitive::numChildren() {return children.size();}
+
+Point Primitive::getLoc() {return loc;}
+
+float Primitive::getElevation() {return elevation;}
+
+int Primitive::getPriority() {return priority;}
+
+int Primitive::getContourIndex() {return contourIndex;}
+
 Edge::Edge(Primitive node0, Primitive node1)
 : node0(node0), node1(node1)
 {
@@ -135,51 +153,51 @@ Primitive Hydrology::addRegularNode
   tree.insert(loc, node);
   indexedNodes.push_back(node);
 
-  node->parent->children.push_back(node);
+  node->getParent()->children.push_back(node);
 
   // Classify new leaf
   node->priority = 1;
 
   //loop invariants:
   //classifyNode is a pointer to a node whose parent had to be changed
-  Primitive* classifyNode = node->parent;
+  Primitive* classifyNode = node->getParent();
   while (true)
   {
-    int maxPriority = classifyNode->children[0]->priority;
+    int maxPriority = classifyNode->getChildren()[0]->getPriority();
     int numMax = 1;
-    for (size_t i = 0; i < classifyNode->children.size(); i++)
+    for (size_t i = 0; i < classifyNode->numChildren(); i++)
     {
-      if (classifyNode->children[i]->priority == maxPriority)
+      if (classifyNode->getChildren()[i]->getPriority() == maxPriority)
       {
         numMax++;
         continue;
       }
-      if (classifyNode->children[i]->priority > maxPriority)
+      if (classifyNode->getChildren()[i]->getPriority() > maxPriority)
       {
-        maxPriority = classifyNode->children[i]->priority;
+        maxPriority = classifyNode->getChildren()[i]->getPriority();
         numMax = 1;
       }
     }
 
-    if (numMax > 1 && classifyNode->priority < numMax + 1)
+    if (numMax > 1 && classifyNode->getPriority() < numMax + 1)
     {
-      indexedNodes[classifyNode->id]->priority = numMax + 1;
+      classifyNode->priority = numMax + 1;
     }
-    else if (classifyNode->priority < numMax)
+    else if (classifyNode->getPriority() < numMax)
     {
-      indexedNodes[classifyNode->id]->priority = numMax;
+      classifyNode->priority = numMax;
     }
     else
     {
       break;
     }
     
-    if (classifyNode->parent == NULL)
+    if (!classifyNode->hasParent())
     {
       break;
     }
     
-    classifyNode = classifyNode->parent;
+    classifyNode = classifyNode->getParent();
   }
 
   return *node;
@@ -194,13 +212,13 @@ std::vector<Edge> Hydrology::edgesWithinRadius(Point loc, float radius)
   for (Primitive* closeIdx : closeIdxes)
   {
     // Primitive idxNode = indexedNodes[closeIdx];
-    if (closeIdx->parent != NULL)
+    if (closeIdx->hasParent())
     {
-      edges.push_back(Edge(*closeIdx, *closeIdx->parent));
+      edges.push_back(Edge(*closeIdx, *closeIdx->getParent()));
     }
-    for (size_t i = 0; i < closeIdx->children.size(); i++)
+    for (size_t i = 0; i < closeIdx->numChildren(); i++)
     {
-      edges.push_back(Edge(*closeIdx, *closeIdx->children[i]));
+      edges.push_back(Edge(*closeIdx, *closeIdx->getChildren()[i]));
     }
   }
   return edges;

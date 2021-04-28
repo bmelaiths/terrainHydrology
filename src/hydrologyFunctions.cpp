@@ -20,9 +20,9 @@ class ComparePrimitives
   bool operator() (const size_t a, const size_t b) {
     return
     (
-      params.hydrology.getNode(a).priority
+      params.hydrology.getNode(a).getPriority()
       >
-      params.hydrology.getNode(b).priority
+      params.hydrology.getNode(b).getPriority()
     );
   }
 };
@@ -30,19 +30,19 @@ class ComparePrimitives
 Primitive selectNode(HydrologyParameters& params) {
   float lowestCandidateZ = params.hydrology.getNode(
     params.candidates[0]
-  ).elevation;
+  ).getElevation();
   for (size_t i = 0; i < params.candidates.size(); i++)
   {
     if
     (
-      params.hydrology.getNode(params.candidates[i]).elevation
+      params.hydrology.getNode(params.candidates[i]).getElevation()
       <
       lowestCandidateZ
     )
     {
       lowestCandidateZ = params.hydrology.getNode(
         params.candidates[i]
-      ).elevation;
+      ).getElevation();
     }
   }
 
@@ -51,7 +51,7 @@ Primitive selectNode(HydrologyParameters& params) {
   {
     if
     (
-      params.hydrology.getNode(params.candidates[i]).elevation
+      params.hydrology.getNode(params.candidates[i]).getElevation()
       <
       (lowestCandidateZ + params.zeta)
     )
@@ -72,16 +72,16 @@ Primitive selectNode(HydrologyParameters& params) {
   (
     idx < subselection.size()
     &&
-    params.hydrology.getNode(subselection[idx]).priority
+    params.hydrology.getNode(subselection[idx]).getPriority()
     ==
-    params.hydrology.getNode(subselection[0]).priority
+    params.hydrology.getNode(subselection[0]).getPriority()
   )
   {
     if
     (
-      params.hydrology.getNode(subselection[idx]).elevation
+      params.hydrology.getNode(subselection[idx]).getElevation()
       <
-      lowestElevation.elevation
+      lowestElevation.getElevation()
     )
     {
       lowestElevation = params.hydrology.getNode(subselection[idx]);
@@ -153,8 +153,8 @@ bool isAcceptablePosition(Point testLoc, size_t parentID, HydrologyParameters& p
   {
     float dist = point_segment_distance(
       testLoc.x(), testLoc.y(),
-      edge.node0.loc.x(), edge.node0.loc.y(),
-      edge.node1.loc.x(), edge.node1.loc.y()
+      edge.node0.getLoc().x(), edge.node0.getLoc().y(),
+      edge.node1.getLoc().x(), edge.node1.getLoc().y()
     );
     if (dist < params.sigma * params.edgeLength)
     {
@@ -166,12 +166,12 @@ bool isAcceptablePosition(Point testLoc, size_t parentID, HydrologyParameters& p
 
 float coastNormal(Primitive candidate, HydrologyParameters& params) {
   Point p1(
-    params.contour[candidate.contourIndex+3].x,
-    params.contour[candidate.contourIndex+3].y
+    params.contour[candidate.getContourIndex()+3].x,
+    params.contour[candidate.getContourIndex()+3].y
   );
   Point p2(
-    params.contour[candidate.contourIndex-3].x,
-    params.contour[candidate.contourIndex-3].y
+    params.contour[candidate.getContourIndex()-3].x,
+    params.contour[candidate.getContourIndex()-3].y
   );
   float theta = atan2(p2.y() - p1.y(), p2.x() - p1.x());
   return theta + M_PI_2f32;
@@ -180,7 +180,7 @@ float coastNormal(Primitive candidate, HydrologyParameters& params) {
 Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
   float angle;
   // if candidate has no parent
-  if (candidate.parent == NULL)
+  if (!candidate.hasParent())
   {
     angle = coastNormal(candidate, params);
   }
@@ -188,8 +188,8 @@ Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
   {
     // else 'angle will be the direction of the river
     angle = atan2(
-      candidate.loc.y() - candidate.parent->loc.y(),
-      candidate.loc.x() - candidate.parent->loc.x()
+      candidate.getLoc().y() - candidate.getParent()->getLoc().y(),
+      candidate.getLoc().x() - candidate.getParent()->getLoc().x()
     );
   }
 
@@ -202,10 +202,10 @@ Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
   {
     newAngle = angle + params.distribution(params.generator);
     newLoc = Point(
-      candidate.loc.x() + cosf32(newAngle) * params.edgeLength,
-      candidate.loc.y() + sinf32(newAngle) * params.edgeLength
+      candidate.getLoc().x() + cosf32(newAngle) * params.edgeLength,
+      candidate.getLoc().y() + sinf32(newAngle) * params.edgeLength
     );
-    if (isAcceptablePosition(newLoc, candidate.id, params))
+    if (isAcceptablePosition(newLoc, candidate.getID(), params))
     {
       break;
     }
@@ -223,7 +223,7 @@ void tao(Primitive node, HydrologyParameters& params) {
   size_t candidateIdx = 0;
   for (size_t i = 0; i < params.candidates.size(); i++)
   {
-    if (params.candidates[i] == node.id)
+    if (params.candidates[i] == node.getID())
     {
       candidateIdx = i;
       params.candidates.erase(params.candidates.begin() + candidateIdx);
@@ -240,13 +240,13 @@ void beta
   {
     float slope =
       params.slopeRate *
-      params.riverSlope.get(node.loc.x(), node.loc.y()) / 255
+      params.riverSlope.get(node.getLoc().x(), node.getLoc().y()) / 255
     ;
-    float newZ = node.elevation + slope * params.edgeLength;
+    float newZ = node.getElevation() + slope * params.edgeLength;
     params.candidates.push_back(
       params.hydrology.addRegularNode(
-        newLoc, newZ, priority, node.id
-      ).id
+        newLoc, newZ, priority, node.getID()
+      ).getID()
     );
   }
   else
@@ -260,26 +260,26 @@ void ruleBase(Primitive candidate, HydrologyParameters& params) {
   const int numBranches = 5;
   for (int i = 0; i < numBranches; i++)
   {
-    beta(candidate, candidate.priority, params);
+    beta(candidate, candidate.getPriority(), params);
   }
 }
 
 void pa(Primitive candidate, HydrologyParameters& params) {
-  beta(candidate, candidate.priority, params);
-  beta(candidate, candidate.priority - 1, params);
+  beta(candidate, candidate.getPriority(), params);
+  beta(candidate, candidate.getPriority() - 1, params);
 }
 
 void pc(Primitive candidate, HydrologyParameters& params) {
-  beta(candidate, candidate.priority, params);
+  beta(candidate, candidate.getPriority(), params);
 }
 
 void ps(Primitive candidate, HydrologyParameters& params) {
-  beta(candidate, candidate.priority - 1, params);
-  beta(candidate, candidate.priority - 1, params);
+  beta(candidate, candidate.getPriority() - 1, params);
+  beta(candidate, candidate.getPriority() - 1, params);
 }
 
 void alpha(Primitive candidate, HydrologyParameters& params) {
-  if (candidate.priority == 1)
+  if (candidate.getPriority() == 1)
   {
     ruleBase(candidate, params);
   }
