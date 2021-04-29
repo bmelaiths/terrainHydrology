@@ -70,10 +70,10 @@ class Hydrology
   KDTree<Primitive*> tree;
 
   public:
-  Primitive addMouthNode(
+  Primitive* addMouthNode(
     Point loc, float elevation, int priority, int contourIndex
   );
-  Primitive addRegularNode(
+  Primitive* addRegularNode(
     Point loc, float elevation, int priority, size_t parent
   );
   std::vector<Edge> edgesWithinRadius(Point loc, float radius);

@@ -13,7 +13,7 @@ class HydrologyParameters
 {
     public:
     float Pa, Pc;
-    int maxTries;
+    unsigned int maxTries;
     float riverAngleDev;
     float edgeLength;
     float sigma, eta, zeta;
@@ -24,7 +24,7 @@ class HydrologyParameters
 
     std::vector<cv::Point> contour;
 
-    std::vector<size_t> candidates;
+    std::vector<Primitive*> candidates;
     Hydrology hydrology;
 
     std::default_random_engine generator;

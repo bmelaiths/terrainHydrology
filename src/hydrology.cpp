@@ -128,7 +128,7 @@ Edge::Edge(Primitive node0, Primitive node1)
 {
 }
 
-Primitive Hydrology::addMouthNode
+Primitive* Hydrology::addMouthNode
 (Point loc, float elevation, int priority, int contourIndex)
 {
   primitiveStorage.push_back(
@@ -138,10 +138,10 @@ Primitive Hydrology::addMouthNode
   tree.insert(loc, &primitiveStorage.back());
   indexedNodes.push_back(&primitiveStorage.back());
 
-  return primitiveStorage.back();
+  return &primitiveStorage.back();
 }
 
-Primitive Hydrology::addRegularNode
+Primitive* Hydrology::addRegularNode
 (Point loc, float elevation, int priority, size_t parent)
 {
   primitiveStorage.push_back(
@@ -200,7 +200,7 @@ Primitive Hydrology::addRegularNode
     classifyNode = classifyNode->getParent();
   }
 
-  return *node;
+  return node;
 }
 
 //note: this method may double-count edges that have both ends in the area

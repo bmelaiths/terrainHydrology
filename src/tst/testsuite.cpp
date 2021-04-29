@@ -93,68 +93,68 @@ namespace
     {
         Hydrology hydrology;
 
-        Primitive node0 = hydrology.addMouthNode  (
+        Primitive node0 = *hydrology.addMouthNode  (
             Point(6.0f,11.0f), 0.0f, 0, 0
         );
-        Primitive node1 = hydrology.addMouthNode  (
+        Primitive node1 = *hydrology.addMouthNode  (
             Point(6.0f, 7.0f), 0.0f, 0, 0
         );
-        Primitive node2 = hydrology.addMouthNode  (
+        Primitive node2 = *hydrology.addMouthNode  (
             Point(4.0f, 4.0f), 0.0f, 0, 0
         );
-        Primitive node3 = hydrology.addMouthNode  (
+        Primitive node3 = *hydrology.addMouthNode  (
             Point(9.0f, 2.0f), 0.0f, 0, 0
         );
-        Primitive node4 = hydrology.addRegularNode(
-            Point(4.0f, 7.0f), 0.0f, 0, node0.id
+        Primitive node4 = *hydrology.addRegularNode(
+            Point(4.0f, 7.0f), 0.0f, 0, node0.getID()
         );
-        Primitive node5 = hydrology.addRegularNode(
-            Point(10.0f,9.0f), 0.0f, 0, node1.id
+        Primitive node5 = *hydrology.addRegularNode(
+            Point(10.0f,9.0f), 0.0f, 0, node1.getID()
         );
-        Primitive node6 = hydrology.addRegularNode(
-            Point(7.0f, 4.0f), 0.0f, 0, node2.id
+        Primitive node6 = *hydrology.addRegularNode(
+            Point(7.0f, 4.0f), 0.0f, 0, node2.getID()
         );
-        Primitive node7 = hydrology.addRegularNode(
-            Point(9.0f, 6.0f), 0.0f, 0, node3.id
+        Primitive node7 = *hydrology.addRegularNode(
+            Point(9.0f, 6.0f), 0.0f, 0, node3.getID()
         );
 
-        ASSERT_EQ(node0.id, (size_t)0);
-        ASSERT_EQ(node1.id, (size_t)1);
-        ASSERT_EQ(node2.id, (size_t)2);
-        ASSERT_EQ(node3.id, (size_t)3);
-        ASSERT_EQ(node4.id, (size_t)4);
-        ASSERT_EQ(node5.id, (size_t)5);
-        ASSERT_EQ(node6.id, (size_t)6);
-        ASSERT_EQ(node7.id, (size_t)7);
+        ASSERT_EQ(node0.getID(), (size_t)0);
+        ASSERT_EQ(node1.getID(), (size_t)1);
+        ASSERT_EQ(node2.getID(), (size_t)2);
+        ASSERT_EQ(node3.getID(), (size_t)3);
+        ASSERT_EQ(node4.getID(), (size_t)4);
+        ASSERT_EQ(node5.getID(), (size_t)5);
+        ASSERT_EQ(node6.getID(), (size_t)6);
+        ASSERT_EQ(node7.getID(), (size_t)7);
     }
 
     TEST(HydrologyTest, BallPointSearch)
     {
         Hydrology hydrology;
 
-        Primitive node0 = hydrology.addMouthNode  (
+        Primitive node0 = *hydrology.addMouthNode  (
             Point(6.0f,11.0f), 0.0f, 0, 0
         );
-        Primitive node1 = hydrology.addMouthNode  (
+        Primitive node1 = *hydrology.addMouthNode  (
             Point(6.0f, 7.0f), 0.0f, 0, 0
         );
-        Primitive node2 = hydrology.addMouthNode  (
+        Primitive node2 = *hydrology.addMouthNode  (
             Point(4.0f, 4.0f), 0.0f, 0, 0
         );
-        Primitive node3 = hydrology.addMouthNode  (
+        Primitive node3 = *hydrology.addMouthNode  (
             Point(9.0f, 2.0f), 0.0f, 0, 0
         );
         /*Primitive node4 = */hydrology.addRegularNode(
-            Point(4.0f, 7.0f), 0.0f, 0, node0.id
+            Point(4.0f, 7.0f), 0.0f, 0, node0.getID()
         );
         /*Primitive node5 = */hydrology.addRegularNode(
-            Point(10.0f,9.0f), 0.0f, 0, node1.id
+            Point(10.0f,9.0f), 0.0f, 0, node1.getID()
         );
         /*Primitive node6 = */hydrology.addRegularNode(
-            Point(7.0f, 4.0f), 0.0f, 0, node2.id
+            Point(7.0f, 4.0f), 0.0f, 0, node2.getID()
         );
         /*Primitive node7 = */hydrology.addRegularNode(
-            Point(9.0f, 6.0f), 0.0f, 0, node3.id
+            Point(9.0f, 6.0f), 0.0f, 0, node3.getID()
         );
 
         std::vector<Edge> edges = hydrology.edgesWithinRadius(
@@ -168,29 +168,29 @@ namespace
     {
         Hydrology hydrology;
 
-        Primitive node0 = hydrology.addMouthNode  (
+        Primitive node0 = *hydrology.addMouthNode  (
             Point(3.0f, 7.0f), 0.0f, 0, 0
         );
         /*Primitive node1 = */hydrology.addRegularNode(
-            Point(2.0f, 10.0f), 0.0f, 0, node0.id
+            Point(2.0f, 10.0f), 0.0f, 0, node0.getID()
         );
-        Primitive node2 = hydrology.addMouthNode  (
+        Primitive node2 = *hydrology.addMouthNode  (
             Point(7.0f, 7.0f), 0.0f, 0, 0
         );
         /*Primitive node3 = */hydrology.addRegularNode(
-            Point(8.0f, 10.0f), 0.0f, 0, node2.id
+            Point(8.0f, 10.0f), 0.0f, 0, node2.getID()
         );
-        Primitive node4 = hydrology.addMouthNode  (
+        Primitive node4 = *hydrology.addMouthNode  (
             Point(3.0f, 3.0f), 0.0f, 0, 0
         );
         /*Primitive node5 = */hydrology.addRegularNode(
-            Point(0.0f, 0.0f), 0.0f, 0, node4.id
+            Point(0.0f, 0.0f), 0.0f, 0, node4.getID()
         );
-        Primitive node6 = hydrology.addMouthNode  (
+        Primitive node6 = *hydrology.addMouthNode  (
             Point(7.0f, 3.0f), 0.0f, 0, 0
         );
         /*Primitive node7 = */hydrology.addRegularNode(
-            Point(10.0f, 0.0f), 0.0f, 0, node6.id
+            Point(10.0f, 0.0f), 0.0f, 0, node6.getID()
         );
 
         std::vector<Edge> edges = hydrology.edgesWithinRadius(
@@ -213,53 +213,53 @@ namespace
         testParams.candidates.push_back(
             testParams.hydrology.addMouthNode(
                 Point(0,0), 4.0, 1, 0
-            ).id
+            )
         );
         testParams.candidates.push_back(
             testParams.hydrology.addMouthNode(
                 Point(0,0), 6.0, 2, 0
-            ).id
+            )
         );
         testParams.candidates.push_back(
             testParams.hydrology.addMouthNode(
                 Point(0,0), 14.0, 3, 0
-            ).id
+            )
         );
         testParams.candidates.push_back(
             testParams.hydrology.addMouthNode(
                 Point(0,0), 8.0, 3, 0
-            ).id
+            )
         );
         testParams.candidates.push_back(
             testParams.hydrology.addMouthNode(
                 Point(0,0), 24.0, 1, 0
-            ).id
+            )
         );
         testParams.candidates.push_back(
             testParams.hydrology.addMouthNode(
                 Point(0,0), 23.0, 4, 0
-            ).id
+            )
         );
 
         Primitive selected = selectNode(testParams);
 
-        ASSERT_EQ(selected.id, (size_t)3);
+        ASSERT_EQ(selected.getID(), (size_t)3);
     }
     TEST(HydrologyTest, NodeAdditionTest)
     {
         HydrologyParameters params;
 
-        Primitive mouth = params.hydrology.addMouthNode(
+        Primitive mouth = *params.hydrology.addMouthNode(
             Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
-        Primitive child1 = params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+        Primitive child1 = *params.hydrology.addRegularNode(
+            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.id
+            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
         ASSERT_EQ(params.hydrology.indexedNodes.size(), 4);
@@ -331,17 +331,17 @@ namespace
         params.eta = 0.95;
         params.sigma = 1.1;
 
-        Primitive mouth = params.hydrology.addMouthNode(
+        Primitive mouth = *params.hydrology.addMouthNode(
             Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
-        Primitive child1 = params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+        Primitive child1 = *params.hydrology.addRegularNode(
+            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
         /*Primitive child2 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.id
+            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
         EXPECT_TRUE(isAcceptablePosition(Point(1540*params.resolution,1415*params.resolution), 0 ,params));
@@ -374,17 +374,17 @@ namespace
         params.eta = 0.95;
         params.sigma = 1.1;
 
-        Primitive mouth = params.hydrology.addMouthNode(
+        Primitive mouth = *params.hydrology.addMouthNode(
             Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
-        Primitive child1 = params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+        Primitive child1 = *params.hydrology.addRegularNode(
+            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.id
+            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
         EXPECT_FALSE(isAcceptablePosition(Point(1560*params.resolution,1330*params.resolution), 0,params)); //not on land
@@ -417,17 +417,17 @@ namespace
         params.eta = 0.95;
         params.sigma = 1.1;
 
-        Primitive mouth = params.hydrology.addMouthNode(
+        Primitive mouth = *params.hydrology.addMouthNode(
             Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
-        Primitive child1 = params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+        Primitive child1 = *params.hydrology.addRegularNode(
+            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.id
+            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
         EXPECT_FALSE(isAcceptablePosition(Point(1540*params.resolution,1410*params.resolution),0,params)); // too close to a node
@@ -460,17 +460,17 @@ namespace
         params.eta = 0.95;
         params.sigma = 1.1;
 
-        Primitive mouth = params.hydrology.addMouthNode(
+        Primitive mouth = *params.hydrology.addMouthNode(
             Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
-        Primitive child1 = params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+        Primitive child1 = *params.hydrology.addRegularNode(
+            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.id
+            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
         EXPECT_FALSE(isAcceptablePosition(Point(1560*params.resolution,1375*params.resolution),0,params)); //too close to an edge
@@ -503,17 +503,17 @@ namespace
         params.eta = 0.95;
         params.sigma = 1.1;
 
-        Primitive mouth = params.hydrology.addMouthNode(
+        Primitive mouth = *params.hydrology.addMouthNode(
             Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
-        Primitive child1 = params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+        Primitive child1 = *params.hydrology.addRegularNode(
+            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.id
+            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
         EXPECT_FALSE(isAcceptablePosition(Point(250*params.resolution,134*params.resolution),0,params)); //too close to the seeee
@@ -584,7 +584,7 @@ namespace
         params.resolution = 2.0; //space units / map unit
 
         const size_t contourIndex = 175;
-        Primitive mouth = params.hydrology.addMouthNode(
+        Primitive mouth = *params.hydrology.addMouthNode(
             Point(params.contour[contourIndex].x,params.contour[contourIndex].y),
             0.0f, 0, contourIndex
         );
@@ -622,27 +622,36 @@ namespace
         params.riverAngleDev = 0.05;
         params.maxTries = 15;
 
-        Primitive mouth = params.hydrology.addMouthNode(
+        Primitive mouth = *params.hydrology.addMouthNode(
             Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
         );
-        Primitive child0 = params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+        Primitive child0 = *params.hydrology.addRegularNode(
+            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
-        Primitive child1 = params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.id
+        Primitive child1 = *params.hydrology.addRegularNode(
+            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
         );
         /*Primitive child2 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.id
+            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
         Point newLoc = pickNewNodeLoc(child0, params);
-        ASSERT_TRUE(isAcceptablePosition(newLoc, child0.id, params));
+        ASSERT_TRUE(isAcceptablePosition(newLoc, child0.getID(), params));
     }
     TEST(PrimitiveTests, ToBinaryIDTest)
     {
-        Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
-        Primitive child(2, &node, Point(0,0), 0.0, 0);
-        node.children.push_back(&child);
+        Hydrology hydrology;
+        hydrology.addMouthNode(
+            Point(0.0,0.0), 0.0, 0, 0
+        );
+        hydrology.addMouthNode(
+            Point(3.14,5.2), 12.1,5,10
+        );
+        hydrology.addRegularNode(
+            Point(0,0), 0.0, 0, 0
+        );
+
+        Primitive node = hydrology.getNode(1);
 
         uint8_t *buffer = new uint8_t[node.binarySize()];
 
@@ -656,9 +665,18 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryParentTest)
     {
-        Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
-        Primitive child(2, &node, Point(0,0), 0.0, 0);
-        node.children.push_back(&child);
+        Hydrology hydrology;
+        hydrology.addMouthNode(
+            Point(0.0,0.0), 0.0, 0, 0
+        );
+        hydrology.addMouthNode(
+            Point(3.14,5.2), 12.1,5,10
+        );
+        hydrology.addRegularNode(
+            Point(0,0), 0.0, 0, 0
+        );
+
+        Primitive node = hydrology.getNode(1);
 
         uint8_t *buffer = new uint8_t[node.binarySize()];
 
@@ -672,11 +690,18 @@ namespace
     }
     TEST(PrimitiveTests, ToChildrenTest)
     {
-        Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
-        Primitive child0(2, &node, Point(0,0), 0.0, 0);
-        Primitive child1(7, &node, Point(0,0), 0.0, 0);
-        node.children.push_back(&child0);
-        node.children.push_back(&child1);
+        Hydrology hydrology;
+        hydrology.addMouthNode(
+            Point(3.14,5.2), 12.1,5,10
+        );
+        hydrology.addRegularNode(
+            Point(0,0), 0.0, 0, 0
+        );
+        hydrology.addRegularNode(
+            Point(0,0), 0.0, 0, 0
+        );
+
+        Primitive node = hydrology.getNode(0);
 
         uint8_t *buffer = new uint8_t[node.binarySize()];
 
@@ -684,7 +709,7 @@ namespace
 
         uint8_t numChildren;
         memcpy(&numChildren, buffer + sizeof(uint64_t) * 2, sizeof(uint8_t));
-        ASSERT_EQ(node.children.size(), numChildren);
+        ASSERT_EQ(2, numChildren);
 
         uint64_t childID;
         for (size_t child = 0; child < numChildren; child++)
@@ -695,18 +720,25 @@ namespace
                 buffer + sizeof(uint64_t)*2 + sizeof(uint8_t) + sizeof(uint64_t)*child,
                 sizeof(uint64_t)
             );
-            ASSERT_EQ(node.children[child]->id, be64toh(childID));
+            ASSERT_EQ(child+1, be64toh(childID));
         }
 
         delete buffer;
     }
     TEST(PrimitiveTests, ToBinaryLocXTest)
     {
-        Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
-        Primitive child0(2, &node, Point(0,0), 0.0, 0);
-        Primitive child1(7, &node, Point(0,0), 0.0, 0);
-        node.children.push_back(&child0);
-        node.children.push_back(&child1);
+        Hydrology hydrology;
+        hydrology.addMouthNode(
+            Point(3.14,5.2), 12.1,5,10
+        );
+        hydrology.addRegularNode(
+            Point(0,0), 0.0, 0, 0
+        );
+        hydrology.addRegularNode(
+            Point(0,0), 0.0, 0, 0
+        );
+
+        Primitive node = hydrology.getNode(0);
 
         uint8_t *buffer = new uint8_t[node.binarySize()];
 
@@ -728,11 +760,18 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryLocYTest)
     {
-        Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
-        Primitive child0(2, &node, Point(0,0), 0.0, 0);
-        Primitive child1(7, &node, Point(0,0), 0.0, 0);
-        node.children.push_back(&child0);
-        node.children.push_back(&child1);
+        Hydrology hydrology;
+        hydrology.addMouthNode(
+            Point(3.14,5.2), 12.1,5,10
+        );
+        hydrology.addRegularNode(
+            Point(0,0), 0.0, 0, 0
+        );
+        hydrology.addRegularNode(
+            Point(0,0), 0.0, 0, 0
+        );
+
+        Primitive node = hydrology.getNode(0);
 
         uint8_t *buffer = new uint8_t[node.binarySize()];
 
@@ -755,11 +794,18 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryElevationTest)
     {
-        Primitive node(1, Point(3.14,5.2), 12.1, 5, 10);
-        Primitive child0(2, &node, Point(0,0), 0.0, 0);
-        Primitive child1(7, &node, Point(0,0), 0.0, 0);
-        node.children.push_back(&child0);
-        node.children.push_back(&child1);
+        Hydrology hydrology;
+        hydrology.addMouthNode(
+            Point(3.14,5.2), 12.1,5,10
+        );
+        hydrology.addRegularNode(
+            Point(0,0), 0.0, 0, 0
+        );
+        hydrology.addRegularNode(
+            Point(0,0), 0.0, 0, 0
+        );
+
+        Primitive node = hydrology.getNode(0);
 
         uint8_t *buffer = new uint8_t[node.binarySize()];
 
