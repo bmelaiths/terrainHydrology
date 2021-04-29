@@ -1,8 +1,9 @@
 #include "hydrology.hpp"
 
+#include "floatEndian.hpp"
+
 #include <string.h>
 #include <stdlib.h>
-#include <endian.h>
 
 Primitive::Primitive()
 :
@@ -44,20 +45,6 @@ size_t Primitive::binarySize()
     sizeof(uint8_t) * 1 +
     sizeof(float) * 3
   );
-}
-
-float float_tobe(float value) {
-    union v {
-        float f;
-        uint32_t i;
-    };
-
-    union v val;
-
-    val.f = value;
-    val.i = htobe32(val.i);
-
-    return val.f;
 }
 
 void Primitive::toBinary(uint8_t *buffer)

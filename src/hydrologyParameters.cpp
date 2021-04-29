@@ -3,21 +3,6 @@
 #include <stdio.h>
 #include <endian.h>
 
-//this function written by user "synthetix" on cboard.cprogramming.com
-float float_swap(float value) {
-    union v {
-        float f;
-        uint32_t i;
-    };
-
-    union v val;
-
-    val.f = value;
-    val.i = be32toh(val.i);
-
-    return val.f;
-}
-
 HydrologyParameters readParamsFromStream(FILE *stream)
 {
   HydrologyParameters params;
