@@ -23,7 +23,7 @@ testsuite.o : tst/testsuite.cpp $(GTEST_HEADERS)
 	@ echo "Compiling Tests..."
 	@ g++ $(CPPFLAGS) -isystem $(GTEST_DIR)/include $^ -c
 
-testsuite : testsuite.o gtest-all.o gtest_main.o hydrologyFunctions.o hydrologyParameters.o hydrology.o raster.o
+testsuite : testsuite.o gtest-all.o gtest_main.o hydrologyFunctions.o hydrologyParameters.o hydrology.o
 	g++ $(CPPFLAGS) -lpthread -lopencv_core -lopencv_imgproc -lopencv_highgui $^ -o $@
 
 test : testsuite
@@ -35,12 +35,10 @@ buildRivers.o : buildRivers.cpp hydrology.hpp kdtree.hpp raster.hpp
 
 hydrologyParameters.o : hydrologyParameters.cpp raster.hpp hydrology.hpp
 
-raster.o : raster.cpp raster.hpp
-
 hydrologyFunctions.o : hydrologyFunctions.cpp hydrologyFunctions.hpp hydrology.hpp hydrologyParameters.hpp
 
-buildRivers: hydrologyFunctions.o raster.o hydrologyParameters.o buildRivers.o hydrology.o
-	g++ hydrologyFunctions.o buildRivers.o raster.o hydrologyParameters.o hydrology.o $(CPPFLAGS) -lopencv_core -lopencv_imgproc -lopencv_highgui -o $@
+buildRivers: hydrologyFunctions.o hydrologyParameters.o buildRivers.o hydrology.o
+	g++ hydrologyFunctions.o buildRivers.o hydrologyParameters.o hydrology.o $(CPPFLAGS) -lopencv_core -lopencv_imgproc -lopencv_highgui -o $@
 
 clean :
 	@ rm -vf buildRivers testsuite *.gch *.o

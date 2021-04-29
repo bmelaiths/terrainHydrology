@@ -20,7 +20,7 @@ class HydrologyParameters
     float slopeRate;
     float resolution;
 
-    Raster riverSlope;
+    Raster<float> riverSlope;
 
     std::vector<cv::Point> contour;
 
