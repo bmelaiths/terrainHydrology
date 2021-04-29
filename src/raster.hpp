@@ -12,7 +12,7 @@ behavior of a 2D array.
 template<typename T>
 class Raster {
     private:
-    size_t size;
+    size_t rows, cols;
     float resolution;
     T *data;
 
@@ -23,13 +23,13 @@ class Raster {
     void set(T datum);
     void setResolution(float resolution);
     T get(float x, float y);
-    void setSize(size_t size);
+    void setSize(size_t rows, size_t cols);
     size_t getRows();
     size_t getColumns();
 };
 
 template<typename T>
-Raster<T>::Raster() : size(0), data(NULL) {}
+Raster<T>::Raster() : rows(0), cols(0), data(NULL) {}
 
 template<typename T>
 Raster<T>::~Raster() {
@@ -40,14 +40,14 @@ Raster<T>::~Raster() {
 
 template<typename T>
 void Raster<T>::set(size_t col, size_t row, T datum) {
-    data[row * size + col] = datum;
+    data[row * cols + col] = datum;
 }
 
 template<typename T>
 void Raster<T>::set(T datum) {
-    for (size_t row = 0; row < size; row++)
+    for (size_t row = 0; row < rows; row++)
     {
-        for (size_t col = 0; col < size; col++)
+        for (size_t col = 0; col < cols; col++)
         {
             set(col, row, datum);
         }
@@ -63,15 +63,16 @@ template<typename T>
 T Raster<T>::get(float x, float y) {
     size_t col = (size_t) (x / resolution);
     size_t row = (size_t) (y / resolution);
-    return data[row * size + col];
+    return data[row * cols + col];
 }
 
 template<typename T>
-void Raster<T>::setSize(size_t size) {
-    this->size = size;
+void Raster<T>::setSize(size_t rows, size_t cols) {
+    this->rows = rows;
+    this->cols = cols;
     try
     {
-        data = new float[size * size];
+        data = new float[rows * cols];
     }
     catch (std::bad_alloc &ba)
     {
@@ -81,12 +82,12 @@ void Raster<T>::setSize(size_t size) {
 
 template<typename T>
 size_t Raster<T>::getRows() {
-    return size;
+    return rows;
 }
 
 template<typename T>
 size_t Raster<T>::getColumns() {
-    return size;
+    return cols;
 }
 
 #endif

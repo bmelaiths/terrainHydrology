@@ -57,7 +57,7 @@ HydrologyParameters readParamsFromStream(FILE *stream)
   rasterXsize = be32toh(rasterXsize);
   rasterYsize = be32toh(rasterYsize);
   float riverSlopeIn;
-  params.riverSlope.setSize(rasterXsize);
+  params.riverSlope.setSize(rasterYsize, rasterXsize);
   for (uint32_t y = 0; y < rasterYsize; y++)
   {
     for (uint32_t x = 0; x < rasterXsize; x++)
