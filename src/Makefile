@@ -1,4 +1,4 @@
-CPPFLAGS += -g -Wall -fopenmp
+CPPFLAGS += -g -Wall
 
 GTEST_DIR = tst/googletest/googletest
 GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
@@ -24,7 +24,7 @@ testsuite.o : tst/testsuite.cpp $(GTEST_HEADERS)
 	@ g++ $(CPPFLAGS) -isystem $(GTEST_DIR)/include $^ -c
 
 testsuite : testsuite.o gtest-all.o gtest_main.o hydrologyFunctions.o hydrologyParameters.o hydrology.o floatEndian.o
-	g++ $(CPPFLAGS) -lpthread -lopencv_core -lopencv_imgproc -lopencv_highgui $^ -o $@
+	g++ $(CPPFLAGS) -lpthread -lopencv_core -lopencv_imgproc $^ -o $@
 
 test : testsuite
 	@ ./testsuite
@@ -40,7 +40,7 @@ hydrologyParameters.o : hydrologyParameters.cpp raster.hpp hydrology.hpp
 hydrologyFunctions.o : hydrologyFunctions.cpp hydrologyFunctions.hpp hydrology.hpp hydrologyParameters.hpp
 
 buildRivers: hydrologyFunctions.o hydrologyParameters.o buildRivers.o hydrology.o floatEndian.o
-	g++ $^ $(CPPFLAGS) -lopencv_core -lopencv_imgproc -lopencv_highgui -o $@
+	g++ $^ $(CPPFLAGS) -lopencv_imgproc -o $@
 
 clean :
 	@ rm -vf buildRivers testsuite *.gch *.o

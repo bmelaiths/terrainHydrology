@@ -1,8 +1,8 @@
 #ifndef KDTREE_H
 #define KDTREE_H
 
-#include <vector>
 #include <queue>
+#include <list>
 
 #include "point.hpp"
 
@@ -19,6 +19,17 @@ struct Node
     Node(Point loc, T idx)
     : loc(loc), idx(idx)
     {};
+    ~Node()
+    {
+        if (left != NULL)
+        {
+            delete left;
+        }
+        if (right != NULL)
+        {
+            delete right;
+        }
+    }
 };
 
 template <typename T>
@@ -26,16 +37,25 @@ class KDTree
 {
     private:
     Node<T>* root = NULL;
-    std::vector<Node<T>*> allNodes; // this will be good for the destructor
+    // std::list<Node<T>*> allNodes; // this will be good for the destructor
 
     private:
     Node<T>* tryInsert(Node<T>* finalNode, bool isXlevel, Node<T>* toIns);
 
     public:
+    ~KDTree();
     void insert(Point loc, T idx);
     std::vector<T> rangeSearch(Point loc, float radius);
     std::vector<T> breadthFirstSearch();
 };
+
+template <typename T>
+KDTree<T>::~KDTree()
+{
+    if (root != NULL) {
+        delete root;
+    }
+}
 
 template <typename T>
 Node<T>* KDTree<T>::tryInsert(Node<T>* finalNode, bool isXlevel, Node<T>* toIns)
@@ -105,7 +125,7 @@ void KDTree<T>::insert(Point loc, T idx)
     //loop invariant: finalNode points to the node that the new node will be
     //inserted under (unless the next iteration finds another level)
 
-    allNodes.push_back(newNode);
+    // allNodes.push_back(newNode);
 }
 
 template <typename T>

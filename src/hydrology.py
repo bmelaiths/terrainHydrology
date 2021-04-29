@@ -271,6 +271,7 @@ else:
         stdout=subprocess.PIPE
     )
     proc.stdin.write(params.toBinary())
+    print('\tData sent to native module...')
     nodesCreated = 0
     readByte = proc.stdout.read(1)
     nodesCreated = nodesCreated + 1
