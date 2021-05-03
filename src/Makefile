@@ -19,7 +19,7 @@ gtest_main.o :
 	make gtest_main.o && \
 	mv gtest_main.o ../../../../../
 
-testsuite.o : tst/testsuite.cpp $(GTEST_HEADERS)
+testsuite.o : tst/testsuite.cpp kdtree.hpp raster.hpp $(GTEST_HEADERS)
 	@ echo "Compiling Tests..."
 	@ g++ $(CPPFLAGS) -isystem $(GTEST_DIR)/include $^ -c
 

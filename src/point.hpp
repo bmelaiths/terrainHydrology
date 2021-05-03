@@ -10,8 +10,8 @@ struct Point
     Point(float x, float y)
     : xLoc(x), yLoc(y)
     {};
-    float x() {return xLoc;};
-    float y() {return yLoc;};
+    float x() const {return xLoc;};
+    float y() const {return yLoc;};
 };
 
 #endif

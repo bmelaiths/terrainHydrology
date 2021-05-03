@@ -215,6 +215,16 @@ Primitive Hydrology::getNode(size_t idx) {
   return *indexedNodes[idx];
 }
 
+size_t Hydrology::getTreeDepth()
+{
+  return tree.getDepth();
+}
+
+size_t Hydrology::numNodes()
+{
+  return primitiveStorage.size();
+}
+
 void writeBinary(Hydrology hydrology, FILE *stream)
 {
   uint64_t numPrimitives = htobe64((uint64_t) hydrology.indexedNodes.size());

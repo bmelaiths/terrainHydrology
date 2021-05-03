@@ -40,11 +40,15 @@ int main() {
   {
     Primitive selectedCandidate = selectNode(params);
     alpha(selectedCandidate, params);
-    // fwrite(&anotherNode, sizeof(uint8_t), 1, stdout);
-    // fflush(stdout);
+    fwrite(&anotherNode, sizeof(uint8_t), 1, stdout);
+    fflush(stdout);
   }
-  // fwrite(&allDone, sizeof(uint8_t), 1, stdout);
-  // fflush(stdout);
+  fwrite(&allDone, sizeof(uint8_t), 1, stdout);
+  fflush(stdout);
+
+  printf("\n");
+  printf("Number of nodes: \t%ld\n", params.hydrology.numNodes());
+  printf("Depth of tree: \t%ld\n", params.hydrology.getTreeDepth());
 
 
   //export outputs

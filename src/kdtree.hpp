@@ -2,7 +2,9 @@
 #define KDTREE_H
 
 #include <queue>
-#include <list>
+#include <vector>
+#include <algorithm>
+#include <math.h>
 
 #include "point.hpp"
 
@@ -37,17 +39,43 @@ class KDTree
 {
     private:
     Node<T>* root = NULL;
-    // std::list<Node<T>*> allNodes; // this will be good for the destructor
+    std::vector<Node<T>*> allNodes; // this will be good for the destructor
 
     private:
     Node<T>* tryInsert(Node<T>* finalNode, bool isXlevel, Node<T>* toIns);
+    Node<T>* makeRoot(size_t begin, size_t end, bool isXlayer);
+    size_t maxDepth(Node<T>* node);
 
     public:
     ~KDTree();
     void insert(Point loc, T idx);
     std::vector<T> rangeSearch(Point loc, float radius);
     std::vector<T> breadthFirstSearch();
+    size_t getDepth();
+    void reconstruct();
 };
+
+template <typename T>
+size_t KDTree<T>::maxDepth(Node<T>* node)
+{
+    int max = 1;
+    if (node->left != NULL)
+    {
+        max = 1 + maxDepth(node->left);
+    }
+    if (node->right != NULL)
+    {
+        int rightDepth = 1 + maxDepth(node->right);
+        max = (rightDepth > max) ? rightDepth : max;
+    }
+    return max;
+}
+
+template <typename T>
+size_t KDTree<T>::getDepth()
+{
+    return maxDepth(root);
+}
 
 template <typename T>
 KDTree<T>::~KDTree()
@@ -101,14 +129,23 @@ Node<T>* KDTree<T>::tryInsert(Node<T>* finalNode, bool isXlevel, Node<T>* toIns)
 template <typename T>
 void KDTree<T>::insert(Point loc, T idx)
 {
+    if (allNodes.size() > 50)
+    {
+        float inefficiency = getDepth() / (log(allNodes.size()) / log(2));
+        if (inefficiency > 2)
+        {
+            reconstruct();
+        }
+    }
+
     Node<T>* newNode = new Node<T>(loc, idx);
+    allNodes.push_back(newNode);
 
     if (root == NULL)
     {
         root = newNode;
         return;
     }
-    
 
     Node<T>* finalNode = root;
     Node<T>* nextNode = NULL;
@@ -124,8 +161,6 @@ void KDTree<T>::insert(Point loc, T idx)
     }
     //loop invariant: finalNode points to the node that the new node will be
     //inserted under (unless the next iteration finds another level)
-
-    // allNodes.push_back(newNode);
 }
 
 template <typename T>
@@ -226,6 +261,75 @@ std::vector<T> KDTree<T>::breadthFirstSearch() {
     }
 
     return discovered;
+}
+
+template <typename T>
+class CompareNodesX
+{
+    public:
+    bool operator() (Node<T>* first, Node<T>* second)
+    {
+        return first->loc.x() < second->loc.x();
+    }
+};
+
+template <typename T>
+class CompareNodesY
+{
+    public:
+    bool operator() (Node<T>* first, Node<T>* second)
+    {
+        return first->loc.y() < second->loc.y();
+    }
+};
+
+template <typename T>
+Node<T>* KDTree<T>::makeRoot(size_t begin, size_t end, bool isXlevel)
+{
+    if (begin == end)
+    {
+        return NULL;
+    }
+    
+    if (end-begin == 1)
+    {
+        allNodes[begin]->left = NULL;
+        allNodes[begin]->right = NULL;
+        return allNodes[begin];
+    }
+    
+    if (isXlevel)
+    {
+        std::sort(
+            allNodes.begin() + begin,
+            allNodes.begin() + end,
+            CompareNodesX<T>()
+        );
+    }
+    else
+    {
+        std::sort(
+            allNodes.begin() + begin,
+            allNodes.begin() + end,
+            CompareNodesY<T>()
+        );
+    }
+    
+    Node<T>* newRoot =  allNodes[begin + (int)(end-begin)/2];
+    newRoot->left =  makeRoot(begin, begin + (end-begin)/2, !isXlevel);
+    newRoot->right = makeRoot((int) begin + (end-begin)/2 + 1, end, !isXlevel);
+
+    return newRoot;
+}
+
+template <typename T>
+void KDTree<T>::reconstruct()
+{
+    std::sort(allNodes.begin(), allNodes.end(), CompareNodesX<T>());
+
+    root = allNodes[(int)allNodes.size()/2];
+    root->left = makeRoot(0, (int) allNodes.size()/2, false);
+    root->right = makeRoot((int) allNodes.size()/2 + 1, allNodes.size(), false);
 }
 
 #endif

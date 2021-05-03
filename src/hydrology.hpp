@@ -78,6 +78,8 @@ class Hydrology
   );
   std::vector<Edge> edgesWithinRadius(Point loc, float radius);
   Primitive getNode(size_t idx);
+  size_t getTreeDepth();
+  size_t numNodes();
 };
 
 void writeBinary(Hydrology hydrology, FILE *stream);
