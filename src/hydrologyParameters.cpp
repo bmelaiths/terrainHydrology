@@ -112,3 +112,23 @@ HydrologyParameters readParamsFromStream(FILE *stream)
 
   return params;
 }
+
+HydrologyParameters::HydrologyParameters()
+{
+  omp_init_lock(&candidateVectorLock);
+}
+
+HydrologyParameters::~HydrologyParameters()
+{
+  omp_destroy_lock(&candidateVectorLock);
+}
+
+void HydrologyParameters::lockCandidateVector()
+{
+  omp_set_lock(&candidateVectorLock);
+}
+
+void HydrologyParameters::unlockCandidateVector()
+{
+  omp_unset_lock(&candidateVectorLock);
+}

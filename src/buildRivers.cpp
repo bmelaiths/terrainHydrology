@@ -1,5 +1,7 @@
 #include <stdio.h>
 
+#include <omp.h>
+
 #include "hydrologyParameters.hpp"
 #include "hydrologyFunctions.hpp"
 
@@ -36,12 +38,20 @@ int main() {
 
   const uint8_t anotherNode = 0x2e, allDone = 0x21;
 
+  #pragma omp parallel
+  {
+  //printf("Thread ID: %d\n", omp_get_thread_num());
   while (params.candidates.size() > 0)
   {
-    Primitive selectedCandidate = selectNode(params);
+    Primitive selectedCandidate;
+    #pragma omp critical
+    {
+    selectedCandidate = selectNode(params);
+    }
     alpha(selectedCandidate, params);
     fwrite(&anotherNode, sizeof(uint8_t), 1, stdout);
     fflush(stdout);
+  }
   }
   fwrite(&allDone, sizeof(uint8_t), 1, stdout);
   fflush(stdout);

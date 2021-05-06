@@ -62,7 +62,7 @@ class Edge
 class Hydrology
 {
   private:
-  /* data */
+  omp_lock_t lock;
 
   public:
   std::list<Primitive> primitiveStorage;
@@ -70,13 +70,18 @@ class Hydrology
   KDTree<Primitive*> tree;
 
   public:
+  Hydrology();
+  ~Hydrology();
+  void lockNetwork();
   Primitive* addMouthNode(
     Point loc, float elevation, int priority, int contourIndex
   );
   Primitive* addRegularNode(
     Point loc, float elevation, int priority, size_t parent
   );
-  std::vector<Edge> edgesWithinRadius(Point loc, float radius);
+  void unlockNetwork();
+  Lock lockArea(Point loc, float radius);
+  std::vector<Edge> queryArea(Point loc, float radius);
   Primitive getNode(size_t idx);
   size_t getTreeDepth();
   size_t numNodes();

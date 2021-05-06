@@ -5,7 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include <math.h>
-// #include <omp.h>
+#include <omp.h>
 #include <cfloat>
 #include <stdio.h>
 
@@ -21,16 +21,16 @@ struct Node
     //these two numbers are used for the lock hierarchy
     //size_t idOfCreatorThread, id;
     //there should also be some kind of lock
-    // omp_lock_t nodeLock;
+    omp_lock_t nodeLock;
 
     Node(Point loc, T idx)
     : loc(loc), idx(idx)
     {
-        // omp_init_lock(&nodeLock);
+        omp_init_lock(&nodeLock);
     };
     ~Node()
     {
-        // omp_destroy_lock(&nodeLock);
+        omp_destroy_lock(&nodeLock);
         if (left != NULL)
         {
             delete left;
@@ -42,21 +42,21 @@ struct Node
     }
 };
 
-// template <typename T>
-// class Area
-// {
-//     private:
-//     std::vector<T> values;
-//     std::vector<omp_lock_t> locks;
+class Lock
+{
+    private:
+    omp_lock_t *lock;
 
-//     public:
-//     Area(std::vector<T> values, std::vector<omp_lock_t> locks);
-// };
-
-// template <typename T>
-// Area<T>::Area(std::vector<T> values, std::vector<omp_lock_t> locks)
-// {
-// }
+    public:
+    Lock(): lock(NULL) {}
+    Lock(omp_lock_t *lock)
+    : lock(lock)
+    {}
+    void release()
+    {
+        omp_unset_lock(lock);
+    }
+};
 
 template <typename T>
 class KDTree
@@ -76,7 +76,8 @@ class KDTree
     public:
     ~KDTree();
     void insert(Point loc, T idx);
-    std::vector<T> rangeSearch(Point loc, float radius);
+    Lock lockRange(Point loc, float radius);
+    std::vector<T> searchRange(Point loc, float radius);
     std::vector<T> breadthFirstSearch();
     size_t getDepth();
     void reconstruct();
@@ -158,17 +159,6 @@ Node<T>* KDTree<T>::tryInsert(Node<T>* finalNode, bool isXlevel, Node<T>* toIns)
 template <typename T>
 void KDTree<T>::insert(Point loc, T idx)
 {
-    if (allNodes.size() > 50)
-    {
-        float inefficiency = getDepth() / (log(allNodes.size()) / log(2));
-        if (inefficiency > 2)
-        {
-            // fwrite(&reconstructChar, sizeof(char), 1, stdout);
-            // fflush(stdout);
-            reconstruct();
-        }
-    }
-
     Node<T>* newNode = new Node<T>(loc, idx);
     allNodes.push_back(newNode);
 
@@ -295,13 +285,21 @@ Node<T>* KDTree<T>::findAreaRoot(Point loc, float radius)
 }
 
 template <typename T>
+Lock KDTree<T>::lockRange(Point loc, float radius)
+{
+    Node<T>* areaRoot = findAreaRoot(loc, radius);
+    omp_set_lock(&areaRoot->nodeLock);
+    return Lock(&areaRoot->nodeLock);
+}
+
+template <typename T>
 struct rangeSearchStruct
 {
     Node<T> *node;
     bool isXlevel;
 };
 template <typename T>
-std::vector<T> KDTree<T>::rangeSearch(Point loc, float radius)
+std::vector<T> KDTree<T>::searchRange(Point loc, float radius)
 {
     std::vector<T> foundIdxes;
 

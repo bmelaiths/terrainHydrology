@@ -115,6 +115,26 @@ Edge::Edge(Primitive node0, Primitive node1)
 {
 }
 
+Hydrology::Hydrology()
+{
+  omp_init_lock(&lock);
+}
+
+Hydrology::~Hydrology()
+{
+  omp_destroy_lock(&lock);
+}
+
+void Hydrology::lockNetwork()
+{
+  omp_set_lock(&lock);
+}
+
+void Hydrology::unlockNetwork()
+{
+  omp_unset_lock(&lock);
+}
+
 Primitive* Hydrology::addMouthNode
 (Point loc, float elevation, int priority, int contourIndex)
 {
@@ -190,10 +210,15 @@ Primitive* Hydrology::addRegularNode
   return node;
 }
 
-//note: this method may double-count edges that have both ends in the area
-std::vector<Edge> Hydrology::edgesWithinRadius(Point loc, float radius)
+Lock Hydrology::lockArea(Point loc, float radius)
 {
-  std::vector<Primitive*> closeIdxes = tree.rangeSearch(loc, radius);
+  return tree.lockRange(loc, radius);
+}
+
+//note: this method may double-count edges that have both ends in the area
+std::vector<Edge> Hydrology::queryArea(Point loc, float radius)
+{
+  std::vector<Primitive*> closeIdxes = tree.searchRange(loc, radius);
 
   std::vector<Edge> edges;
   for (Primitive* closeIdx : closeIdxes)

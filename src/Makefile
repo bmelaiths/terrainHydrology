@@ -1,4 +1,4 @@
-CPPFLAGS += -g -Wall
+CPPFLAGS += -g -Wall -fopenmp
 
 GTEST_DIR = tst/googletest/googletest
 GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \

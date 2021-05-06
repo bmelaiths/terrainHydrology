@@ -11,7 +11,13 @@
 
 class HydrologyParameters
 {
+    private:
+    omp_lock_t candidateVectorLock;
+
     public:
+    HydrologyParameters();
+    ~HydrologyParameters();
+
     float Pa, Pc;
     unsigned int maxTries;
     float riverAngleDev;
@@ -24,7 +30,9 @@ class HydrologyParameters
 
     std::vector<cv::Point> contour;
 
+    void lockCandidateVector();
     std::vector<Primitive*> candidates;
+    void unlockCandidateVector();
     Hydrology hydrology;
 
     std::default_random_engine generator;

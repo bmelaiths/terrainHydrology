@@ -115,7 +115,7 @@ float point_segment_distance(float px, float py, float x1, float y1, float x2, f
   return hypotf32(dx, dy);
 }
 
-bool isAcceptablePosition(Point testLoc, size_t parentID, HydrologyParameters& params) {
+bool isAcceptablePosition(Point testLoc, float radius, size_t parentID, HydrologyParameters& params) {
   if (testLoc.x() < 0)
   {
     return false;
@@ -134,8 +134,8 @@ bool isAcceptablePosition(Point testLoc, size_t parentID, HydrologyParameters& p
     return false;
   }
   
-  std::vector<Edge> edges = params.hydrology.edgesWithinRadius(
-    testLoc, 2 * params.edgeLength
+  std::vector<Edge> edges = params.hydrology.queryArea(
+    testLoc, radius
   );
   for (Edge edge : edges)
   {
@@ -165,7 +165,19 @@ float coastNormal(Primitive candidate, HydrologyParameters& params) {
   return theta + M_PI_2f32;
 }
 
-Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
+LockedPoint::LockedPoint(Point point, Lock lock)
+: point(point), lock(lock)
+{}
+
+void LockedPoint::release() {
+  lock.release();
+}
+
+Point LockedPoint::getLoc() {
+  return point;
+}
+
+LockedPoint pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
   float angle;
   // if candidate has no parent
   if (!candidate.hasParent())
@@ -186,6 +198,7 @@ Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
 
   float newAngle;
   Point newLoc(-1,-1);
+  Lock lock;
   for (size_t i = 0; i < params.maxTries; i++)
   {
     newAngle = angle + params.distribution(params.generator);
@@ -193,21 +206,24 @@ Point pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
       candidate.getLoc().x() + cosf32(newAngle) * params.edgeLength,
       candidate.getLoc().y() + sinf32(newAngle) * params.edgeLength
     );
-    if (isAcceptablePosition(newLoc, candidate.getID(), params))
+    lock = params.hydrology.lockArea(newLoc, 2 * params.edgeLength);
+    if (isAcceptablePosition(newLoc, 2 * params.edgeLength, candidate.getID(), params))
     {
       break;
     }
     else
     {
+      lock.release();
       newLoc = Point(-1,-1);
     }
   }
 
-  return newLoc;
+  return LockedPoint(newLoc, lock);
 }
 
 void tao(Primitive node, HydrologyParameters& params) {
-  // params.candidates.erase(params.candidates.begin() + node.id);
+  #pragma omp critical
+  {
   size_t candidateIdx = 0;
   for (size_t i = 0; i < params.candidates.size(); i++)
   {
@@ -218,12 +234,14 @@ void tao(Primitive node, HydrologyParameters& params) {
       break;
     }
   }
+  }
 }
 
 void beta
 (Primitive node, int priority, HydrologyParameters& params)
 {
-  Point newLoc = pickNewNodeLoc(node, params);
+  LockedPoint lockedPoint = pickNewNodeLoc(node, params);
+  Point newLoc = lockedPoint.getLoc();
   if (newLoc.x() != -1)
   {
     float slope =
@@ -231,11 +249,15 @@ void beta
       params.riverSlope.get(node.getLoc().x(), node.getLoc().y()) / 255
     ;
     float newZ = node.getElevation() + slope * params.edgeLength;
-    params.candidates.push_back(
-      params.hydrology.addRegularNode(
-        newLoc, newZ, priority, node.getID()
-      )
-    );
+    #pragma omp critical
+    {
+      params.candidates.push_back(
+        params.hydrology.addRegularNode(
+          newLoc, newZ, priority, node.getID()
+        )
+      );
+    }
+    lockedPoint.release();
   }
   else
   {

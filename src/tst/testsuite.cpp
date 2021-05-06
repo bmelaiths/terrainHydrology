@@ -52,7 +52,7 @@ namespace
         tree.insert(Point(2.0f, 7.0f),1);
         tree.insert(Point(10.0f, 19.0f),6);
 
-        std::vector<size_t> searchResults = tree.rangeSearch(Point(2.0f,6.0f), 2.0f);
+        std::vector<size_t> searchResults = tree.searchRange(Point(2.0f,6.0f), 2.0f);
 
         ASSERT_EQ(searchResults.size(), 2);
         ASSERT_TRUE(searchResults[0] == 0 || searchResults[1] == 0);
@@ -81,7 +81,7 @@ namespace
         tree.insert(Point(10,5),16);
         tree.insert(Point(0,2),17);
 
-        std::vector<size_t> searchResults = tree.rangeSearch(Point(2,5), 1.5);
+        std::vector<size_t> searchResults = tree.searchRange(Point(2,5), 1.5);
 
         ASSERT_EQ(searchResults.size(), 3);
         ASSERT_TRUE((searchResults[0] == 11) || (searchResults[1] == 11) || (searchResults[2] == 11));
@@ -101,7 +101,7 @@ namespace
 
         tree.reconstruct();
 
-        std::vector<size_t> searchResults = tree.rangeSearch(Point(2.0f,6.0f), 2.0f);
+        std::vector<size_t> searchResults = tree.searchRange(Point(2.0f,6.0f), 2.0f);
 
         ASSERT_EQ(searchResults.size(), 2);
         ASSERT_TRUE(searchResults[0] == 0 || searchResults[1] == 0);
@@ -131,7 +131,7 @@ namespace
 
         tree.reconstruct();
 
-        std::vector<size_t> searchResults = tree.rangeSearch(Point(2,5), 1.5);
+        std::vector<size_t> searchResults = tree.searchRange(Point(2,5), 1.5);
 
         ASSERT_EQ(searchResults.size(), 3);
         ASSERT_TRUE((searchResults[0] == 11) || (searchResults[1] == 11) || (searchResults[2] == 11));
@@ -206,7 +206,7 @@ namespace
             Point(9.0f, 6.0f), 0.0f, 0, node3.getID()
         );
 
-        std::vector<Edge> edges = hydrology.edgesWithinRadius(
+        std::vector<Edge> edges = hydrology.queryArea(
             Point(5.0f,5.0f), 3.0f
         );
 
@@ -242,13 +242,13 @@ namespace
             Point(10.0f, 0.0f), 0.0f, 0, node6.getID()
         );
 
-        std::vector<Edge> edges = hydrology.edgesWithinRadius(
+        std::vector<Edge> edges = hydrology.queryArea(
             Point(5.0f,5.0f), 3.0f
         );
 
         ASSERT_EQ(edges.size(), 4);
 
-        edges = hydrology.edgesWithinRadius(
+        edges = hydrology.queryArea(
             Point(5.0f,5.0f), 6.0f
         );
 
@@ -393,7 +393,7 @@ namespace
             Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
-        EXPECT_TRUE(isAcceptablePosition(Point(1540*params.resolution,1415*params.resolution), 0 ,params));
+        EXPECT_TRUE(isAcceptablePosition(Point(1540*params.resolution,1415*params.resolution), 2 * params.edgeLength, 0 ,params));
     }
     TEST(HydrologyFunctionsTests, IsAcceptablePositionNotOnLandTest)
     {
@@ -436,7 +436,7 @@ namespace
             Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
-        EXPECT_FALSE(isAcceptablePosition(Point(1560*params.resolution,1330*params.resolution), 0,params)); //not on land
+        EXPECT_FALSE(isAcceptablePosition(Point(1560*params.resolution,1330*params.resolution), 2 * params.edgeLength, 0,params)); //not on land
     }
     TEST(HydrologyFunctionsTests, IsAcceptablePositionTooCloseToNodeTest)
     {
@@ -479,7 +479,7 @@ namespace
             Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
-        EXPECT_FALSE(isAcceptablePosition(Point(1540*params.resolution,1410*params.resolution),0,params)); // too close to a node
+        EXPECT_FALSE(isAcceptablePosition(Point(1540*params.resolution,1410*params.resolution),2 * params.edgeLength,0,params)); // too close to a node
     }
     TEST(HydrologyFunctionsTests, IsAcceptablePositionTooCloseToEdgeTest)
     {
@@ -522,7 +522,7 @@ namespace
             Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
-        EXPECT_FALSE(isAcceptablePosition(Point(1560*params.resolution,1375*params.resolution),0,params)); //too close to an edge
+        EXPECT_FALSE(isAcceptablePosition(Point(1560*params.resolution,1375*params.resolution),2 * params.edgeLength,0,params)); //too close to an edge
     }
     TEST(HydrologyFunctionsTests, IsAcceptablePositionTooCloseToSeeeTest)
     {
@@ -565,7 +565,7 @@ namespace
             Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
-        EXPECT_FALSE(isAcceptablePosition(Point(250*params.resolution,134*params.resolution),0,params)); //too close to the seeee
+        EXPECT_FALSE(isAcceptablePosition(Point(250*params.resolution,134*params.resolution),2 * params.edgeLength,0,params)); //too close to the seeee
     }
     // TEST(HydrologyFunctionsTests, IsAcceptablePositionRealDataTestI)
     // {
@@ -684,8 +684,8 @@ namespace
             Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
-        Point newLoc = pickNewNodeLoc(child0, params);
-        ASSERT_TRUE(isAcceptablePosition(newLoc, child0.getID(), params));
+        LockedPoint newLoc = pickNewNodeLoc(child0, params);
+        ASSERT_TRUE(isAcceptablePosition(newLoc.getLoc(),2 * params.edgeLength, child0.getID(), params));
     }
     TEST(PrimitiveTests, ToBinaryIDTest)
     {
