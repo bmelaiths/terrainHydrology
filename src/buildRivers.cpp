@@ -17,8 +17,8 @@ A list of data structures that will be used:
 int main() {
   //gather inputs
 
-  #define INPUT input
-  #define FILEINPUT
+  #define INPUT stdin
+  // #define FILEINPUT
   #ifdef FILEINPUT
   FILE *input = fopen("./binaryFile", "rb");
 
@@ -46,14 +46,11 @@ int main() {
   fwrite(&allDone, sizeof(uint8_t), 1, stdout);
   fflush(stdout);
 
-  printf("\n");
-  printf("Number of nodes: \t%ld\n", params.hydrology.numNodes());
-  printf("Depth of tree: \t%ld\n", params.hydrology.getTreeDepth());
-
 
   //export outputs
 
-  // writeBinary(params.hydrology, stdout);
+  writeBinary(params.hydrology, stdout);
+  fflush(stdout);
 
 
   //free resources

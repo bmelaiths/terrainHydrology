@@ -82,6 +82,6 @@ class Hydrology
   size_t numNodes();
 };
 
-void writeBinary(Hydrology hydrology, FILE *stream);
+void writeBinary(Hydrology& hydrology, FILE *stream);
 
 #endif

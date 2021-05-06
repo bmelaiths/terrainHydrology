@@ -31,7 +31,7 @@ test : testsuite
 
 floatEndian.o : floatEndian.cpp
 
-hydrology.o : hydrology.cpp hydrology.hpp point.hpp
+hydrology.o : hydrology.cpp hydrology.hpp point.hpp kdtree.hpp
 
 buildRivers.o : buildRivers.cpp hydrology.hpp kdtree.hpp raster.hpp
 

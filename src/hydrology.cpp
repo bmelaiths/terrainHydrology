@@ -225,7 +225,7 @@ size_t Hydrology::numNodes()
   return primitiveStorage.size();
 }
 
-void writeBinary(Hydrology hydrology, FILE *stream)
+void writeBinary(Hydrology& hydrology, FILE *stream)
 {
   uint64_t numPrimitives = htobe64((uint64_t) hydrology.indexedNodes.size());
   fwrite(&numPrimitives, sizeof(uint64_t), 1, stream);
