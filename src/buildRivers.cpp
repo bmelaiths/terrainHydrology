@@ -40,15 +40,15 @@ int main() {
 
   #pragma omp parallel
   {
-  //printf("Thread ID: %d\n", omp_get_thread_num());
+  // printf("Thread ID: %d\n", omp_get_thread_num());
   while (params.candidates.size() > 0)
   {
-    Primitive selectedCandidate;
-    #pragma omp critical
-    {
-    selectedCandidate = selectNode(params);
-    }
+    params.lockCandidateVector();
+    Primitive selectedCandidate = selectNode(params);
+    params.unlockCandidateVector();
+
     alpha(selectedCandidate, params);
+
     fwrite(&anotherNode, sizeof(uint8_t), 1, stdout);
     fflush(stdout);
   }

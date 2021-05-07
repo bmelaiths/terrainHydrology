@@ -53,10 +53,10 @@ class Primitive
 class Edge
 {
   public:
-  Primitive node0, node1;
+  Primitive *node0, *node1;
 
   public:
-  Edge(Primitive node0, Primitive node1);
+  Edge(Primitive *node0, Primitive *node1);
 };
 
 class Hydrology

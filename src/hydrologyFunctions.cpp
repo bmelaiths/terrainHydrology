@@ -141,8 +141,8 @@ bool isAcceptablePosition(Point testLoc, float radius, size_t parentID, Hydrolog
   {
     float dist = point_segment_distance(
       testLoc.x(), testLoc.y(),
-      edge.node0.getLoc().x(), edge.node0.getLoc().y(),
-      edge.node1.getLoc().x(), edge.node1.getLoc().y()
+      edge.node0->getLoc().x(), edge.node0->getLoc().y(),
+      edge.node1->getLoc().x(), edge.node1->getLoc().y()
     );
     if (dist < params.sigma * params.edgeLength)
     {
@@ -222,8 +222,7 @@ LockedPoint pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
 }
 
 void tao(Primitive node, HydrologyParameters& params) {
-  #pragma omp critical
-  {
+  params.lockCandidateVector();
   size_t candidateIdx = 0;
   for (size_t i = 0; i < params.candidates.size(); i++)
   {
@@ -234,7 +233,7 @@ void tao(Primitive node, HydrologyParameters& params) {
       break;
     }
   }
-  }
+  params.unlockCandidateVector();
 }
 
 void beta
@@ -249,14 +248,13 @@ void beta
       params.riverSlope.get(node.getLoc().x(), node.getLoc().y()) / 255
     ;
     float newZ = node.getElevation() + slope * params.edgeLength;
-    #pragma omp critical
-    {
+    params.lockCandidateVector();
       params.candidates.push_back(
         params.hydrology.addRegularNode(
           newLoc, newZ, priority, node.getID()
         )
       );
-    }
+    params.unlockCandidateVector();
     lockedPoint.release();
   }
   else

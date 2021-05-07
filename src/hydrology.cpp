@@ -110,7 +110,7 @@ int Primitive::getPriority() {return priority;}
 
 int Primitive::getContourIndex() {return contourIndex;}
 
-Edge::Edge(Primitive node0, Primitive node1)
+Edge::Edge(Primitive *node0, Primitive *node1)
 : node0(node0), node1(node1)
 {
 }
@@ -226,11 +226,11 @@ std::vector<Edge> Hydrology::queryArea(Point loc, float radius)
     // Primitive idxNode = indexedNodes[closeIdx];
     if (closeIdx->hasParent())
     {
-      edges.push_back(Edge(*closeIdx, *closeIdx->getParent()));
+      edges.push_back(Edge(closeIdx, closeIdx->getParent()));
     }
     for (size_t i = 0; i < closeIdx->numChildren(); i++)
     {
-      edges.push_back(Edge(*closeIdx, *closeIdx->getChildren()[i]));
+      edges.push_back(Edge(closeIdx, closeIdx->getChildren()[i]));
     }
   }
   return edges;
