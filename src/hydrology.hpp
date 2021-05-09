@@ -65,7 +65,7 @@ class Hydrology
   omp_lock_t lock;
 
   public:
-  std::list<Primitive> primitiveStorage;
+  // std::list<Primitive> primitiveStorage; // get rid of this?
   std::vector<Primitive*> indexedNodes;
   KDTree<Primitive*> tree;
 

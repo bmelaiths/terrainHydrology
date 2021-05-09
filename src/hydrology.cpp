@@ -123,6 +123,10 @@ Hydrology::Hydrology()
 Hydrology::~Hydrology()
 {
   omp_destroy_lock(&lock);
+  for (Primitive *node : indexedNodes)
+  {
+    delete node;
+  }
 }
 
 void Hydrology::lockNetwork()
@@ -138,24 +142,18 @@ void Hydrology::unlockNetwork()
 Primitive* Hydrology::addMouthNode
 (Point loc, float elevation, int priority, int contourIndex)
 {
-  primitiveStorage.push_back(
-    Primitive(indexedNodes.size(), loc, elevation, priority, contourIndex)
-  );
+  Primitive *node = new Primitive(indexedNodes.size(), loc, elevation, priority, contourIndex);
 
-  tree.insert(loc, &primitiveStorage.back());
-  indexedNodes.push_back(&primitiveStorage.back());
+  tree.insert(loc, node);
+  indexedNodes.push_back(node);
 
-  return &primitiveStorage.back();
+  return node;
 }
 
 Primitive* Hydrology::addRegularNode
 (Point loc, float elevation, int priority, size_t parent)
 {
-  primitiveStorage.push_back(
-    Primitive(indexedNodes.size(), indexedNodes[parent], loc, elevation, priority)
-  );
-  
-  Primitive* node = &primitiveStorage.back();
+  Primitive *node = new Primitive(indexedNodes.size(), indexedNodes[parent], loc, elevation, priority);
 
   tree.insert(loc, node);
   indexedNodes.push_back(node);
@@ -221,7 +219,7 @@ std::vector<Edge> Hydrology::queryArea(Point loc, float radius)
   std::vector<Primitive*> closeIdxes = tree.searchRange(loc, radius);
 
   std::vector<Edge> edges;
-  for (Primitive* closeIdx : closeIdxes)
+  for (Primitive *closeIdx : closeIdxes)
   {
     // Primitive idxNode = indexedNodes[closeIdx];
     if (closeIdx->hasParent())
@@ -247,7 +245,7 @@ size_t Hydrology::getTreeDepth()
 
 size_t Hydrology::numNodes()
 {
-  return primitiveStorage.size();
+  return indexedNodes.size();
 }
 
 void writeBinary(Hydrology& hydrology, FILE *stream)

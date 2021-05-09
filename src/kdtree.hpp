@@ -45,16 +45,20 @@ struct Node
 class Lock
 {
     private:
-    omp_lock_t *lock;
+    std::vector<omp_lock_t*> locks;
 
     public:
-    Lock(): lock(NULL) {}
-    Lock(omp_lock_t *lock)
-    : lock(lock)
+    Lock() {}
+    Lock(std::vector<omp_lock_t*> locks)
+    : locks(locks)
     {}
     void release()
     {
-        omp_unset_lock(lock);
+        // omp_unset_lock(lock);
+        for (omp_lock_t *lock : locks)
+        {
+            omp_unset_lock(lock);
+        }
     }
 };
 
@@ -253,6 +257,11 @@ Node<T>* KDTree<T>::findAreaRoot(Point loc, float radius)
         }
         else if (leftAreaRelevant)
         {
+            if (currentRoot->left == NULL)
+            {
+                return currentRoot;
+            }
+            
             // The other node (right node) does not control the search
             // area, so this node doesn't represent the immediate base
             // node of the search area. See if the left node does in
@@ -269,6 +278,11 @@ Node<T>* KDTree<T>::findAreaRoot(Point loc, float radius)
         }
         else
         {
+            if (currentRoot->right == NULL)
+            {
+                return currentRoot;
+            }
+            
             if (isXlevel)
             {
                 xMin = currentRoot->loc.x();
@@ -288,8 +302,31 @@ template <typename T>
 Lock KDTree<T>::lockRange(Point loc, float radius)
 {
     Node<T>* areaRoot = findAreaRoot(loc, radius);
-    omp_set_lock(&areaRoot->nodeLock);
-    return Lock(&areaRoot->nodeLock);
+
+    // Lock all nodes in the area in breadth-first order
+    std::vector<omp_lock_t*> locks;
+    std::queue<Node<T>*> q;
+
+    omp_set_lock(&root->nodeLock);
+    locks.push_back(&root->nodeLock);
+    q.push(root);
+    while (q.size() > 0)
+    {
+        Node<T>* v = q.front();
+        q.pop();
+        if (v->left != NULL) {
+            omp_set_lock(&v->left->nodeLock);
+            locks.push_back(&v->left->nodeLock);
+            q.push(v->left);
+        }
+        if (v->right != NULL) {
+            omp_set_lock(&v->right->nodeLock);
+            locks.push_back(&v->right->nodeLock);
+            q.push(v->right);
+        }
+    }
+
+    return Lock(locks);
 }
 
 template <typename T>
