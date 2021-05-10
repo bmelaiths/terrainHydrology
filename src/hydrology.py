@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import datetime
 import argparse
 import random
 import matplotlib.pyplot as plt
@@ -249,10 +250,13 @@ params = HydrologyFunctions.HydrologyParameters(
 )
 
 if not args.accelerate:
+    nodesCreated = 0
+    start = datetime.datetime.now()
     while len(candidates)!=0:
         selectedCandidate = HydrologyFunctions.selectNode(candidates,zeta)
         HydrologyFunctions.alpha(selectedCandidate, candidates, params)
-        print(f'\tNodes Created: {len(hydrology)} \r', end='')  # use display(f) if you encounter performance issues
+        print(f'\tNodes Created: {len(hydrology)}\t{nodesCreated/(datetime.datetime.now()-start).total_seconds()} nodes/sec\r', end='')  # use display(f) if you encounter performance issues
+        nodesCreated = nodesCreated + 1
 else:
     import subprocess
     import os.path
@@ -273,10 +277,11 @@ else:
     proc.stdin.write(params.toBinary())
     print('\tData sent to native module...')
     nodesCreated = 0
+    start = datetime.datetime.now()
     readByte = proc.stdout.read(1)
     nodesCreated = nodesCreated + 1
     while struct.unpack('B', readByte)[0] == 0x2e:
-        print(f'\tNodes Created: {nodesCreated} \r', end='')
+        print(f'\tNodes Created: {nodesCreated}\t{nodesCreated/(datetime.datetime.now()-start).total_seconds()} nodes/sec\r', end='')
         readByte = proc.stdout.read(1)
         nodesCreated = nodesCreated + 1
     hydrology = DataModel.HydrologyNetwork(stream=proc.stdout)
