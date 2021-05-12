@@ -37,41 +37,24 @@ int main() {
   // perform computatons
 
   const uint8_t anotherNode = 0x2e, allDone = 0x21;
-  // const uint8_t reconstructChar = '@';
+  const uint8_t reconstructChar = '@';
 
   #pragma omp parallel
   {
   // printf("Thread ID: %d\n", omp_get_thread_num());
   while (params.candidates.size() > 0)
   {
-    float inefficiency =
-      params.hydrology.tree.getDepth() /
-      (log(params.hydrology.numNodes()) / log(2))
-    ;
-    if (inefficiency > 2)
-    {
-      // there is a potential infinite wait condition here, in which
-      // the inefficiency becomes intolerable, so one or more threads
-      // wait here, but then other threads add more nodes such that the
-      // inefficiency becomes tolerable, and thus some threads get
-      // stuck here
-      #pragma omp barrier
-      #pragma omp single
-      {
-      // fwrite(&reconstructChar, sizeof(char), 1, stdout);
-      // fflush(stdout);
-      params.hydrology.tree.reconstruct();
-      }
-    }
-
     params.lockCandidateVector();
     Primitive selectedCandidate = selectNode(params);
     params.unlockCandidateVector();
 
     alpha(selectedCandidate, params);
 
+    #pragma omp critical
+    {
     fwrite(&anotherNode, sizeof(uint8_t), 1, stdout);
     fflush(stdout);
+    }
   }
   }
   fwrite(&allDone, sizeof(uint8_t), 1, stdout);

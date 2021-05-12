@@ -8,10 +8,10 @@ class LockedPoint
 {
   private:
   Point point;
-  Lock lock;
+  AreaLock lock;
 
   public:
-  LockedPoint(Point point, Lock lock);
+  LockedPoint(Point point, AreaLock lock);
   void release();
   Point getLoc();
 };

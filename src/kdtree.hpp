@@ -42,26 +42,6 @@ struct Node
     }
 };
 
-class Lock
-{
-    private:
-    std::vector<omp_lock_t*> locks;
-
-    public:
-    Lock() {}
-    Lock(std::vector<omp_lock_t*> locks)
-    : locks(locks)
-    {}
-    void release()
-    {
-        // omp_unset_lock(lock);
-        for (omp_lock_t *lock : locks)
-        {
-            omp_unset_lock(lock);
-        }
-    }
-};
-
 template <typename T>
 class KDTree
 {
@@ -73,19 +53,23 @@ class KDTree
 
     private:
     Node<T>* tryInsert(Node<T>* finalNode, bool isXlevel, Node<T>* toIns);
-    Node<T>* findAreaRoot(Point loc, float radius);
     Node<T>* makeRoot(size_t begin, size_t end, bool isXlayer);
     size_t maxDepth(Node<T>* node);
 
     public:
+    KDTree();
     ~KDTree();
     void insert(Point loc, T idx);
-    Lock lockRange(Point loc, float radius);
     std::vector<T> searchRange(Point loc, float radius);
     std::vector<T> breadthFirstSearch();
     size_t getDepth();
     void reconstruct();
 };
+
+template <typename T>
+KDTree<T>::KDTree()
+: root(NULL)
+{}
 
 template <typename T>
 size_t KDTree<T>::maxDepth(Node<T>* node)
@@ -163,6 +147,19 @@ Node<T>* KDTree<T>::tryInsert(Node<T>* finalNode, bool isXlevel, Node<T>* toIns)
 template <typename T>
 void KDTree<T>::insert(Point loc, T idx)
 {
+    if (allNodes.size() > 50)
+    {
+        float inefficiency =
+            getDepth() / (log(allNodes.size()) / log(2))
+        ;
+        if (inefficiency > 2)
+        {
+        // fwrite(&reconstructChar, sizeof(char), 1, stdout);
+        // fflush(stdout);
+            reconstruct();
+        }
+    }
+
     Node<T>* newNode = new Node<T>(loc, idx);
     allNodes.push_back(newNode);
 
@@ -189,146 +186,6 @@ void KDTree<T>::insert(Point loc, T idx)
     //inserted under (unless the next iteration finds another level)
 }
 
-// The purpose of this method is to find the node that controls the entire area,
-// but no more area than necessary. This method also acquires a lock on that
-// area, as it is likely to be modified
-template <typename T>
-Node<T>* KDTree<T>::findAreaRoot(Point loc, float radius)
-{
-    Node<T>* currentRoot = root;
-
-    float xMin = -FLT_MAX, xMax = FLT_MAX;
-    float yMin = -FLT_MAX, yMax = FLT_MAX;
-    bool isXlevel = true;
-    // Loop invariant: currentRoot points to a node whose area includes the
-    // search area, but whose parent's area includes more area than necessary
-    while (true)
-    {
-        bool rightAreaRelevant = false, leftAreaRelevant = false;
-
-        //figure out which values to compate
-        float nodeCompValue, queryCompValue;
-        float planeMin, planeMax;
-        if (isXlevel)
-        { //if this is an X level, evaluate the x values
-            nodeCompValue = currentRoot->loc.x();
-            queryCompValue = loc.x();
-            planeMin = xMin;
-            planeMax = xMax;
-        }
-        else
-        {
-            nodeCompValue = currentRoot->loc.y();
-            queryCompValue = loc.y();
-            planeMin = yMin;
-            planeMax = yMax;
-        }
-
-        if
-        ( // is left edge of search area within left split?
-            planeMin < (queryCompValue - radius) &&
-            (queryCompValue - radius) < nodeCompValue
-        )
-        {
-            leftAreaRelevant = true;
-        }
-        //if the left edge of the search area is not within left
-        //split, then none of the search area is within the left
-        //split
-        
-        if
-        ( // is right edge of search area within right split?
-            (queryCompValue + radius) < planeMax &&
-            nodeCompValue < (queryCompValue + radius)
-        )
-        {
-            rightAreaRelevant = true;
-        }
-        //if the right edge of the search area is not within the
-        //right split, then none of the search area is within the
-        //right split
-        
-        if (leftAreaRelevant && rightAreaRelevant)
-        {
-            //Control over the area cannot be further refined from
-            //this node. This method's work is done.
-            // omp_set_lock(currentRoot->nodeLock);
-            return currentRoot;
-        }
-        else if (leftAreaRelevant)
-        {
-            if (currentRoot->left == NULL)
-            {
-                return currentRoot;
-            }
-            
-            // The other node (right node) does not control the search
-            // area, so this node doesn't represent the immediate base
-            // node of the search area. See if the left node does in
-            // the next iteration
-            if (isXlevel)
-            { // remember the current xy limits of this node's area
-                xMax = currentRoot->loc.x();
-            }
-            else
-            {
-                yMax = currentRoot->loc.y();
-            }
-            currentRoot = currentRoot->left;
-        }
-        else
-        {
-            if (currentRoot->right == NULL)
-            {
-                return currentRoot;
-            }
-            
-            if (isXlevel)
-            {
-                xMin = currentRoot->loc.x();
-            }
-            else
-            {
-                yMin = currentRoot->loc.y();
-            }
-            currentRoot = currentRoot->right;
-        }
-
-        isXlevel = !isXlevel;
-    }
-}
-
-template <typename T>
-Lock KDTree<T>::lockRange(Point loc, float radius)
-{
-    Node<T>* areaRoot = findAreaRoot(loc, radius);
-
-    // Lock all nodes in the area in breadth-first order
-    std::vector<omp_lock_t*> locks;
-    std::queue<Node<T>*> q;
-
-    omp_set_lock(&root->nodeLock);
-    locks.push_back(&root->nodeLock);
-    q.push(root);
-    while (q.size() > 0)
-    {
-        Node<T>* v = q.front();
-        q.pop();
-        if (v->left != NULL) {
-            omp_set_lock(&v->left->nodeLock);
-            locks.push_back(&v->left->nodeLock);
-            q.push(v->left);
-        }
-        if (v->right != NULL) {
-            omp_set_lock(&v->right->nodeLock);
-            locks.push_back(&v->right->nodeLock);
-            q.push(v->right);
-        }
-    }
-
-    return Lock(locks);
-}
-
 template <typename T>
 struct rangeSearchStruct
 {
@@ -340,11 +197,14 @@ std::vector<T> KDTree<T>::searchRange(Point loc, float radius)
 {
     std::vector<T> foundIdxes;
 
-    Node<T>* areaRoot = findAreaRoot(loc, radius);
+    if (root == NULL)
+    {
+        return foundIdxes;
+    }
 
     std::queue<rangeSearchStruct<T>> toSearch;
     //insert the root node, and mark it as a level sorted by X
-    toSearch.push({.node=areaRoot, .isXlevel=areaRoot->isXlevel});
+    toSearch.push({.node=root, .isXlevel=true});
     // toSearch.push({.node=root, .isXlevel=true});
     while (toSearch.size() > 0)
     {

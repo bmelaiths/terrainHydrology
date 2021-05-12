@@ -16,6 +16,7 @@ class HydrologyParameters
 
     public:
     HydrologyParameters();
+    HydrologyParameters(Point lowerLeft, Point upperRight);
     ~HydrologyParameters();
 
     float Pa, Pc;

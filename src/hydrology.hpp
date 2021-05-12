@@ -8,6 +8,7 @@
 
 #include "point.hpp"
 #include "kdtree.hpp"
+#include "forest.hpp"
 
 class Hydrology;
 
@@ -67,11 +68,13 @@ class Hydrology
   public:
   // std::list<Primitive> primitiveStorage; // get rid of this?
   std::vector<Primitive*> indexedNodes;
-  KDTree<Primitive*> tree;
+  // KDTree<Primitive*> tree;
+  Forest<Primitive*> trees;
 
   public:
   Hydrology();
   ~Hydrology();
+  void set(Point lowerLeft, Point upperRight);
   void lockNetwork();
   Primitive* addMouthNode(
     Point loc, float elevation, int priority, int contourIndex
@@ -80,7 +83,7 @@ class Hydrology
     Point loc, float elevation, int priority, size_t parent
   );
   void unlockNetwork();
-  Lock lockArea(Point loc, float radius);
+  AreaLock lockArea(Point loc, float radius);
   std::vector<Edge> queryArea(Point loc, float radius);
   Primitive getNode(size_t idx);
   size_t getTreeDepth();

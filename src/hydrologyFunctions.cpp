@@ -165,7 +165,7 @@ float coastNormal(Primitive candidate, HydrologyParameters& params) {
   return theta + M_PI_2f32;
 }
 
-LockedPoint::LockedPoint(Point point, Lock lock)
+LockedPoint::LockedPoint(Point point, AreaLock lock)
 : point(point), lock(lock)
 {}
 
@@ -198,7 +198,7 @@ LockedPoint pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
 
   float newAngle;
   Point newLoc(-1,-1);
-  Lock lock;
+  AreaLock lock;
   for (size_t i = 0; i < params.maxTries; i++)
   {
     newAngle = angle + params.distribution(params.generator);

@@ -3,9 +3,24 @@
 #include <stdio.h>
 #include <endian.h>
 
+HydrologyParameters::HydrologyParameters(Point lowerLeft, Point upperRight)
+{
+  hydrology.set(lowerLeft, upperRight);
+}
+
 HydrologyParameters readParamsFromStream(FILE *stream)
 {
-  HydrologyParameters params;
+  float minX, maxX, minY, maxY;
+  fread(&minX, sizeof(float), 1, stream);
+  fread(&minY, sizeof(float), 1, stream);
+  fread(&maxX, sizeof(float), 1, stream);
+  fread(&maxY, sizeof(float), 1, stream);
+  minX = float_swap(minX);
+  minY = float_swap(minY);
+  maxX = float_swap(maxX);
+  maxY = float_swap(maxY);
+
+  HydrologyParameters params(Point(minX,minY), Point(maxX,maxY));
 
   fread(&params.Pa,               sizeof(float), 1, stream);
   fread(&params.Pc,               sizeof(float), 1, stream);

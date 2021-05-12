@@ -56,7 +56,11 @@ class HydrologyParameters:
         self.candidates = candidates
     
     def toBinary(self):
-        binary = struct.pack('!f', self.Pa)
+        binary =          struct.pack('!f', 0)
+        binary = binary + struct.pack('!f', 0)
+        binary = binary + struct.pack('!f', self.riverSlope.xSize * self.riverSlope.resolution)
+        binary = binary + struct.pack('!f', self.riverSlope.ySize * self.riverSlope.resolution)
+        binary = binary + struct.pack('!f', self.Pa)
         binary = binary + struct.pack('!f', self.Pc)
         binary = binary + struct.pack('!f', self.edgeLength)
         binary = binary + struct.pack('!f', self.sigma)

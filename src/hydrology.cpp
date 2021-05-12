@@ -120,6 +120,22 @@ Hydrology::Hydrology()
   omp_init_lock(&lock);
 }
 
+void Hydrology::set(Point lowerLeft, Point upperRight)
+{
+  omp_init_lock(&lock);
+
+  float dimension;
+  if (upperRight.x() - lowerLeft.x() > upperRight.y() - lowerLeft.y())
+  {
+    dimension = (upperRight.x() - lowerLeft.x()) / 10;
+  }
+  else
+  {
+    dimension = (upperRight.y() - lowerLeft.y()) / 10;
+  }
+  trees.set(lowerLeft, upperRight, dimension);
+}
+
 Hydrology::~Hydrology()
 {
   omp_destroy_lock(&lock);
@@ -144,7 +160,7 @@ Primitive* Hydrology::addMouthNode
 {
   Primitive *node = new Primitive(indexedNodes.size(), loc, elevation, priority, contourIndex);
 
-  tree.insert(loc, node);
+  trees.insert(loc, node);
   indexedNodes.push_back(node);
 
   return node;
@@ -155,7 +171,7 @@ Primitive* Hydrology::addRegularNode
 {
   Primitive *node = new Primitive(indexedNodes.size(), indexedNodes[parent], loc, elevation, priority);
 
-  tree.insert(loc, node);
+  trees.insert(loc, node);
   indexedNodes.push_back(node);
 
   node->getParent()->children.push_back(node);
@@ -208,15 +224,15 @@ Primitive* Hydrology::addRegularNode
   return node;
 }
 
-Lock Hydrology::lockArea(Point loc, float radius)
+AreaLock Hydrology::lockArea(Point loc, float radius)
 {
-  return tree.lockRange(loc, radius);
+  return trees.lockArea(loc, radius);
 }
 
 //note: this method may double-count edges that have both ends in the area
 std::vector<Edge> Hydrology::queryArea(Point loc, float radius)
 {
-  std::vector<Primitive*> closeIdxes = tree.searchRange(loc, radius);
+  std::vector<Primitive*> closeIdxes = trees.searchRange(loc, radius);
 
   std::vector<Edge> edges;
   for (Primitive *closeIdx : closeIdxes)
@@ -240,7 +256,7 @@ Primitive Hydrology::getNode(size_t idx) {
 
 size_t Hydrology::getTreeDepth()
 {
-  return tree.getDepth();
+  // return tree.getDepth();
 }
 
 size_t Hydrology::numNodes()

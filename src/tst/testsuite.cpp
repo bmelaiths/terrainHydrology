@@ -8,6 +8,7 @@
 #include "../hydrologyFunctions.hpp"
 #include "../kdtree.hpp"
 #include "../hydrology.hpp"
+#include "../forest.hpp"
 
 namespace
 {
@@ -138,9 +139,87 @@ namespace
         ASSERT_TRUE((searchResults[0] == 10) || (searchResults[1] == 10) || (searchResults[2] == 10));
         ASSERT_TRUE((searchResults[0] == 15) || (searchResults[1] == 15) || (searchResults[2] == 15));
     }
+    TEST(ForestTest, CreationTest)
+    {
+        Forest<size_t> trees;
+        trees.set(Point(-2.0,-2.0), Point(4.0, 7.0), 2.0);
+
+        trees.insert(Point(2.0, 6.0), 0);
+
+        std::vector<size_t> getPointBack = trees.searchRange(Point(3.0, 6.0), 1.0);
+
+        ASSERT_EQ(getPointBack.size(), 1);
+    }
+    TEST(ForestTest, RangeSearchTest) {
+        Forest<size_t> trees;
+        trees.set(Point(0,-5), Point(20,25), 5.0);
+
+        trees.insert(Point(3.0f, 6.0f),0);
+        trees.insert(Point(17.0f, 15.0f),2);
+        trees.insert(Point(13.0f, 15.0f),4);
+        trees.insert(Point(6.0f, 12.0f),3);
+        trees.insert(Point(9.0f, 1.0f),5);
+        trees.insert(Point(2.0f, 7.0f),1);
+        trees.insert(Point(10.0f, 19.0f),6);
+
+        std::vector<size_t> searchResults = trees.searchRange(Point(2.0f,6.0f), 2.0f);
+
+        ASSERT_EQ(searchResults.size(), 2);
+        ASSERT_TRUE(searchResults[0] == 0 || searchResults[1] == 0);
+        ASSERT_TRUE(searchResults[0] == 1 || searchResults[1] == 1);
+    }
+    TEST(ForestTest, RangeSearchTestII) {
+        Forest<size_t> trees;
+        trees.set(Point(0,0), Point(10,10), 5);
+
+        trees.insert(Point(7,5),0);
+        trees.insert(Point(7,3),1);
+        trees.insert(Point(2,3),2);
+        trees.insert(Point(7,10),3);
+        trees.insert(Point(9,8),4);
+        trees.insert(Point(4,8),5);
+        trees.insert(Point(5,3),6);
+        trees.insert(Point(8,3),7);
+        trees.insert(Point(3,1),8);
+        trees.insert(Point(7,9),9);
+        trees.insert(Point(3,6),10);
+        trees.insert(Point(2,5),11);
+        trees.insert(Point(3,10),12);
+        trees.insert(Point(0,4),13);
+        trees.insert(Point(5,6),14);
+        trees.insert(Point(1,6),15);
+        trees.insert(Point(10,5),16);
+        trees.insert(Point(0,2),17);
+
+        std::vector<size_t> searchResults = trees.searchRange(Point(2,5), 1.5);
+
+        ASSERT_EQ(searchResults.size(), 3);
+        ASSERT_TRUE((searchResults[0] == 11) || (searchResults[1] == 11) || (searchResults[2] == 11));
+        ASSERT_TRUE((searchResults[0] == 10) || (searchResults[1] == 10) || (searchResults[2] == 10));
+        ASSERT_TRUE((searchResults[0] == 15) || (searchResults[1] == 15) || (searchResults[2] == 15));
+    }
+    TEST(ForestTest, RangeSearchTestIII)
+    {
+        Forest<size_t> trees;
+        trees.set(Point(0,0), Point(15,20), 2);
+
+        trees.insert(Point(6.0f,11.0f),0);
+        trees.insert(Point(6.0f, 7.0f),0);
+        trees.insert(Point(4.0f, 4.0f),0);
+        trees.insert(Point(9.0f, 2.0f),0);
+        trees.insert(Point(4.0f, 7.0f),0);
+        trees.insert(Point(10.0f,9.0f),0);
+        trees.insert(Point(7.0f, 4.0f),0);
+        trees.insert(Point(9.0f, 6.0f),0);
+
+        std::vector<size_t> searchResults = trees.searchRange(Point(5.0f,5.0f), 3.0f);
+
+        ASSERT_EQ(searchResults.size(), 4);
+    }
     TEST(HydrologyTest, IDTest)
     {
         Hydrology hydrology;
+        hydrology.set(Point(0,0), Point(15,20));
 
         Primitive node0 = *hydrology.addMouthNode  (
             Point(6.0f,11.0f), 0.0f, 0, 0
@@ -180,6 +259,7 @@ namespace
     TEST(HydrologyTest, BallPointSearch)
     {
         Hydrology hydrology;
+        hydrology.set(Point(0,0), Point(15,20));
 
         Primitive node0 = *hydrology.addMouthNode  (
             Point(6.0f,11.0f), 0.0f, 0, 0
@@ -216,6 +296,7 @@ namespace
     TEST(HydrologyTest, BallPointSearchII)
     {
         Hydrology hydrology;
+        hydrology.set(Point(0,0), Point(15,20));
 
         Primitive node0 = *hydrology.addMouthNode  (
             Point(3.0f, 7.0f), 0.0f, 0, 0
@@ -257,7 +338,7 @@ namespace
 
     TEST(HydrologyFunctionsTests, SelectNodeTest)
     {
-        HydrologyParameters testParams;
+        HydrologyParameters testParams(Point(-1,-1), Point(1,1));
         testParams.zeta = 14.0f;
         testParams.candidates.push_back(
             testParams.hydrology.addMouthNode(
@@ -296,7 +377,9 @@ namespace
     }
     TEST(HydrologyTest, NodeAdditionTest)
     {
-        HydrologyParameters params;
+        const float resolution = 13.5;
+        HydrologyParameters params(Point(1500*resolution,1300*resolution), Point(1550*resolution,1400*resolution));
+        params.resolution = resolution;
 
         Primitive mouth = *params.hydrology.addMouthNode(
             Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
@@ -373,7 +456,7 @@ namespace
         // cv::imshow( "Distance and inscribed circle", drawing );
         // cv::waitKey(30000);
 
-        HydrologyParameters params;
+        HydrologyParameters params(Point(1500*2.0,1300*2.0),Point(1550*2.0,1400*2.0));
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
@@ -416,7 +499,7 @@ namespace
             src, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE
         );
 
-        HydrologyParameters params;
+        HydrologyParameters params(Point(1500*2.0,1300*2.0),Point(1550*2.0,1400*2.0));
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
@@ -459,7 +542,7 @@ namespace
             src, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE
         );
 
-        HydrologyParameters params;
+        HydrologyParameters params(Point(1500*2.0,1300*2.0),Point(1550*2.0,1400*2.0));
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
@@ -502,7 +585,7 @@ namespace
             src, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE
         );
 
-        HydrologyParameters params;
+        HydrologyParameters params(Point(1500*2.0,1300*2.0),Point(1550*2.0,1400*2.0));
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
@@ -545,7 +628,7 @@ namespace
             src, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE
         );
 
-        HydrologyParameters params;
+        HydrologyParameters params(Point(1500*2.0,1300*2.0),Point(1550*2.0,1400*2.0));
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
@@ -628,7 +711,7 @@ namespace
             src, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE
         );
 
-        HydrologyParameters params;
+        HydrologyParameters params(Point(500*2.0,1000*2.0),Point(3500*2.0,3000*2.0));
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
 
@@ -662,7 +745,7 @@ namespace
             src, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE
         );
 
-        HydrologyParameters params;
+        HydrologyParameters params(Point(500*2.0,1000*2.0),Point(3500*2.0,3000*2.0));
         params.contour = contours[0];
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
@@ -690,6 +773,7 @@ namespace
     TEST(PrimitiveTests, ToBinaryIDTest)
     {
         Hydrology hydrology;
+        hydrology.set(Point(-1,-1),Point(4,6));
         hydrology.addMouthNode(
             Point(0.0,0.0), 0.0, 0, 0
         );
@@ -715,6 +799,7 @@ namespace
     TEST(PrimitiveTests, ToBinaryParentTest)
     {
         Hydrology hydrology;
+        hydrology.set(Point(-1,-1),Point(4,6));
         hydrology.addMouthNode(
             Point(0.0,0.0), 0.0, 0, 0
         );
@@ -740,6 +825,7 @@ namespace
     TEST(PrimitiveTests, ToChildrenTest)
     {
         Hydrology hydrology;
+        hydrology.set(Point(-1,-1),Point(4,6));
         hydrology.addMouthNode(
             Point(3.14,5.2), 12.1,5,10
         );
@@ -777,6 +863,7 @@ namespace
     TEST(PrimitiveTests, ToBinaryLocXTest)
     {
         Hydrology hydrology;
+        hydrology.set(Point(-1,-1),Point(4,6));
         hydrology.addMouthNode(
             Point(3.14,5.2), 12.1,5,10
         );
@@ -810,6 +897,7 @@ namespace
     TEST(PrimitiveTests, ToBinaryLocYTest)
     {
         Hydrology hydrology;
+        hydrology.set(Point(-1,-1),Point(4,6));
         hydrology.addMouthNode(
             Point(3.14,5.2), 12.1,5,10
         );
@@ -844,6 +932,7 @@ namespace
     TEST(PrimitiveTests, ToBinaryElevationTest)
     {
         Hydrology hydrology;
+        hydrology.set(Point(-1,-1),Point(4,6));
         hydrology.addMouthNode(
             Point(3.14,5.2), 12.1,5,10
         );
