@@ -257,6 +257,10 @@ if not args.accelerate:
         HydrologyFunctions.alpha(selectedCandidate, candidates, params)
         print(f'\tNodes Created: {len(hydrology)}\t{nodesCreated/(datetime.datetime.now()-start).total_seconds()} nodes/sec\r', end='')  # use display(f) if you encounter performance issues
         nodesCreated = nodesCreated + 1
+    end = datetime.datetime.now()
+    print()
+    print(f'\tGenerated {len(hydrology)} nodes in {(end-start).total_seconds()} seconds')
+    print(f'\tRate: {len(hydrology)/(end-start).total_seconds()} node/sec')
 else:
     import subprocess
     import os.path
@@ -284,9 +288,12 @@ else:
         print(f'\tNodes Created: {nodesCreated}\t{nodesCreated/(datetime.datetime.now()-start).total_seconds()} nodes/sec\r', end='')
         readByte = proc.stdout.read(1)
         nodesCreated = nodesCreated + 1
+    end = datetime.datetime.now()
+    print()
+    print('\tReading data...')
     hydrology = DataModel.HydrologyNetwork(stream=proc.stdout)
-
-print()
+    print(f'\tGenerated {len(hydrology)} nodes in {(end-start).total_seconds()} seconds')
+    print(f'\tRate: {len(hydrology)/(end-start).total_seconds()} node/sec')
 
 
 # Create terrain partition (voronoi cells)

@@ -237,12 +237,18 @@ class HydrologyNetwork:
         buffer = stream.read(8)
         numberNodes = struct.unpack('!Q', buffer)[0]
 
+        allpoints_list = []
+
         for i in range(numberNodes):
             buffer = stream.read(8)
             nodeID = struct.unpack('!Q', buffer)[0]
 
             buffer = stream.read(8)
-            parentID = struct.unpack('!Q', buffer)[0]
+            parent = struct.unpack('!Q', buffer)[0]
+            if parent == nodeID:
+                parent = None
+            else:
+                parent = self.node(parent)
 
             buffer = stream.read(1)
             numChildren = struct.unpack('!B', buffer)[0]
@@ -260,12 +266,22 @@ class HydrologyNetwork:
             buffer = stream.read(4)
             elevation = struct.unpack('!f', buffer)[0]
 
-            self.addNode(
-                (locX, locY),
-                elevation,
-                0, # Does priority actually matter elsewhere?
-                parent = self.node(parentID) if parentID != nodeID else None # the parent ID of a mouth node will be its own ID
+            allpoints_list.append( (locX, locY) )
+
+            node = HydroPrimitive(self.nodeCounter, (locX,locY), elevation, 0, parent)
+
+            self.graph.add_node(
+                self.nodeCounter,
+                primitive=node
             )
+            if parent is None:
+                self.mouthNodes.append(self.nodeCounter)
+            else:
+                self.graph.add_edge(parent.id, self.nodeCounter)
+
+            self.nodeCounter += 1
+
+        self.graphkd = cKDTree(allpoints_list)
     def addNode(self, loc: typing.Tuple[float,float], elevation: float, priority: int, contourIndex: int=None, parent: int=None) -> HydroPrimitive:
         """Creates and adds a HydrologyPrimitive to the network
 
