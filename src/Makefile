@@ -19,7 +19,7 @@ gtest_main.o :
 	make gtest_main.o && \
 	mv gtest_main.o ../../../../../
 
-testsuite.o : tst/testsuite.cpp kdtree.hpp raster.hpp $(GTEST_HEADERS)
+testsuite.o : tst/testsuite.cpp kdtree.hpp raster.hpp forest.hpp $(GTEST_HEADERS)
 	@ echo "Compiling Tests..."
 	@ g++ $(CPPFLAGS) -isystem $(GTEST_DIR)/include $^ -c
 
@@ -31,9 +31,9 @@ test : testsuite
 
 floatEndian.o : floatEndian.cpp
 
-hydrology.o : hydrology.cpp hydrology.hpp point.hpp kdtree.hpp
+hydrology.o : hydrology.cpp hydrology.hpp point.hpp kdtree.hpp forest.hpp
 
-buildRivers.o : buildRivers.cpp hydrology.hpp kdtree.hpp raster.hpp
+buildRivers.o : buildRivers.cpp hydrology.hpp
 
 hydrologyParameters.o : hydrologyParameters.cpp raster.hpp hydrology.hpp
 
