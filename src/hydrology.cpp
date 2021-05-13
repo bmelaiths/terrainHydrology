@@ -254,11 +254,6 @@ Primitive Hydrology::getNode(size_t idx) {
   return *indexedNodes[idx];
 }
 
-size_t Hydrology::getTreeDepth()
-{
-  // return tree.getDepth();
-}
-
 size_t Hydrology::numNodes()
 {
   return indexedNodes.size();

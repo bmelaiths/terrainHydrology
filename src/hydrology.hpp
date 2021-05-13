@@ -86,7 +86,6 @@ class Hydrology
   AreaLock lockArea(Point loc, float radius);
   std::vector<Edge> queryArea(Point loc, float radius);
   Primitive getNode(size_t idx);
-  size_t getTreeDepth();
   size_t numNodes();
 };
 

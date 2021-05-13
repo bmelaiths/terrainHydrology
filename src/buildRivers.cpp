@@ -37,7 +37,6 @@ int main() {
   // perform computatons
 
   const uint8_t anotherNode = 0x2e, allDone = 0x21;
-  const uint8_t reconstructChar = '@';
 
   #pragma omp parallel
   {
