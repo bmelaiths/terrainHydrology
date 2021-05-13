@@ -72,6 +72,7 @@ class HydrologyParameters:
 
         binary = binary + struct.pack('!I', self.riverSlope.xSize)
         binary = binary + struct.pack('!I', self.riverSlope.ySize)
+        binary = binary + struct.pack('!f', self.shore.resolution)
         binary = binary + self.riverSlope.toBinary()
 
         # print('ToBinary complete!')
@@ -83,7 +84,6 @@ class HydrologyParameters:
             binary = binary + struct.pack('!I', candidate.priority)
             binary = binary + struct.pack('!Q', candidate.contourIndex)
         
-        binary = binary + struct.pack('!f', self.shore.resolution)
         binary = binary + struct.pack('!Q', len(self.shore.contour))
         for point in self.shore.contour:
             # point = point[0]

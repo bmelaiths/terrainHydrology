@@ -120,7 +120,7 @@ Hydrology::Hydrology()
   omp_init_lock(&lock);
 }
 
-void Hydrology::set(Point lowerLeft, Point upperRight)
+Hydrology::Hydrology(Point lowerLeft, Point upperRight)
 {
   omp_init_lock(&lock);
 
@@ -133,7 +133,7 @@ void Hydrology::set(Point lowerLeft, Point upperRight)
   {
     dimension = (upperRight.y() - lowerLeft.y()) / 10;
   }
-  trees.set(lowerLeft, upperRight, dimension);
+  trees = Forest<Primitive*>(lowerLeft, upperRight, dimension);
 }
 
 Hydrology::~Hydrology()
@@ -143,6 +143,54 @@ Hydrology::~Hydrology()
   {
     delete node;
   }
+}
+
+Hydrology::Hydrology(const Hydrology& other)
+: indexedNodes(other.indexedNodes), trees(other.trees)
+{
+  omp_init_lock(&lock);
+}
+
+Hydrology::Hydrology(Hydrology&& other)
+: indexedNodes(std::move(other.indexedNodes)), trees(std::move(other.trees))
+{
+  omp_init_lock(&lock);
+
+  other.indexedNodes = std::vector<Primitive*>();
+  other.trees = Forest<Primitive*>();
+}
+
+Hydrology& Hydrology::operator=(const Hydrology& other)
+{
+  if (this == &other)
+  {
+    return *this;
+  }
+
+  indexedNodes = other.indexedNodes;
+  trees = other.trees;
+
+  omp_init_lock(&lock);
+
+  return *this;
+}
+
+Hydrology& Hydrology::operator=(Hydrology&& other)
+{
+  if (this == &other)
+  {
+    return *this;
+  }
+
+  indexedNodes = std::move(other.indexedNodes);
+  trees = std::move(other.trees);
+
+  omp_init_lock(&lock);
+
+  other.indexedNodes = std::vector<Primitive*>();
+  other.trees = Forest<Primitive*>();
+
+  return *this;
 }
 
 void Hydrology::lockNetwork()

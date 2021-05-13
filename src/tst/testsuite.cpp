@@ -141,8 +141,7 @@ namespace
     }
     TEST(ForestTest, CreationTest)
     {
-        Forest<size_t> trees;
-        trees.set(Point(-2.0,-2.0), Point(4.0, 7.0), 2.0);
+        Forest<size_t> trees(Point(-2.0,-2.0), Point(4.0, 7.0), 2.0);
 
         trees.insert(Point(2.0, 6.0), 0);
 
@@ -151,8 +150,7 @@ namespace
         ASSERT_EQ(getPointBack.size(), 1);
     }
     TEST(ForestTest, RangeSearchTest) {
-        Forest<size_t> trees;
-        trees.set(Point(0,-5), Point(20,25), 5.0);
+        Forest<size_t> trees(Point(0,-5), Point(20,25), 5.0);
 
         trees.insert(Point(3.0f, 6.0f),0);
         trees.insert(Point(17.0f, 15.0f),2);
@@ -169,8 +167,7 @@ namespace
         ASSERT_TRUE(searchResults[0] == 1 || searchResults[1] == 1);
     }
     TEST(ForestTest, RangeSearchTestII) {
-        Forest<size_t> trees;
-        trees.set(Point(0,0), Point(10,10), 5);
+        Forest<size_t> trees(Point(0,0), Point(10,10), 5);
 
         trees.insert(Point(7,5),0);
         trees.insert(Point(7,3),1);
@@ -200,8 +197,7 @@ namespace
     }
     TEST(ForestTest, RangeSearchTestIII)
     {
-        Forest<size_t> trees;
-        trees.set(Point(0,0), Point(15,20), 2);
+        Forest<size_t> trees(Point(0,0), Point(15,20), 2);
 
         trees.insert(Point(6.0f,11.0f),0);
         trees.insert(Point(6.0f, 7.0f),0);
@@ -218,8 +214,7 @@ namespace
     }
     TEST(HydrologyTest, IDTest)
     {
-        Hydrology hydrology;
-        hydrology.set(Point(0,0), Point(15,20));
+        Hydrology hydrology(Point(0,0), Point(15,20));
 
         Primitive node0 = *hydrology.addMouthNode  (
             Point(6.0f,11.0f), 0.0f, 0, 0
@@ -258,8 +253,7 @@ namespace
 
     TEST(HydrologyTest, BallPointSearch)
     {
-        Hydrology hydrology;
-        hydrology.set(Point(0,0), Point(15,20));
+        Hydrology hydrology(Point(0,0), Point(15,20));
 
         Primitive node0 = *hydrology.addMouthNode  (
             Point(6.0f,11.0f), 0.0f, 0, 0
@@ -295,8 +289,7 @@ namespace
 
     TEST(HydrologyTest, BallPointSearchII)
     {
-        Hydrology hydrology;
-        hydrology.set(Point(0,0), Point(15,20));
+        Hydrology hydrology(Point(0,0), Point(15,20));
 
         Primitive node0 = *hydrology.addMouthNode  (
             Point(3.0f, 7.0f), 0.0f, 0, 0
@@ -772,8 +765,7 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryIDTest)
     {
-        Hydrology hydrology;
-        hydrology.set(Point(-1,-1),Point(4,6));
+        Hydrology hydrology(Point(-1,-1),Point(4,6));
         hydrology.addMouthNode(
             Point(0.0,0.0), 0.0, 0, 0
         );
@@ -798,8 +790,7 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryParentTest)
     {
-        Hydrology hydrology;
-        hydrology.set(Point(-1,-1),Point(4,6));
+        Hydrology hydrology(Point(-1,-1),Point(4,6));
         hydrology.addMouthNode(
             Point(0.0,0.0), 0.0, 0, 0
         );
@@ -824,8 +815,7 @@ namespace
     }
     TEST(PrimitiveTests, ToChildrenTest)
     {
-        Hydrology hydrology;
-        hydrology.set(Point(-1,-1),Point(4,6));
+        Hydrology hydrology(Point(-1,-1),Point(4,6));
         hydrology.addMouthNode(
             Point(3.14,5.2), 12.1,5,10
         );
@@ -862,8 +852,7 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryLocXTest)
     {
-        Hydrology hydrology;
-        hydrology.set(Point(-1,-1),Point(4,6));
+        Hydrology hydrology(Point(-1,-1),Point(4,6));
         hydrology.addMouthNode(
             Point(3.14,5.2), 12.1,5,10
         );
@@ -896,8 +885,7 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryLocYTest)
     {
-        Hydrology hydrology;
-        hydrology.set(Point(-1,-1),Point(4,6));
+        Hydrology hydrology(Point(-1,-1),Point(4,6));
         hydrology.addMouthNode(
             Point(3.14,5.2), 12.1,5,10
         );
@@ -931,8 +919,7 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryElevationTest)
     {
-        Hydrology hydrology;
-        hydrology.set(Point(-1,-1),Point(4,6));
+        Hydrology hydrology(Point(-1,-1),Point(4,6));
         hydrology.addMouthNode(
             Point(3.14,5.2), 12.1,5,10
         );

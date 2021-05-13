@@ -17,7 +17,13 @@ class HydrologyParameters
     public:
     HydrologyParameters();
     HydrologyParameters(Point lowerLeft, Point upperRight);
+    HydrologyParameters(FILE *stream);
     ~HydrologyParameters();
+    HydrologyParameters(const HydrologyParameters& other);
+    HydrologyParameters(HydrologyParameters&& other);
+
+    HydrologyParameters& operator=(const HydrologyParameters& other);
+    HydrologyParameters& operator=(HydrologyParameters&& other);
 
     float Pa, Pc;
     unsigned int maxTries;
@@ -39,8 +45,6 @@ class HydrologyParameters
     std::default_random_engine generator;
     std::normal_distribution<float> distribution;
 };
-
-HydrologyParameters readParamsFromStream(FILE *stream);
 
 float float_swap(float value);
 

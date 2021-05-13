@@ -18,16 +18,13 @@ struct Node
     Point loc;
     T idx;
     bool isXlevel;
-    //these two numbers are used for the lock hierarchy
-    //size_t idOfCreatorThread, id;
-    //there should also be some kind of lock
     omp_lock_t nodeLock;
 
     Node(Point loc, T idx)
     : loc(loc), idx(idx)
     {
         omp_init_lock(&nodeLock);
-    };
+    }
     ~Node()
     {
         omp_destroy_lock(&nodeLock);
@@ -40,6 +37,60 @@ struct Node
             delete right;
         }
     }
+    Node(const Node& other)
+    : left(other.left), right(other.right), loc(other.loc),
+      idx(other.idx), isXlevel(other.isXlevel)
+    {
+        omp_init_lock(&nodeLock);
+    }
+    Node(Node&& other) noexcept
+    : left(std::move(other.left)), right(std::move(other.right)),
+      loc(std::move(other.loc)), idx(std::move(other.idx)),
+      isXlevel(std::move(other.isXlevel))
+    {
+        other.left = NULL;
+        other.right = NULL;
+        
+        omp_init_lock(&nodeLock);
+    }
+
+    Node& operator=(const Node& other)
+    {
+        if (this == &other)
+        {
+            return *this;
+        }
+
+        left = other.left;
+        right = other.right;
+        loc = other.loc;
+        idx = other.idx;
+        isXlevel = other.isXlevel;
+
+        omp_init_lock(&nodeLock);
+
+        return *this;
+    }
+    Node& operator=(Node&& other) noexcept
+    {
+        if (this == &other)
+        {
+            return *this;
+        }
+
+        left = std::move(other.left);
+        right = std::move(other.right);
+        loc = std::move(other.loc);
+        idx = std::move(other.idx);
+        isXlevel = std::move(other.isXlevel);
+        
+        omp_init_lock(&other.nodeLock);
+
+        other.left = NULL;
+        other.right = NULL;
+
+        return *this;
+    }
 };
 
 template <typename T>
@@ -47,18 +98,23 @@ class KDTree
 {
     private:
     Node<T>* root = NULL;
-    std::vector<Node<T>*> allNodes; // this will be good for the destructor
-
-    char reconstructChar = '@';
+    std::vector<Node<T>*> allNodes;
 
     private:
     Node<T>* tryInsert(Node<T>* finalNode, bool isXlevel, Node<T>* toIns);
     Node<T>* makeRoot(size_t begin, size_t end, bool isXlayer);
     size_t maxDepth(Node<T>* node);
+    Node<T>* copySubTree(Node<T> *node);
 
     public:
     KDTree();
     ~KDTree();
+    KDTree(const KDTree<T>& other);
+    KDTree(KDTree<T>&& other) noexcept;
+
+    KDTree& operator=(const KDTree& other);
+    KDTree& operator=(KDTree&& other) noexcept;
+
     void insert(Point loc, T idx);
     std::vector<T> searchRange(Point loc, float radius);
     std::vector<T> breadthFirstSearch();
@@ -70,6 +126,62 @@ template <typename T>
 KDTree<T>::KDTree()
 : root(NULL)
 {}
+
+template <typename T>
+KDTree<T>::~KDTree()
+{
+    if (root != NULL)
+    {
+        delete root;
+    }
+}
+
+template <typename T>
+KDTree<T>::KDTree(const KDTree<T>& other)
+{
+    root = copySubTree(other.root);
+    allNodes = other.allNodes;
+}
+
+template <typename T>
+KDTree<T>::KDTree(KDTree<T>&& other) noexcept
+: root(std::move(other.root)), allNodes(std::move(allNodes))
+{
+    other.root = NULL;
+}
+
+template <typename T>
+KDTree<T>& KDTree<T>::operator=(const KDTree<T>& other)
+{
+    if (this == &other)
+    {
+        return *this;
+    }
+    root = copySubTree(other.root);
+    allNodes = other.allNodes;
+}
+
+template <typename T>
+KDTree<T>& KDTree<T>::operator=(KDTree<T>&& other) noexcept
+{
+    root = std::move(other.root);
+    allNodes = std::move(allNodes);
+
+    other.root = NULL;
+}
+
+template <typename T>
+Node<T>* KDTree<T>::copySubTree(Node<T> *node)
+{
+    if (node == NULL)
+    {
+        return NULL;
+    }
+    Node<T> *nodeCopy = new Node<T>(*node);
+    nodeCopy->left = copySubTree(node->left);
+    nodeCopy->right = copySubTree(node->right);
+    return nodeCopy;
+}
 
 template <typename T>
 size_t KDTree<T>::maxDepth(Node<T>* node)
@@ -91,14 +203,6 @@ template <typename T>
 size_t KDTree<T>::getDepth()
 {
     return maxDepth(root);
-}
-
-template <typename T>
-KDTree<T>::~KDTree()
-{
-    if (root != NULL) {
-        delete root;
-    }
 }
 
 template <typename T>

@@ -31,7 +31,7 @@ int main() {
   }
   #endif
 
-  HydrologyParameters params = readParamsFromStream(INPUT);
+  HydrologyParameters params(INPUT);
 
 
   // perform computatons

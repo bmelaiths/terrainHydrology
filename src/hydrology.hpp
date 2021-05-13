@@ -66,15 +66,19 @@ class Hydrology
   omp_lock_t lock;
 
   public:
-  // std::list<Primitive> primitiveStorage; // get rid of this?
   std::vector<Primitive*> indexedNodes;
-  // KDTree<Primitive*> tree;
   Forest<Primitive*> trees;
 
   public:
   Hydrology();
+  Hydrology(Point lowerLeft, Point upperRight);
   ~Hydrology();
-  void set(Point lowerLeft, Point upperRight);
+  Hydrology(const Hydrology& other);
+  Hydrology(Hydrology&& other);
+
+  Hydrology& operator=(const Hydrology& other);
+  Hydrology& operator=(Hydrology&& other);
+
   void lockNetwork();
   Primitive* addMouthNode(
     Point loc, float elevation, int priority, int contourIndex

@@ -10,7 +10,7 @@ class AreaLock
     std::vector<omp_lock_t*> locks;
 
     public:
-    AreaLock() {}
+    AreaLock() = default;
     AreaLock(std::vector<omp_lock_t*> locks)
     : locks(locks)
     {
@@ -48,8 +48,12 @@ class Forest
   public:
   Forest();
   ~Forest();
+  Forest(Point lowerLeft, Point upperRight, float dimension);
+  Forest(const Forest<T>& other);
+  Forest(Forest<T>&& other) noexcept;
 
-  void set(Point lowerLeft, Point upperRight, float dimension);
+  Forest& operator=(const Forest<T>& other);
+  Forest& operator=(Forest<T>&& other) noexcept;
 
   void insert(Point loc, T idx);
   AreaLock lockArea(Point loc, float radius);
@@ -62,12 +66,9 @@ Forest<T>::Forest()
 {}
 
 template <typename T>
-void Forest<T>::set(Point lowerLeft, Point upperRight, float dimension)
+Forest<T>::Forest(Point lowerLeft, Point upperRight, float dimension)
+: lowerLeft(lowerLeft), upperRight(upperRight), dimensionLength(dimension)
 {
-  this->lowerLeft = lowerLeft;
-  this->upperRight = upperRight;
-  this->dimensionLength = dimension;
-
   xDimension = ceill((upperRight.x()-lowerLeft.x())/dimensionLength);
   yDimension = ceill((upperRight.y()-lowerLeft.y())/dimensionLength);
 
@@ -115,6 +116,103 @@ Forest<T>::~Forest()
     }
     delete forestLocks;
   }
+}
+
+template <typename T>
+Forest<T>::Forest(const Forest<T>& other)
+: lowerLeft(other.lowerLeft), upperRight(other.upperRight),
+  dimensionLength(other.dimensionLength), xDimension(other.xDimension),
+  yDimension(other.yDimension)
+{
+  forest =      new KDTree<T>*[yDimension * xDimension];
+  forestLocks = new omp_lock_t[yDimension * xDimension];
+
+  for (size_t y = 0; y < yDimension; y++)
+  {
+    for (size_t x = 0; x < xDimension; x++)
+    {
+      forest[getIndex(x, y)] = new KDTree<T>(
+        *other.forest[getIndex(x,y)]
+      );
+    }
+  }
+  for (size_t y = 0; y < yDimension; y++)
+  {
+    for (size_t x = 0; x < xDimension; x++)
+    {
+      omp_init_lock(forestLocks + (y * xDimension + x));
+    }
+  }
+}
+
+template <typename T>
+Forest<T>::Forest(Forest<T>&& other) noexcept
+: lowerLeft(std::move(other.lowerLeft)), upperRight(std::move(other.upperRight)),
+  dimensionLength(std::move(other.dimensionLength)),
+  xDimension(std::move(other.xDimension)), yDimension(std::move(other.yDimension)),
+  forest(std::move(other.forest)), forestLocks(std::move(other.forestLocks))
+{
+  other.forest = NULL;
+  other.forestLocks = NULL;
+}
+
+template <typename T>
+Forest<T>& Forest<T>::operator=(const Forest<T>& other)
+{
+  if (this == &other)
+  {
+    return *this;
+  }
+
+  lowerLeft = other.lowerLeft;
+  upperRight = other.upperRight;
+  dimensionLength = other.dimensionLength;
+  xDimension = other.xDimension;
+  yDimension = other.yDimension;
+
+  forest =      new KDTree<T>*[yDimension * xDimension];
+  forestLocks = new omp_lock_t[yDimension * xDimension];
+
+  for (size_t y = 0; y < yDimension; y++)
+  {
+    for (size_t x = 0; x < xDimension; x++)
+    {
+      forest[getIndex(x, y)] = new KDTree<T>(
+        *other.forest[getIndex(x,y)]
+      );
+    }
+  }
+  for (size_t y = 0; y < yDimension; y++)
+  {
+    for (size_t x = 0; x < xDimension; x++)
+    {
+      omp_init_lock(forestLocks + (y * xDimension + x));
+    }
+  }
+
+  return *this;
+}
+
+template <typename T>
+Forest<T>& Forest<T>::operator=(Forest<T>&& other) noexcept
+{
+  if (this == &other)
+  {
+    return *this;
+  }
+
+  lowerLeft = std::move(other.lowerLeft);
+  upperRight = std::move(other.upperRight);
+  dimensionLength = std::move(other.dimensionLength);
+  xDimension = std::move(other.xDimension);
+  yDimension = std::move(other.yDimension);
+  forest = std::move(other.forest);
+  forestLocks = std::move(other.forestLocks);
+
+  other.forest = NULL;
+  other.forestLocks = NULL;
+
+  return *this;
 }
 
 template <typename T>

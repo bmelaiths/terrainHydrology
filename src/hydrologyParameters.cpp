@@ -5,10 +5,10 @@
 
 HydrologyParameters::HydrologyParameters(Point lowerLeft, Point upperRight)
 {
-  hydrology.set(lowerLeft, upperRight);
+  hydrology = Hydrology(lowerLeft, upperRight);
 }
 
-HydrologyParameters readParamsFromStream(FILE *stream)
+HydrologyParameters::HydrologyParameters(FILE *stream)
 {
   float minX, maxX, minY, maxY;
   fread(&minX, sizeof(float), 1, stream);
@@ -20,27 +20,27 @@ HydrologyParameters readParamsFromStream(FILE *stream)
   maxX = float_swap(maxX);
   maxY = float_swap(maxY);
 
-  HydrologyParameters params(Point(minX,minY), Point(maxX,maxY));
+  hydrology = Hydrology(Point(minX,minY), Point(maxX,maxY));
 
-  fread(&params.Pa,               sizeof(float), 1, stream);
-  fread(&params.Pc,               sizeof(float), 1, stream);
-  fread(&params.edgeLength,       sizeof(float), 1, stream);
-  fread(&params.sigma,            sizeof(float), 1, stream);
-  fread(&params.eta,              sizeof(float), 1, stream);
-  fread(&params.zeta,             sizeof(float), 1, stream);
-  fread(&params.slopeRate,        sizeof(float), 1, stream);
+  fread(&Pa,               sizeof(float), 1, stream);
+  fread(&Pc,               sizeof(float), 1, stream);
+  fread(&edgeLength,       sizeof(float), 1, stream);
+  fread(&sigma,            sizeof(float), 1, stream);
+  fread(&eta,              sizeof(float), 1, stream);
+  fread(&zeta,             sizeof(float), 1, stream);
+  fread(&slopeRate,        sizeof(float), 1, stream);
   uint16_t maxTriesIn;
   fread(&maxTriesIn,      sizeof(uint16_t), 1, stream);
-  fread(&params.riverAngleDev,    sizeof(float), 1, stream);
-  params.Pa =            float_swap(params.Pa);
-  params.Pc =            float_swap(params.Pc);
-  params.edgeLength =    float_swap(params.edgeLength);
-  params.sigma =         float_swap(params.sigma);
-  params.eta =           float_swap(params.eta);
-  params.zeta =          float_swap(params.zeta);
-  params.slopeRate =     float_swap(params.slopeRate);
-  params.maxTries =   (int) be16toh(maxTriesIn);
-  params.riverAngleDev = float_swap(params.riverAngleDev);
+  fread(&riverAngleDev,    sizeof(float), 1, stream);
+  Pa =            float_swap(Pa);
+  Pc =            float_swap(Pc);
+  edgeLength =    float_swap(edgeLength);
+  sigma =         float_swap(sigma);
+  eta =           float_swap(eta);
+  zeta =          float_swap(zeta);
+  slopeRate =     float_swap(slopeRate);
+  maxTries =   (int) be16toh(maxTriesIn);
+  riverAngleDev = float_swap(riverAngleDev);
 
   // printf("Pa: %f\n", Pa);
   // printf("Pc: %f\n", Pc);
@@ -54,16 +54,19 @@ HydrologyParameters readParamsFromStream(FILE *stream)
   uint32_t rasterXsize, rasterYsize;
   fread(&rasterXsize, sizeof(uint32_t), 1, stream);
   fread(&rasterYsize, sizeof(uint32_t), 1, stream);
+  fread(&resolution, sizeof(float), 1, stream);
   rasterXsize = be32toh(rasterXsize);
   rasterYsize = be32toh(rasterYsize);
+  resolution = float_swap(resolution);
+  riverSlope = Raster<float>(rasterXsize, rasterYsize, resolution);
   float riverSlopeIn;
-  params.riverSlope.setSize(rasterYsize, rasterXsize);
+  // params.riverSlope.setSize(rasterYsize, rasterXsize);
   for (uint32_t y = 0; y < rasterYsize; y++)
   {
     for (uint32_t x = 0; x < rasterXsize; x++)
     {
       fread(&riverSlopeIn, sizeof(float), 1, stream);
-      params.riverSlope.set(x, y, float_swap(riverSlopeIn));
+      riverSlope.set(x, y, float_swap(riverSlopeIn));
       // printf("Point (%d, %d): %f\n", x, y, riverSlopeIn);
     }
   }
@@ -88,8 +91,8 @@ HydrologyParameters readParamsFromStream(FILE *stream)
     priority = be32toh(priority);
     contourIndex = be64toh(contourIndex);
 
-    params.candidates.push_back(
-      params.hydrology.addMouthNode(
+    candidates.push_back(
+      hydrology.addMouthNode(
         Point(x,y), 0.0f, priority, contourIndex
       )
     );
@@ -100,9 +103,7 @@ HydrologyParameters readParamsFromStream(FILE *stream)
   }
 
   uint64_t contourLength;
-  fread(&params.resolution, sizeof(float), 1, stream);
   fread(&contourLength, sizeof(uint64_t), 1, stream);
-  params.resolution = float_swap(params.resolution);
   contourLength = be64toh(contourLength);
   // printf("Spatial resolution: %f\n", resolution);
   // printf("Number of contour points: %ld\n", contourLength);
@@ -118,14 +119,10 @@ HydrologyParameters readParamsFromStream(FILE *stream)
   for (uint64_t i = 0; i < contourLength; i++)
   {
     // Points in a contour array are y,x
-    params.contour.push_back(cv::Point2f(inPoints[i][Y],inPoints[i][X]));
+    contour.push_back(cv::Point2f(inPoints[i][Y],inPoints[i][X]));
   }
 
-  params.riverSlope.setResolution(params.resolution);
-
-  params.distribution = std::normal_distribution<float>(0.0, params.riverAngleDev);
-
-  return params;
+  distribution = std::normal_distribution<float>(0.0, riverAngleDev);
 }
 
 HydrologyParameters::HydrologyParameters()
@@ -136,6 +133,79 @@ HydrologyParameters::HydrologyParameters()
 HydrologyParameters::~HydrologyParameters()
 {
   omp_destroy_lock(&candidateVectorLock);
+}
+
+HydrologyParameters::HydrologyParameters(const HydrologyParameters& other)
+: Pa(other.Pa), Pc(other.Pc), maxTries(other.maxTries), riverAngleDev(other.riverAngleDev),
+  edgeLength(other.edgeLength), sigma(other.sigma), eta(other.eta), zeta(other.zeta),
+  slopeRate(other.slopeRate), resolution(other.resolution), riverSlope(other.riverSlope),
+  contour(other.contour)
+{
+  omp_init_lock(&candidateVectorLock);
+  distribution = std::normal_distribution<float>(0.0, riverAngleDev);
+}
+
+HydrologyParameters::HydrologyParameters(HydrologyParameters&& other)
+: Pa(std::move(other.Pa)), Pc(std::move(other.Pc)), maxTries(std::move(other.maxTries)),
+  riverAngleDev(std::move(other.riverAngleDev)), edgeLength(std::move(other.edgeLength)),
+  sigma(std::move(other.sigma)), eta(std::move(other.eta)), zeta(std::move(other.zeta)),
+  slopeRate(std::move(other.slopeRate)), resolution(std::move(other.resolution)),
+  riverSlope(std::move(other.riverSlope)), contour(std::move(other.contour))
+{
+  omp_init_lock(&candidateVectorLock);
+  distribution = std::normal_distribution<float>(0.0, riverAngleDev);
+}
+
+HydrologyParameters& HydrologyParameters::operator=(const HydrologyParameters& other)
+{
+  if (this == &other)
+  {
+    return *this;
+  }
+
+  Pa = other.Pa;
+  Pc = other.Pc;
+  maxTries = other.maxTries;
+  riverAngleDev = other.riverAngleDev;
+  edgeLength = other.edgeLength;
+  sigma = other.sigma;
+  eta = other.eta;
+  zeta = other.zeta;
+  slopeRate = other.slopeRate;
+  resolution = other.resolution;
+  riverSlope = other.riverSlope;
+  contour = other.contour;
+
+  omp_init_lock(&candidateVectorLock);
+  distribution = std::normal_distribution<float>(0.0, riverAngleDev);
+
+  return *this;
+}
+
+HydrologyParameters& HydrologyParameters::operator=(HydrologyParameters&& other)
+{
+  if (this == &other)
+  {
+    return *this;
+  }
+
+  Pa = std::move(other.Pa);
+  Pc = std::move(other.Pc);
+  maxTries = std::move(other.maxTries);
+  riverAngleDev = std::move(other.riverAngleDev);
+  edgeLength = std::move(other.edgeLength);
+  sigma = std::move(other.sigma);
+  eta = std::move(other.eta);
+  zeta = std::move(other.zeta);
+  slopeRate = std::move(other.slopeRate);
+  resolution = std::move(other.resolution);
+  riverSlope = std::move(other.riverSlope);
+  contour = std::move(other.contour);
+
+  omp_init_lock(&candidateVectorLock);
+  distribution = std::normal_distribution<float>(0.0, riverAngleDev);
+
+  return *this;
 }
 
 void HydrologyParameters::lockCandidateVector()
