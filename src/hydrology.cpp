@@ -41,9 +41,9 @@ size_t Primitive::binarySize()
 {
   return
   (
-    sizeof(size_t) * (2 + children.size()) +
-    sizeof(uint8_t) * 1 +
-    sizeof(float) * 3
+    sizeof(size_t) * (2 + children.size()) + // for all the size_t sized data
+    sizeof(uint8_t) * 1 +                    // for all the char sized data
+    sizeof(float) * 3                        // for all the floats
   );
 }
 
@@ -51,13 +51,18 @@ void Primitive::toBinary(uint8_t *buffer)
 {
   size_t idx = 0;
 
+  // convert data to network order
   uint64_t ID = htobe64((uint64_t)id);
+  // write that data to the buffer
   memcpy(buffer + idx, &ID, sizeof(uint64_t));
+  // advance the index appropriately
   idx += sizeof(size_t);
 
   uint64_t PARENT;
   if (parent == NULL)
   {
+    // this is how the calling program will know that this
+    // is a mouth node
     PARENT = ID;
   }
   else
@@ -118,6 +123,7 @@ Edge::Edge(Primitive *node0, Primitive *node1)
 Hydrology::Hydrology(Point lowerLeft, Point upperRight)
 {
   float dimension;
+  // this just figures out a nice way to divide the area into tiles
   if (upperRight.x() - lowerLeft.x() > upperRight.y() - lowerLeft.y())
   {
     dimension = (upperRight.x() - lowerLeft.x()) / 10;
@@ -131,6 +137,7 @@ Hydrology::Hydrology(Point lowerLeft, Point upperRight)
 
 Hydrology::~Hydrology()
 {
+  // delete all the nodes that have been created
   for (Primitive *node : indexedNodes)
   {
     delete node;
@@ -198,6 +205,8 @@ Primitive* Hydrology::addRegularNode
 
   node->getParent()->children.push_back(node);
 
+  /* Reclassify the priority of the necessary nodes */
+
   // Classify new leaf
   node->priority = 1;
 
@@ -224,14 +233,20 @@ Primitive* Hydrology::addRegularNode
 
     if (numMax > 1 && classifyNode->getPriority() < numMax + 1)
     {
+      // if there is more than one child with the maximum number,
+      // and the parent isn't already set, then change it
       classifyNode->priority = numMax + 1;
     }
     else if (classifyNode->getPriority() < numMax)
     {
+      // if the parent isn't already set for the maximum number,
+      // change it
       classifyNode->priority = numMax;
     }
     else
     {
+      // if the parent does not need to be changed at all, then
+      // none of its ancestors do, and the graph is fully adjusted
       break;
     }
     
@@ -251,15 +266,14 @@ AreaLock Hydrology::lockArea(Point loc, float radius)
   return trees.lockArea(loc, radius);
 }
 
-//note: this method may double-count edges that have both ends in the area
 std::vector<Edge> Hydrology::queryArea(Point loc, float radius)
 {
   std::vector<Primitive*> closeIdxes = trees.searchRange(loc, radius);
 
+  // find the other ends of the nodes, and compile a list of edges
   std::vector<Edge> edges;
   for (Primitive *closeIdx : closeIdxes)
   {
-    // Primitive idxNode = indexedNodes[closeIdx];
     if (closeIdx->hasParent())
     {
       edges.push_back(Edge(closeIdx, closeIdx->getParent()));
@@ -283,6 +297,8 @@ size_t Hydrology::numNodes()
 
 void Hydrology::writeBinary(FILE *stream)
 {
+  //send the number of nodes, so the calling program knows how
+  //much data to expect
   uint64_t numPrimitives = htobe64((uint64_t) indexedNodes.size());
   fwrite(&numPrimitives, sizeof(uint64_t), 1, stream);
   fflush(stream);
@@ -290,14 +306,18 @@ void Hydrology::writeBinary(FILE *stream)
   uint8_t *buffer;
   for (size_t i = 0; i < indexedNodes.size(); i++)
   {
+    //create a buffer of the approprite size
     size_t size = indexedNodes[i]->binarySize();
     buffer = new uint8_t[size];
 
+    //fill that buffer with the binary representation
+    //of a node
     indexedNodes[i]->toBinary(buffer);
 
+    //send that data to the calling program
     fwrite(buffer, size, 1, stream);
 
-    delete buffer;
+    delete buffer; //free the memory
 
     fflush(stream);
   }

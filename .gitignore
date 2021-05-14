@@ -159,3 +159,5 @@ dmypy.json
 *.svg
 *.jpg
 out/*
+doc-native/html/
+doc-native/latex

@@ -10,6 +10,8 @@ HydrologyParameters::HydrologyParameters(Point lowerLeft, Point upperRight)
 
 HydrologyParameters::HydrologyParameters(FILE *stream)
 {
+  /* Read the size of the area */
+
   float minX, maxX, minY, maxY;
   fread(&minX, sizeof(float), 1, stream);
   fread(&minY, sizeof(float), 1, stream);
@@ -21,6 +23,8 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
   maxY = float_swap(maxY);
 
   hydrology = Hydrology(Point(minX,minY), Point(maxX,maxY));
+
+  /* Read in various parameters */
 
   fread(&Pa,               sizeof(float), 1, stream);
   fread(&Pc,               sizeof(float), 1, stream);
@@ -42,14 +46,7 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
   maxTries =   (int) be16toh(maxTriesIn);
   riverAngleDev = float_swap(riverAngleDev);
 
-  // printf("Pa: %f\n", Pa);
-  // printf("Pc: %f\n", Pc);
-  // printf("Edge Length: %f\n", edgeLength);
-  // printf("Sigma: %f\n", sigma);
-  // printf("Eta: %f\n", eta);
-  // printf("Slope Rate: %f\n", slopeRate);
-  // printf("Max Tries: %d\n", maxTries);
-  // printf("River Angle Deviation: %f\n", riverAngleDev);
+  /* Read in the raster data */
 
   uint32_t rasterXsize, rasterYsize;
   fread(&rasterXsize, sizeof(uint32_t), 1, stream);
@@ -60,21 +57,20 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
   resolution = float_swap(resolution);
   riverSlope = Raster<float>(rasterXsize, rasterYsize, resolution);
   float riverSlopeIn;
-  // params.riverSlope.setSize(rasterYsize, rasterXsize);
   for (uint32_t y = 0; y < rasterYsize; y++)
   {
     for (uint32_t x = 0; x < rasterXsize; x++)
     {
       fread(&riverSlopeIn, sizeof(float), 1, stream);
       riverSlope.set(x, y, float_swap(riverSlopeIn));
-      // printf("Point (%d, %d): %f\n", x, y, riverSlopeIn);
     }
   }
+
+  /* read in mouth nodes */
 
   uint32_t numCandidates;
   fread(&numCandidates, sizeof(uint32_t), 1, stream);
   numCandidates = be32toh(numCandidates);
-  // printf("Number of river mouths: %u\n", numCandidates);
   for (uint32_t i = 0; i < numCandidates; i++)
   {
     float x, y;
@@ -96,17 +92,15 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
         Point(x,y), 0.0f, priority, contourIndex
       )
     );
-
-    // printf("Node %d: (%f, %f), priority %d, contour index %ld\n",
-    //     i, x, y, priority, contourIndex
-    // );
   }
+
+  /* Read the contour vector, and encode it in a structure
+     that OpenCV will understand
+   */
 
   uint64_t contourLength;
   fread(&contourLength, sizeof(uint64_t), 1, stream);
   contourLength = be64toh(contourLength);
-  // printf("Spatial resolution: %f\n", resolution);
-  // printf("Number of contour points: %ld\n", contourLength);
   uint64_t inPoints[contourLength][2];
   fread(inPoints, sizeof(uint64_t), contourLength * 2, stream);
   #define X 0

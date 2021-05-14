@@ -23,6 +23,7 @@ class ComparePrimitives
 };
 
 Primitive selectNode(HydrologyParameters& params) {
+  // "find the elevation of the lowest candidate"
   float lowestCandidateZ = params.candidates[0]->getElevation();
   for (size_t i = 0; i < params.candidates.size(); i++)
   {
@@ -37,6 +38,9 @@ Primitive selectNode(HydrologyParameters& params) {
     }
   }
 
+  // consider the subset of admissible nodes made of nodes
+  // whose elevations are between that of the lowest candidate,
+  // and that elevation plus zeta
   std::vector<Primitive*> subselection;
   for (size_t i = 0; i < params.candidates.size(); i++)
   {
@@ -51,12 +55,14 @@ Primitive selectNode(HydrologyParameters& params) {
     }
   }
 
+  // sort by priority
   std::sort(
     subselection.begin(),
     subselection.end(),
     ComparePrimitives(params)
   );
 
+  // pick the node with the highest priority and lowest elevation
   size_t idx = 0;
   Primitive lowestElevation = *subselection[idx];
   while
@@ -116,11 +122,12 @@ float point_segment_distance(float px, float py, float x1, float y1, float x2, f
 }
 
 bool isAcceptablePosition(Point testLoc, float radius, size_t parentID, HydrologyParameters& params) {
-  if (testLoc.x() < 0)
+  if (testLoc.x() < 0) // is this a real point?
   {
     return false;
   }
   
+  // distance to shore (gamma)
   float distToGamma = params.resolution * (float) cv::pointPolygonTest(
     params.contour,
     cv::Point2f(
@@ -130,10 +137,11 @@ bool isAcceptablePosition(Point testLoc, float radius, size_t parentID, Hydrolog
     true
   );
   if (distToGamma < params.edgeLength * params.eta)
-  {
+  { // if the point is too close to the shore, reject it
     return false;
   }
   
+  // check all nearby edges
   std::vector<Edge> edges = params.hydrology.queryArea(
     testLoc, radius
   );
@@ -145,7 +153,7 @@ bool isAcceptablePosition(Point testLoc, float radius, size_t parentID, Hydrolog
       edge.node1->getLoc().x(), edge.node1->getLoc().y()
     );
     if (dist < params.sigma * params.edgeLength)
-    {
+    { // if the point is too close to any edge, reject it
       return false;
     }
   }
@@ -153,6 +161,7 @@ bool isAcceptablePosition(Point testLoc, float radius, size_t parentID, Hydrolog
 }
 
 float coastNormal(Primitive candidate, HydrologyParameters& params) {
+  //get two points on the shore that are close to the candidate node
   Point p1(
     params.contour[candidate.getContourIndex()+3].x,
     params.contour[candidate.getContourIndex()+3].y
@@ -161,6 +170,7 @@ float coastNormal(Primitive candidate, HydrologyParameters& params) {
     params.contour[candidate.getContourIndex()-3].x,
     params.contour[candidate.getContourIndex()-3].y
   );
+  //get an angle that is perpendicular to the shore line
   float theta = atan2(p2.y() - p1.y(), p2.x() - p1.x());
   return theta + M_PI_2f32;
 }
@@ -179,33 +189,31 @@ Point LockedPoint::getLoc() {
 
 LockedPoint pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
   float angle;
-  // if candidate has no parent
   if (!candidate.hasParent())
-  {
+  { // if candidate has no parent, then get an angle perpendicular to the coast
     angle = coastNormal(candidate, params);
   }
   else
   {
-    // else 'angle will be the direction of the river
+    // else 'angle' will be the direction of the river
     angle = atan2(
       candidate.getLoc().y() - candidate.getParent()->getLoc().y(),
       candidate.getLoc().x() - candidate.getParent()->getLoc().x()
     );
   }
 
-  // std::default_random_engine generator;
-  // std::normal_distribution<float> distribution(0.0, params.riverAngleDev);
-
   float newAngle;
-  Point newLoc(-1,-1);
+  Point newLoc(-1,-1); //a fake point that will be rejected
   AreaLock lock;
   for (size_t i = 0; i < params.maxTries; i++)
   {
+    // get an angle that is somewhat varied from the river's current path
     newAngle = angle + params.distribution(params.generator);
     newLoc = Point(
       candidate.getLoc().x() + cosf32(newAngle) * params.edgeLength,
       candidate.getLoc().y() + sinf32(newAngle) * params.edgeLength
     );
+    // lock the area to prevent other threads from modifying it
     lock = params.hydrology.lockArea(newLoc, 2 * params.edgeLength);
     if (isAcceptablePosition(newLoc, 2 * params.edgeLength, candidate.getID(), params))
     {
@@ -214,13 +222,14 @@ LockedPoint pickNewNodeLoc(Primitive candidate, HydrologyParameters& params) {
     else
     {
       lock.release();
-      newLoc = Point(-1,-1);
+      newLoc = Point(-1,-1); // set the point to a fake point
     }
   }
 
   return LockedPoint(newLoc, lock);
 }
 
+// remove this node from the candidate vector
 void tao(Primitive node, HydrologyParameters& params) {
   params.lockCandidateVector();
   size_t candidateIdx = 0;
@@ -241,16 +250,16 @@ void beta
 {
   LockedPoint lockedPoint = pickNewNodeLoc(node, params);
   Point newLoc = lockedPoint.getLoc();
-  if (newLoc.x() != -1)
+  if (newLoc.x() != -1) // if it's something other than the fake point
   {
-    float slope =
+    float slope = // slope to calculate the new elevation
       params.slopeRate *
       params.riverSlope.get(node.getLoc().x(), node.getLoc().y()) / 255
     ;
     float newZ = node.getElevation() + slope * params.edgeLength;
     params.lockCandidateVector();
-      params.candidates.push_back(
-        params.hydrology.addRegularNode(
+      params.candidates.push_back( // add the new node to the candidate vector
+        params.hydrology.addRegularNode( // and the hydrology
           newLoc, newZ, priority, node.getID()
         )
       );
@@ -264,7 +273,6 @@ void beta
 }
 
 void ruleBase(Primitive candidate, HydrologyParameters& params) {
-  //int numBranches = (int) (rand() * 4) + 1;
   const int numBranches = 5;
   for (int i = 0; i < numBranches; i++)
   {

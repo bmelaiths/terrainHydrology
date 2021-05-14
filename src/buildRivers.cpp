@@ -18,9 +18,8 @@ A list of data structures that will be used:
 
 int main() {
   //gather inputs
-
-  #define INPUT stdin
-  // #define FILEINPUT
+  #define INPUT input
+  #define FILEINPUT
   #ifdef FILEINPUT
   FILE *input = fopen("./binaryFile", "rb");
 
@@ -35,9 +34,7 @@ int main() {
 
 
   // perform computatons
-
   const uint8_t anotherNode = 0x2e, allDone = 0x21;
-
   #pragma omp parallel
   {
   // printf("Thread ID: %d\n", omp_get_thread_num());
@@ -51,23 +48,25 @@ int main() {
 
     #pragma omp critical
     {
+    // write a byte to the calling program, signalling
+    // that a candidate has been processed
     fwrite(&anotherNode, sizeof(uint8_t), 1, stdout);
     fflush(stdout);
     }
   }
   }
+  // signall to the calling program that processing
+  // is complete
   fwrite(&allDone, sizeof(uint8_t), 1, stdout);
   fflush(stdout);
 
 
   //export outputs
-
-  writeBinary(params.hydrology, stdout);
+  params.hydrology.writeBinary(stdout);
   fflush(stdout);
 
 
   //free resources
-
   #ifdef FILEINPUT
   fclose(INPUT);
   #endif

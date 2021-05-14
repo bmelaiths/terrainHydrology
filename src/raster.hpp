@@ -4,11 +4,11 @@
 #include <iostream>
 #include <math.h>
 
-/*
-2D array syntax is difficult in C++, especially when having to pass
-arrays between functions. So this class basically emulates the
-behavior of a 2D array.
-*/
+/**
+ * @brief Encapsulates raster data
+ * 
+ * @tparam T
+ */
 template<typename T>
 class Raster {
     private:
@@ -18,6 +18,13 @@ class Raster {
 
     public:
     Raster();
+    /**
+     * @brief Construct a new Raster object
+     * 
+     * @param x Width of the raster data
+     * @param y Height of the raster data
+     * @param resolution Spatial resolution of the data: meters per unit
+     */
     Raster(size_t x, size_t y, float resolution);
     ~Raster();
     Raster(const Raster& other);
@@ -26,12 +33,41 @@ class Raster {
     Raster& operator=(const Raster& other);
     Raster& operator=(Raster&& other) noexcept;
 
-    void set(size_t col, size_t row, T datum);
+    /**
+     * @brief Sets the value at a certain location
+     * 
+     * @param x X location
+     * @param y Y location
+     * @param datum The value to be set at that location
+     */
+    void set(size_t x, size_t y, T datum);
+    /**
+     * @brief Sets a value over the entire raster
+     * 
+     * @param datum The value
+     */
     void set(T datum);
 
+    /**
+     * @brief Gets the value at a certain _spatial_ location
+     * 
+     * @param x The x location, _in meters_
+     * @param y The y location, _in meters_
+     * @return T The value at that location
+     */
     T get(float x, float y);
 
+    /**
+     * @brief Get the number of vertical units
+     * 
+     * @return size_t 
+     */
     size_t getRows();
+    /**
+     * @brief Get the number of horzontal units
+     * 
+     * @return size_t 
+     */
     size_t getColumns();
 };
 

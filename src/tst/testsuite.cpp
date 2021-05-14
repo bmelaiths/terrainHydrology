@@ -387,7 +387,7 @@ namespace
             Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
         );
 
-        ASSERT_EQ(params.hydrology.indexedNodes.size(), 4);
+        ASSERT_EQ(params.hydrology.numNodes(), 4);
     }
     TEST(HydrologyFunctionsTests, IsAcceptablePositionAcceptableTest)
     {
