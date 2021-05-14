@@ -63,14 +63,11 @@ class Edge
 class Hydrology
 {
   private:
-  omp_lock_t lock;
-
-  public:
   std::vector<Primitive*> indexedNodes;
   Forest<Primitive*> trees;
 
   public:
-  Hydrology();
+  Hydrology() = default;
   Hydrology(Point lowerLeft, Point upperRight);
   ~Hydrology();
   Hydrology(const Hydrology& other);
@@ -79,20 +76,20 @@ class Hydrology
   Hydrology& operator=(const Hydrology& other);
   Hydrology& operator=(Hydrology&& other);
 
-  void lockNetwork();
   Primitive* addMouthNode(
     Point loc, float elevation, int priority, int contourIndex
   );
   Primitive* addRegularNode(
     Point loc, float elevation, int priority, size_t parent
   );
-  void unlockNetwork();
+
   AreaLock lockArea(Point loc, float radius);
   std::vector<Edge> queryArea(Point loc, float radius);
+
   Primitive getNode(size_t idx);
   size_t numNodes();
-};
 
-void writeBinary(Hydrology& hydrology, FILE *stream);
+  void writeBinary(FILE *stream);
+};
 
 #endif

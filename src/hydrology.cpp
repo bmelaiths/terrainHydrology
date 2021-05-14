@@ -115,15 +115,8 @@ Edge::Edge(Primitive *node0, Primitive *node1)
 {
 }
 
-Hydrology::Hydrology()
-{
-  omp_init_lock(&lock);
-}
-
 Hydrology::Hydrology(Point lowerLeft, Point upperRight)
 {
-  omp_init_lock(&lock);
-
   float dimension;
   if (upperRight.x() - lowerLeft.x() > upperRight.y() - lowerLeft.y())
   {
@@ -138,7 +131,6 @@ Hydrology::Hydrology(Point lowerLeft, Point upperRight)
 
 Hydrology::~Hydrology()
 {
-  omp_destroy_lock(&lock);
   for (Primitive *node : indexedNodes)
   {
     delete node;
@@ -147,15 +139,11 @@ Hydrology::~Hydrology()
 
 Hydrology::Hydrology(const Hydrology& other)
 : indexedNodes(other.indexedNodes), trees(other.trees)
-{
-  omp_init_lock(&lock);
-}
+{}
 
 Hydrology::Hydrology(Hydrology&& other)
 : indexedNodes(std::move(other.indexedNodes)), trees(std::move(other.trees))
 {
-  omp_init_lock(&lock);
-
   other.indexedNodes = std::vector<Primitive*>();
   other.trees = Forest<Primitive*>();
 }
@@ -170,8 +158,6 @@ Hydrology& Hydrology::operator=(const Hydrology& other)
   indexedNodes = other.indexedNodes;
   trees = other.trees;
 
-  omp_init_lock(&lock);
-
   return *this;
 }
 
@@ -185,22 +171,10 @@ Hydrology& Hydrology::operator=(Hydrology&& other)
   indexedNodes = std::move(other.indexedNodes);
   trees = std::move(other.trees);
 
-  omp_init_lock(&lock);
-
   other.indexedNodes = std::vector<Primitive*>();
   other.trees = Forest<Primitive*>();
 
   return *this;
-}
-
-void Hydrology::lockNetwork()
-{
-  omp_set_lock(&lock);
-}
-
-void Hydrology::unlockNetwork()
-{
-  omp_unset_lock(&lock);
 }
 
 Primitive* Hydrology::addMouthNode
@@ -307,19 +281,19 @@ size_t Hydrology::numNodes()
   return indexedNodes.size();
 }
 
-void writeBinary(Hydrology& hydrology, FILE *stream)
+void Hydrology::writeBinary(FILE *stream)
 {
-  uint64_t numPrimitives = htobe64((uint64_t) hydrology.indexedNodes.size());
+  uint64_t numPrimitives = htobe64((uint64_t) indexedNodes.size());
   fwrite(&numPrimitives, sizeof(uint64_t), 1, stream);
   fflush(stream);
 
   uint8_t *buffer;
-  for (size_t i = 0; i < hydrology.indexedNodes.size(); i++)
+  for (size_t i = 0; i < indexedNodes.size(); i++)
   {
-    size_t size = hydrology.indexedNodes[i]->binarySize();
+    size_t size = indexedNodes[i]->binarySize();
     buffer = new uint8_t[size];
 
-    hydrology.indexedNodes[i]->toBinary(buffer);
+    indexedNodes[i]->toBinary(buffer);
 
     fwrite(buffer, size, 1, stream);
 
