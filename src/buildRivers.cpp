@@ -18,8 +18,8 @@ A list of data structures that will be used:
 
 int main() {
   //gather inputs
-  #define INPUT input
-  #define FILEINPUT
+  #define INPUT stdin
+  // #define FILEINPUT
   #ifdef FILEINPUT
   FILE *input = fopen("./binaryFile", "rb");
 

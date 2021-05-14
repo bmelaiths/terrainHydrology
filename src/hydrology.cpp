@@ -317,8 +317,8 @@ void Hydrology::writeBinary(FILE *stream)
     //send that data to the calling program
     fwrite(buffer, size, 1, stream);
 
-    delete buffer; //free the memory
+    delete[] buffer; //free the memory
 
-    fflush(stream);
+    // fflush(stream);
   }
 }

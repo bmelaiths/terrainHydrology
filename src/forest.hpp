@@ -179,7 +179,7 @@ Forest<T>::~Forest()
         delete forest[getIndex(x,y)];
       }
     }
-    delete forest;
+    delete[] forest;
   }
   if (forestLocks != NULL)
   {
@@ -190,7 +190,7 @@ Forest<T>::~Forest()
         omp_destroy_lock(forestLocks + (y * xDimension + x));
       }
     }
-    delete forestLocks;
+    delete[] forestLocks;
   }
 }
 
