@@ -1,4 +1,4 @@
-CPPFLAGS += -g -Wall -fopenmp
+CPPFLAGS += -g -Wall -fopenmp -isystem /usr/include/opencv4
 
 GTEST_DIR = tst/googletest/googletest
 GTEST_HEADERS = $(GTEST_DIR)/include/gtest/*.h \
@@ -24,7 +24,7 @@ testsuite.o : tst/testsuite.cpp kdtree.hpp raster.hpp forest.hpp $(GTEST_HEADERS
 	@ g++ $(CPPFLAGS) -isystem $(GTEST_DIR)/include $^ -c
 
 testsuite : testsuite.o gtest-all.o gtest_main.o hydrologyFunctions.o hydrologyParameters.o hydrology.o floatEndian.o
-	g++ $(CPPFLAGS) -lpthread -lopencv_core -lopencv_imgproc $^ -o $@
+	g++ $(CPPFLAGS) $^ -lpthread -lopencv_core -lopencv_imgproc -o $@
 
 test : testsuite
 	@ ./testsuite
