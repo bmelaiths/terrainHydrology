@@ -34,6 +34,7 @@ Switch | Notes
 `--lon` | This is the center longitude of the output GeoTIFF
 `--dry-run` | Only calculate the river network and forget about anything that has to do with ridges. This is useful for designing landscapes, as it can allow for faster feedback
 `--debug-dpi` | Manually specify the resolution of the debug images. Defaults to 100.
+`--accelerate` | Accelerate Your Life™ with a natively-compiled module that can generate the river network much more quickly. (See "Native module" section below)
 
 Optionally, `--num-procs` can be used to specify the number of processes to use in rendering the output raster. This will take advantage of the parallel processing capabilities of your CPU, and the number specified here should be equal to the number of cores in your CPU(s). Numbers larger than this obviously will not help, but numbers less than this will reduce performance.
 
@@ -67,11 +68,57 @@ For HTML documentation, you will need to install the readthedocs.org theme.
 
 To generate PDF documentation, you will need the LaTeX toolchain.
 
-## Dependencies and citations
+## Native module
+
+There is a native module that can accelerate the process of generating the river network. It uses OpenMP to generate the network in parallel, but it must be compiled. It was developed on Fedora and has been tested on Ubuntu. In the `src` directory, use `make buildRivers` to build the module, and use the `--accelerate` flag to use it.
+
+### Dependencies for the native module
+
+#### Libraries
+
+To compile the module, you will need the OpenCV library and the necessary header files. On Ubuntu (and hopefully other Debian-based systems), you can use
+
+> `apt install libopencv-dev`
+
+On Fedora and RPM-based distributions, this command should suffice
+
+> `dnf install opencv-devel`
+
+You will also need OpenMP. It seems to come with Ubuntu and Fedora, but it's also widely available in package repositories.
+
+#### Google Test
+
+To build the test binary, you will need the Google Test repository in the `src/tst` directory. Use `git clone` to clone the `googletest` repository into `src/tst` (the repository is hosted on GitHub).
+
+### Documentation for the native module
+
+Documentation for the native module is powered by Doxygen. To generate the documentation, go to the `doc-native` directory and run
+
+> `doxygen`
+
+## General dependencies and citations
+
+### Standard repositories
+
+These Python dependencies should be available through most package managers.
+
+* Scipy
+* Matplotlib
+* OpenCV
+* Networkx
+* Shapely
+* tqdm
+* Rasterio
+
+NOTE: I had trouble getting Scipy to work on a fresh Ubuntu install. I fixed it by uninstalling it with `apt` and reinstalling it with `pip`.
+
+### Poisson.py
 
 Poisson.py is a modified version of the Possion.py in this repository:
 
 > [https://github.com/bartwronski/PoissonSamplingGenerator](PoissonSamplingGenerator)
+
+### Original paper
 
 The original paper is cited as follows:
 

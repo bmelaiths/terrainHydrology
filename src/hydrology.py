@@ -138,7 +138,7 @@ parser.add_argument(
 )
 parser.add_argument(
     '--accelerate',
-    help='Accelerate Your Life™ with some native code',
+    help='Accelerate Your Life™ using parallel processing with a natively-compiled module',
     action='store_true',
     dest='accelerate',
     required=False
