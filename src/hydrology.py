@@ -772,3 +772,5 @@ new_dataset = rasterio.open(
 new_dataset.write(imgOut, 1)
 print(new_dataset.meta)
 new_dataset.close()
+
+DataModel.writeDataModel()

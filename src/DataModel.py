@@ -859,3 +859,93 @@ class Terrain:
         :rtype: list[T]
         """
         return [self.tList[i] for i in self.apkd.query_ball_point(loc,radius)]
+
+def writeDataModel(path: str, shore: ShoreModel, hydrology: HydrologyNetwork, cells: TerrainHoneycomb):
+    with open(path, 'wb') as file:
+        file.write(struct.pack('!H', 0)) # version number. Increment every time a breaking change is made
+
+        file.write(struct.pack('!B', 0)) # coordinate type
+
+        file.write(struct.pack('!f', shore.resolution)) # resolution
+
+        # write the shore contour
+        file.write(struct.pack('!Q', len(shore.contour)))
+        for point in shore.contour:
+            binary = binary + struct.pack('!Q', point[0])
+            binary = binary + struct.pack('!Q', point[1])
+
+        ## Hydrology data structure ##
+
+        # write all hydrology primitives
+        file.write(struct.pack('!Q', len(hydrology)))
+        for node in hydrology.allNodes():
+            file.write(struct.pack('!Q', node.id))
+            file.write(struct.pack('!f', node.x()))
+            file.write(struct.pack('!f', node.y()))
+            file.write(struct.pack('!f', node.elevation))
+            file.write(struct.pack('!Q', node.parent.id))
+            file.write(struct.pack('!Q', node.contourIndex if node.parent is not None else 0))
+            for point in list(node.rivers):
+                file.write(struct.pack('!f', point[0]))
+                file.write(struct.pack('!f', point[1]))
+            file.write(struct.pack('!f', node.localWatershed))
+            file.write(struct.pack('!f', node.inheritedWatershed))
+            file.write(struct.pack('!f', node.flow if node.parent is not None else 0))
+
+        ## TerrainHoneycomb data structure ##
+
+        # write point_region
+        file.write(struct.pack('!Q', len(cells.point_region)))
+        for idx in cells.point_region:
+            file.write(struct.pack('!Q', idx))
+        
+        # write regions array
+        file.write(struct.pack('!Q', len(cells.regions)))
+        for region in cells.regions:
+            file.write(struct.pack('!B', len(region)))
+            for point in region:
+                file.write(struct.pack('!Q', point))
+        
+        # write vertices
+        file.write(struct.pack('!Q', len(cells.vertices)))
+        for vertex in cells.vertices:
+            file.write(struct.pack('!f'), vertex[0])
+            file.write(struct.pack('!f'), vertex[1])
+
+        # imgvoronoi
+        file.write(struct.pack('!Q', shore.rasterShape[0]))
+        file.write(struct.pack('!Q', shore.rasterShape[1]))
+        for d0 in shore.rasterShape[0]:
+            for d1 in shore.rasterShape[1]:
+                file.write(struct.pack('!H', cells.imgvoronoi[d0][d1]))
+        
+        # qs
+        file.write(struct.pack('!Q', len(cells.qs)))
+        for q in cells.qs:
+            file.write(struct.pack('!f'), q.position[0])
+            file.write(struct.pack('!f'), q.position[1])
+            file.write(struct.pack('!B', len(q.nodes)))
+            for node in q.nodes:
+                file.write(struct.pack('!Q', node))
+            file.write(struct.pack('!Q', q.vorIndex))
+            file.write(struct.pack('!f', q.elevation))
+        
+        # cellsRidges
+        file.write(struct.pack('!Q', len(cells.cellsRidges)))
+        for cellID in cells.cellsRidges:
+            file.write(struct.pack('!Q', cellID))
+            for ridge in cells.cellsRidges[cellID]:
+                file.write(struct.pack('!B', len(ridge)))
+                file.write(struct.pack('!Q', ridge[0]))
+                if len(ridge) > 1:
+                    file.write(struct.pack('!Q', ridge[1]))
+
+        # cellsDownstreamRidges
+        file.write(struct.pack(cells.cellsDownstreamRidges))
+        for cellID in cells.cellsDownstreamRidges:
+            if cells.cellsDownstreamRidges[cellID] is not None:
+                file.write(struct.pack('!Q', cellID))
+                file.write(struct.pack('!Q', cells.cellsDownstreamRidges[cellID][0]))
+                file.write(struct.pack('!Q', cells.cellsDownstreamRidges[cellID][1]))
+
+        file.close()
