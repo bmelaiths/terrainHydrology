@@ -553,6 +553,9 @@ class TerrainHoneycomb:
         points.append((shore.realShape[0],shore.realShape[1]))
         
         self.vor = Voronoi(points,qhull_options='Qbb Qc Qz Qx')
+        self.point_region = self.vor.point_region
+        self.regions = self.vor.regions
+        self.vertices = self.vor.vertices
         
         self.imgvoronoi = np.zeros(shore.rasterShape, dtype=np.uint16)
         for n in range(len(hydrology)):
@@ -566,14 +569,14 @@ class TerrainHoneycomb:
             )
         if not dryRun:
             self.qs = [ ]
-            for iv in range(len(self.vor.vertices)):
-                if not shore.isOnLand(self.vor.vertices[iv]):
+            for iv in range(len(self.vertices)):
+                if not shore.isOnLand(self.vertices[iv]):
                     self.qs.append(None)
                     continue
-                regionIdxes = [self.vor.regions.index(bound) for bound in self.vor.regions if iv in bound]
-                nodeIdxes = [list(self.vor.point_region).index(regionIndex) for regionIndex in regionIdxes]
-                self.qs.append(Q(self.vor.vertices[iv],nodeIdxes, iv))
-                print(f'\tCreating ridge primitive {iv} of {len(self.vor.vertices)}\r', end='')
+                regionIdxes = [self.regions.index(bound) for bound in self.regions if iv in bound]
+                nodeIdxes = [list(self.point_region).index(regionIndex) for regionIndex in regionIdxes]
+                self.qs.append(Q(self.vertices[iv],nodeIdxes, iv))
+                print(f'\tCreating ridge primitive {iv} of {len(self.vertices)}\r', end='')
             print()
 
             self.cellsRidges = { }
@@ -588,8 +591,8 @@ class TerrainHoneycomb:
                     # if this ridge is the outflow ridge for this node, mark it as such and move on
                     if node.parent is not None and node.parent.id == otherNode:
                         # this ridge is the outflow ridge for this node
-                        v1 = self.vor.vertices[self.vor.ridge_vertices[ri][0]]
-                        v2 = self.vor.vertices[self.vor.ridge_vertices[ri][1]]
+                        v1 = self.vertices[self.vor.ridge_vertices[ri][0]]
+                        v2 = self.vertices[self.vor.ridge_vertices[ri][1]]
                         if not self.shore.isOnLand(v1) or not self.shore.isOnLand(v2):
                             # If one or both vertices is not on land, then don't bother
                             # trying to make the river flow through the ridge neatly
@@ -612,7 +615,7 @@ class TerrainHoneycomb:
 
             # Add vertices that are not attached to ridges
             for n in range(len(self.hydrology)):
-                verts = self.vor.regions[self.vor_region_id(n)].copy()
+                verts = self.regions[self.vor_region_id(n)].copy()
                 if n not in self.cellsRidges:
                     self.cellsRidges[n] = [ ]
                 # Eliminate vertices that are attached to ridges
@@ -621,7 +624,7 @@ class TerrainHoneycomb:
                         if q is not None and q.vorIndex in verts:
                             verts.remove(q.vorIndex)
                 for v in verts:
-                    if not self.shore.isOnLand(self.vor.vertices[v]):
+                    if not self.shore.isOnLand(self.vertices[v]):
                         continue
                     self.cellsRidges[n].append((self.qs[v],))
                 print(f'\tFinding unaffiliated vertices for node {n} of {len(hydrology)}\r', end='')
@@ -642,7 +645,7 @@ class TerrainHoneycomb:
            This method is for internal use. If you are using it from outside this
            class, your approach is definitely breaking a key design principle.
         """
-        return self.vor.point_region[node]
+        return self.point_region[node]
     def ridgePositions(self, node: int) -> typing.List[typing.Tuple[float,float]]:
         """Gets the position of each vertex that makes up the cell
 
@@ -651,8 +654,8 @@ class TerrainHoneycomb:
         :return: A list of points that correspond to the vertices that make the cell
         :rtype: list[tuple[float,float]]
         """
-        ridges = self.vor.regions[self.vor_region_id(node)] # the indices of the vertex boundaries
-        return [self.vor.vertices[x] for x in ridges if x != -1] # positions of all the vertices
+        ridges = self.regions[self.vor_region_id(node)] # the indices of the vertex boundaries
+        return [self.vertices[x] for x in ridges if x != -1] # positions of all the vertices
     def cellArea(self, loc: typing.Tuple[float,float]) -> float:
         """Calculates the (rough) area of the cell that a location is in
 
@@ -674,7 +677,7 @@ class TerrainHoneycomb:
         :return: List of Q instances
         :rtype: list[Q]
         """
-        return [self.qs[vorIdx] for vorIdx in self.vor.regions[self.vor_region_id(node)] if self.qs[vorIdx] is not None]
+        return [self.qs[vorIdx] for vorIdx in self.regions[self.vor_region_id(node)] if self.qs[vorIdx] is not None]
     def allQs(self) -> typing.List[Q]:
         """Simply returns all Qs of the land
 
@@ -692,7 +695,7 @@ class TerrainHoneycomb:
         :return: A tuple indicating the lower X, upper X, lower Y, and upper Y, respectively, in meters
         :rtype: tuple[float,float,float,float]
         """
-        idxes = np.where(self.imgvoronoi==self.vor.point_region[n]+1) # coordinates of all pixels in the voronoi region
+        idxes = np.where(self.imgvoronoi==self.point_region[n]+1) # coordinates of all pixels in the voronoi region
         xllim = min(x for x in idxes[0]) # these lines get the bounding box of the voronoi region
         xulim = max(x for x in idxes[0])
         yllim = min(x for x in idxes[1])
@@ -719,7 +722,7 @@ class TerrainHoneycomb:
         :return: True of point ``p`` is in the cell that corresponds to ``n``
         :rtype: bool
         """
-        return self.shore.isOnLand(p) and self.imgvoronoi[int(p[1]/self.resolution)][int(p[0]/self.resolution)]==self.vor.point_region[n]+1
+        return self.shore.isOnLand(p) and self.imgvoronoi[int(p[1]/self.resolution)][int(p[0]/self.resolution)]==self.point_region[n]+1
     def cellRidges(self, n: int) -> typing.List[tuple]:
         """Returns the mountain ridges of a cell
 
@@ -768,7 +771,7 @@ class TerrainHoneycomb:
         :return: The ID of a node/cell
         :rtype: int
         """
-        id = list(self.vor.point_region).index(self.imgvoronoi[int(point[1]/self.resolution)][int(point[0]/self.resolution)]-1)
+        id = list(self.point_region).index(self.imgvoronoi[int(point[1]/self.resolution)][int(point[0]/self.resolution)]-1)
         return id if id != -1 else None
 
 class T:
