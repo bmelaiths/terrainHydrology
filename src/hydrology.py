@@ -460,6 +460,7 @@ for node in hydrology.allMouthNodes():
             x.append(p.x())
             y.append(p.y())
             z.append(p.elevation)
+            # makes the river flow through the cell's outflow ridge (so it doesn't transect a mountain)
             if p.parent is not None and pi < len(path)-1 and cells.cellOutflowRidge(p.id) is not None:
                 ridge0, ridge1 = cells.cellOutflowRidge(p.id)
                 x.append((ridge0[0] + ridge1[0])/2)
@@ -773,4 +774,4 @@ new_dataset.write(imgOut, 1)
 print(new_dataset.meta)
 new_dataset.close()
 
-DataModel.writeDataModel()
+DataModel.writeDataModel(outputDir + '/data', shore, hydrology, cells, Ts)
