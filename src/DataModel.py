@@ -528,6 +528,8 @@ class TerrainHoneycomb:
     :type shore: ShoreModel
     :param hydrology: The filled-out HydrologyNetwork for the land area
     :type hydrology: HydrologyNetwork
+    :param edgeLength: The edge length in the simulation
+    :type edgeLength: float
     :param resolution: The resolution of the underlying rasters in meters per pixel
     :type resolution: float
     :param dryRun: Indicate that this object is being used for a dry run, thus ridge data will not be needed
@@ -540,7 +542,7 @@ class TerrainHoneycomb:
     instance and a couple of dictionaries to classify ridges and other
     edges.
     """
-    def __init__(self, shore: ShoreModel, hydrology: HydrologyNetwork, resolution: float, dryRun: bool):
+    def __init__(self, shore: ShoreModel, hydrology: HydrologyNetwork, edgeLength: float, resolution: float, dryRun: bool):
         self.resolution = resolution
 
         self.shore     = shore
@@ -568,13 +570,20 @@ class TerrainHoneycomb:
                 np.int16(self.vor_region_id(n)+1).item()
             )
         if not dryRun:
+            # this loop will create the ridge primitives
             self.qs = [ ]
-            for iv in range(len(self.vertices)):
+            for iv in range(len(self.vertices)): # loop through all the voronoi vertices
                 if not shore.isOnLand(self.vertices[iv]):
-                    self.qs.append(None)
+                    self.qs.append(None) # if the vertex is not on land, it isn't worth saving
                     continue
-                regionIdxes = [self.regions.index(bound) for bound in self.regions if iv in bound]
-                nodeIdxes = [list(self.point_region).index(regionIndex) for regionIndex in regionIdxes]
+                # find all the nodes of which this ridge primitive is part of a border
+                nodeIdxes = [ ]
+                # for all the nodes in this ridge primitive's vicinity
+                for nodeID in hydrology.query_ball_point(self.vertices[iv], edgeLength * 10):
+                    # if this ridge primitive is part of the border,
+                    if iv in self.regions[self.vor_region_id(nodeID)]:
+                        # then add it to the list
+                        nodeIdxes.append(nodeID)
                 self.qs.append(Q(self.vertices[iv],nodeIdxes, iv))
                 print(f'\tCreating ridge primitive {iv} of {len(self.vertices)}\r', end='')
             print()

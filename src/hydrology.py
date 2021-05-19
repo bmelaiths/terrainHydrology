@@ -300,7 +300,7 @@ else:
 
 print('Generating terrain ridges...')
 
-cells = DataModel.TerrainHoneycomb(shore, hydrology, resolution, args.dryRun)
+cells = DataModel.TerrainHoneycomb(shore, hydrology, edgeLength, resolution, args.dryRun)
 
 print('Terrain ridges generated')
 print('Writing debug images...')
