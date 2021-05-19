@@ -9,6 +9,8 @@ import struct
 
 import typing
 
+import Math
+
 class RasterData:
     """A simple abstraction of raster data based on an image.
 
@@ -544,6 +546,7 @@ class TerrainHoneycomb:
     """
     def __init__(self, shore: ShoreModel, hydrology: HydrologyNetwork, edgeLength: float, resolution: float, dryRun: bool):
         self.resolution = resolution
+        self.edgeLength = edgeLength
 
         self.shore     = shore
         self.hydrology = hydrology
@@ -665,6 +668,8 @@ class TerrainHoneycomb:
         """
         ridges = self.regions[self.vor_region_id(node)] # the indices of the vertex boundaries
         return [self.vertices[x] for x in ridges if x != -1] # positions of all the vertices
+    def cellVertices(self, nodeID: int) -> typing.List[typing.Tuple[float,float]]:
+        return [self.vertices[vi] for vi in self.regions[self.vor_region_id(nodeID)] if vi != -1]
     def cellArea(self, loc: typing.Tuple[float,float]) -> float:
         """Calculates the (rough) area of the cell that a location is in
 
@@ -677,7 +682,12 @@ class TerrainHoneycomb:
         :param loc: Any location within the cell you wish to query
         :type loc: tuple[float,float]
         """
-        return np.count_nonzero(self.imgvoronoi == self.imgvoronoi[int(loc[1]/self.resolution)][int(loc[0]/self.resolution)]) * self.resolution**2
+        # return np.count_nonzero(self.imgvoronoi == self.imgvoronoi[int(loc[1]/self.resolution)][int(loc[0]/self.resolution)]) * self.resolution**2
+        id = self.nodeID(loc)
+        return Math.convexPolygonArea(
+            self.hydrology.node(id).position,
+            self.cellVertices(id)
+        )
     def cellQs(self, node: int) -> typing.List[Q]:
         """Returns all the Qs binding the cell that corresponds to the given node
 
@@ -704,19 +714,24 @@ class TerrainHoneycomb:
         :return: A tuple indicating the lower X, upper X, lower Y, and upper Y, respectively, in meters
         :rtype: tuple[float,float,float,float]
         """
-        idxes = np.where(self.imgvoronoi==self.point_region[n]+1) # coordinates of all pixels in the voronoi region
-        xllim = min(x for x in idxes[0]) # these lines get the bounding box of the voronoi region
-        xulim = max(x for x in idxes[0])
-        yllim = min(x for x in idxes[1])
-        yulim = max(x for x in idxes[1])
-        # I don't know why he creates another bounding box with opencv
-        b = np.array([[xllim,yllim],[xllim,yulim],[xulim,yllim],[xulim,yulim]])
-        b = cv.minAreaRect(b)
-        pts = cv.boxPoints(b)
-        xllim = int(min(x[0] for x in pts))
-        xulim = int(max(x[0] for x in pts))
-        yllim = int(min(x[1] for x in pts))
-        yulim = int(max(x[1] for x in pts))
+        # idxes = np.where(self.imgvoronoi==self.point_region[n]+1) # coordinates of all pixels in the voronoi region
+        # xllim = min(x for x in idxes[0]) # these lines get the bounding box of the voronoi region
+        # xulim = max(x for x in idxes[0])
+        # yllim = min(x for x in idxes[1])
+        # yulim = max(x for x in idxes[1])
+        # # I don't know why he creates another bounding box with opencv
+        # b = np.array([[xllim,yllim],[xllim,yulim],[xulim,yllim],[xulim,yulim]])
+        # b = cv.minAreaRect(b)
+        # pts = cv.boxPoints(b)
+        # xllim = int(min(x[0] for x in pts))
+        # xulim = int(max(x[0] for x in pts))
+        # yllim = int(min(x[1] for x in pts))
+        # yulim = int(max(x[1] for x in pts))
+        vertices = self.cellVertices(n) # vertices binding the region
+        xllim = min([v[0] for v in vertices])
+        xulim = max([v[0] for v in vertices])
+        yllim = min([v[1] for v in vertices])
+        yulim = max([v[1] for v in vertices])
         return (xllim * self.resolution, xulim * self.resolution, yllim * self.resolution, yulim * self.resolution)
     def isInCell(self, p: typing.Tuple[float,float], n: int) -> bool:
         """Determines if a point is within a given cell
@@ -731,7 +746,7 @@ class TerrainHoneycomb:
         :return: True of point ``p`` is in the cell that corresponds to ``n``
         :rtype: bool
         """
-        return self.shore.isOnLand(p) and self.imgvoronoi[int(p[1]/self.resolution)][int(p[0]/self.resolution)]==self.point_region[n]+1
+        return self.shore.isOnLand(p) and Math.pointInConvexPolygon(p, self.cellVertices(n))
     def cellRidges(self, n: int) -> typing.List[tuple]:
         """Returns the mountain ridges of a cell
 
@@ -780,8 +795,13 @@ class TerrainHoneycomb:
         :return: The ID of a node/cell
         :rtype: int
         """
-        id = list(self.point_region).index(self.imgvoronoi[int(point[1]/self.resolution)][int(point[0]/self.resolution)]-1)
-        return id if id != -1 else None
+        # check hydrology nodes within a certain distance
+        for id in self.hydrology.query_ball_point(point, self.edgeLength * 2):
+            # if this point is within the voronoi region of one of those nodes,
+            # then that is the point's node
+            if Math.pointInConvexPolygon(point, self.cellVertices(id)):
+                return id
+        print(f'Unable to find a node for point {point}!')
 
 class T:
     """Terrain primitive
@@ -839,6 +859,7 @@ class Terrain:
         print()
 
         allpoints_list = [[t.position[0],t.position[1]] for t in self.allTs()]
+        print(allpoints_list)
         allpoints_nd = np.array(allpoints_list)
         self.apkd = cKDTree(allpoints_nd)
     def allTs(self) -> typing.List[T]:

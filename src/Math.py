@@ -1,6 +1,50 @@
 import numpy as np
+import math
 
 import typing
+
+def pointInConvexPolygon(point: typing.Tuple[float,float], vertices: np.ndarray) -> bool:
+  """Determine if a point is within a convex polygon
+
+  Algorithm derived from Wolfram: _An Efficient Test for a Point to Be in a Convex Polygon: http://demonstrations.wolfram.com/AnEfficientTestForAPointToBeInAConvexPolygon/
+
+  :param point: The point to test
+  :param point: tuple[float,float]
+  :param vertices: The polygon to test
+  :type vertices: numpy.ndarray(2,n)
+  :return: True if the point is within the polygon, False otherwise
+  :rtype: bool
+  """
+  previousSignPositive = None
+  # make point the new origin
+  vertices = np.subtract(vertices, point)
+  vertices = list(vertices)
+  vertices.sort(key = lambda coord: math.atan2(coord[1],coord[0]))
+  for i in range(len(vertices)):
+    v0, v1 = vertices[i], vertices[(i+1)%len(vertices)]
+    # a_i = X_{i+1} Y_{i} - X_{i} Y_{i+1}
+    ai = v1[0]*v0[1] - v0[0]*v1[1]
+    if previousSignPositive is None:
+      previousSignPositive = (ai > 0)
+      continue
+    if previousSignPositive != (ai > 0):
+      # ai must always have the same sign
+      print(f'Point: {point}')
+      print(f'Vertices: {vertices}')
+      return False
+  return True
+
+def convexPolygonArea(pivotPoint: typing.Tuple[float,float], vertices: np.ndarray) -> bool:
+  vertices = np.subtract(vertices, pivotPoint)
+  vertices = list(vertices)
+  vertices.sort(key = lambda coord: math.atan2(coord[1],coord[0]))
+  vertices = np.array(vertices)
+  # print(vertices)
+  x = vertices[:,0]
+  # print(x)
+  y = vertices[:,1]
+  # print(y)
+  return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
 # Borrowed , all of it
 def segments_distance(a: typing.Tuple[float,float], b: typing.Tuple[float,float], c: typing.Tuple[float,float], d: typing.Tuple[float,float]) -> float:
@@ -57,7 +101,6 @@ def segments_intersect(x11: float, y11: float, x12: float, y12: float, x21: floa
   t = (dx2 * (y11 - y21) + dy2 * (x21 - x11)) / (-delta)
   return (0 <= s <= 1) and (0 <= t <= 1)
 
-import math
 # I think this finds the distance between a point and a line segment
 def point_segment_distance(px: float, py: float, x1: float, y1: float, x2: float, y2: float):
   """Returns the distance between a point and a line segment
