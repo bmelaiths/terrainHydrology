@@ -669,25 +669,42 @@ class TerrainHoneycomb:
         ridges = self.regions[self.vor_region_id(node)] # the indices of the vertex boundaries
         return [self.vertices[x] for x in ridges if x != -1] # positions of all the vertices
     def cellVertices(self, nodeID: int) -> typing.List[typing.Tuple[float,float]]:
-        return [self.vertices[vi] for vi in self.regions[self.vor_region_id(nodeID)] if vi != -1]
-    def cellArea(self, loc: typing.Tuple[float,float]) -> float:
+        """Gets the coordinates of the vertices that define the shape of the node's cell
+
+        .. todo::
+            There are a number of degenerate cases where a cell may not have all of
+            its vertices. This is most common with nodes adjacent to the seeee. In such
+            cases, one or more vertices may not be on land, in which case those vertices
+            will not be returned. This necessitates a number of workarounds in other
+            methods, such as :func:`TerrainHoneycomb.cellArea`,
+            :func:`TerrainHoneycomb.boundingBox`, :func:`TerrainHoneycomb.nodeID`, and
+            anything that calls them. Moreover, :func:`TerrainHoneycomb.isInCell` also
+            needs fixing.
+
+        :param nodeID: The ID of the node whose shape you wish to query
+        :type nodeID: int
+        :return:
+        :rtype: list[tuple[float,float]]
+        """
+        return [self.vertices[vi] for vi in self.regions[self.vor_region_id(nodeID)] if vi != -1 and self.shore.isOnLand(self.vertices[vi])]
+    def cellArea(self, node: HydroPrimitive) -> float:
         """Calculates the (rough) area of the cell that a location is in
 
-        This is a rough estimate. It is derived by counting the number of pixels
-        that correspond to the given cell in an internal raster that is based on
-        the rasters within ShoreModel. Thus, accuracy is proportional to the
-        resolution of the user-supplied rasters. But it is good enough for what
-        it is used for.
+        This method derives the area based on the cell's shape. It is accurate.
+        But in cases where the cell's shape is malformed, this method will not
+        be accurate, and will simply return `resolution**2`, which is essentially
+        the area of a single pixel.
 
         :param loc: Any location within the cell you wish to query
         :type loc: tuple[float,float]
         """
-        # return np.count_nonzero(self.imgvoronoi == self.imgvoronoi[int(loc[1]/self.resolution)][int(loc[0]/self.resolution)]) * self.resolution**2
-        id = self.nodeID(loc)
-        return Math.convexPolygonArea(
-            self.hydrology.node(id).position,
-            self.cellVertices(id)
-        )
+        try:
+            return Math.convexPolygonArea(
+                node.position,
+                self.cellVertices(node.id)
+            )
+        except:
+            return self.resolution**2
     def cellQs(self, node: int) -> typing.List[Q]:
         """Returns all the Qs binding the cell that corresponds to the given node
 
@@ -714,25 +731,15 @@ class TerrainHoneycomb:
         :return: A tuple indicating the lower X, upper X, lower Y, and upper Y, respectively, in meters
         :rtype: tuple[float,float,float,float]
         """
-        # idxes = np.where(self.imgvoronoi==self.point_region[n]+1) # coordinates of all pixels in the voronoi region
-        # xllim = min(x for x in idxes[0]) # these lines get the bounding box of the voronoi region
-        # xulim = max(x for x in idxes[0])
-        # yllim = min(x for x in idxes[1])
-        # yulim = max(x for x in idxes[1])
-        # # I don't know why he creates another bounding box with opencv
-        # b = np.array([[xllim,yllim],[xllim,yulim],[xulim,yllim],[xulim,yulim]])
-        # b = cv.minAreaRect(b)
-        # pts = cv.boxPoints(b)
-        # xllim = int(min(x[0] for x in pts))
-        # xulim = int(max(x[0] for x in pts))
-        # yllim = int(min(x[1] for x in pts))
-        # yulim = int(max(x[1] for x in pts))
         vertices = self.cellVertices(n) # vertices binding the region
+        if len(vertices) < 1:
+            # If this cell has a malformed shape, don't
+            return (None, None, None, None)
         xllim = min([v[0] for v in vertices])
         xulim = max([v[0] for v in vertices])
         yllim = min([v[1] for v in vertices])
         yulim = max([v[1] for v in vertices])
-        return (xllim * self.resolution, xulim * self.resolution, yllim * self.resolution, yulim * self.resolution)
+        return (xllim, xulim, yllim, yulim)
     def isInCell(self, p: typing.Tuple[float,float], n: int) -> bool:
         """Determines if a point is within a given cell
 
@@ -746,7 +753,7 @@ class TerrainHoneycomb:
         :return: True of point ``p`` is in the cell that corresponds to ``n``
         :rtype: bool
         """
-        return self.shore.isOnLand(p) and Math.pointInConvexPolygon(p, self.cellVertices(n))
+        return self.shore.isOnLand(p) and Math.pointInConvexPolygon(p, self.cellVertices(n), self.hydrology.node(n).position)
     def cellRidges(self, n: int) -> typing.List[tuple]:
         """Returns the mountain ridges of a cell
 
@@ -787,21 +794,24 @@ class TerrainHoneycomb:
     def nodeID(self, point: typing.Tuple[float,float]) -> int:
         """Returns the id of the node/cell in which the point is located
 
-        Like :func:`cellArea`, this is not entirely precise, as it is derived
-        from a raster based on those in ShoreModel.
+        Like :func:`cellArea`, this is not entirely precise
 
         :param point: The point you wish to test
         :type point: tuple[float,float]
-        :return: The ID of a node/cell
+        :return: The ID of a node/cell (Returns None if it isn't in a valid cell)
         :rtype: int
         """
         # check hydrology nodes within a certain distance
         for id in self.hydrology.query_ball_point(point, self.edgeLength * 2):
             # if this point is within the voronoi region of one of those nodes,
             # then that is the point's node
-            if Math.pointInConvexPolygon(point, self.cellVertices(id)):
+            vertices = self.cellVertices(id)
+            if len(vertices) < 1:
+                # Ignore cells with malformed shapes
+                continue
+            if Math.pointInConvexPolygon(point, vertices, self.hydrology.node(id).position):
                 return id
-        print(f'Unable to find a node for point {point}!')
+        return None
 
 class T:
     """Terrain primitive
@@ -847,19 +857,21 @@ class Terrain:
         points = poisson_generator.find_point_set(num_points, num_iterations, iterations_per_point, num_rotations)
         for n in range(len(hydrology)):
             xllim, xulim, yllim, yulim = cells.boundingBox(n)
+            if xllim is None:
+                # Ignore cells that are too small
+                continue
             
             # I think this applies a mask to the poisson points, and adds those points as Tees for the cell
-            points_projected = [ [p[0]*(yulim-yllim)+yllim,p[1]*(xulim-xllim)+xllim] for p in points ]
+            points_projected = [ [p[0]*(xulim-xllim)+xllim,p[1]*(yulim-yllim)+yllim] for p in points ]
             points_filtered = [ (p[0],p[1]) for p in points_projected if cells.isInCell(p,n) ]
             cellTs = [T(p,n) for p in points_filtered]
             self.cellTs[n] = cellTs
             self.tList += cellTs
-            
+
             print(f'\tPrimitives created: {n} of {len(hydrology)} \r', end='')  # use display(f) if you encounter performance issues
         print()
 
         allpoints_list = [[t.position[0],t.position[1]] for t in self.allTs()]
-        print(allpoints_list)
         allpoints_nd = np.array(allpoints_list)
         self.apkd = cKDTree(allpoints_nd)
     def allTs(self) -> typing.List[T]:

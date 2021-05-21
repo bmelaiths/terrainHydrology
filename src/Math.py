@@ -3,23 +3,36 @@ import math
 
 import typing
 
-def pointInConvexPolygon(point: typing.Tuple[float,float], vertices: np.ndarray) -> bool:
+def pointInConvexPolygon(point: typing.Tuple[float,float], vertices: np.ndarray, pivotPoint: typing.Tuple[float,float]) -> bool:
   """Determine if a point is within a convex polygon
 
   Algorithm derived from Wolfram: _An Efficient Test for a Point to Be in a Convex Polygon: http://demonstrations.wolfram.com/AnEfficientTestForAPointToBeInAConvexPolygon/
+
+  .. todo::
+    This function must be reworked. The fact that it requires a known pivot point is
+    a hack. There is certainly a better way to do this.
 
   :param point: The point to test
   :param point: tuple[float,float]
   :param vertices: The polygon to test
   :type vertices: numpy.ndarray(2,n)
+  :param pivotPoint: A point that is known to be within the polygon
+  :type pivotPoint: tuple[float,float]
   :return: True if the point is within the polygon, False otherwise
   :rtype: bool
   """
+
   previousSignPositive = None
   # make point the new origin
-  vertices = np.subtract(vertices, point)
+  vertices = np.subtract(vertices, pivotPoint)
   vertices = list(vertices)
+  # ensure that the points are arranged such that the polygon does not self-intersect
   vertices.sort(key = lambda coord: math.atan2(coord[1],coord[0]))
+  vertices = np.array(vertices)
+
+  # translate the test point to the correct reference frame
+  point = np.subtract(point, pivotPoint)
+
   for i in range(len(vertices)):
     v0, v1 = vertices[i], vertices[(i+1)%len(vertices)]
     # a_i = X_{i+1} Y_{i} - X_{i} Y_{i+1}
@@ -29,21 +42,33 @@ def pointInConvexPolygon(point: typing.Tuple[float,float], vertices: np.ndarray)
       continue
     if previousSignPositive != (ai > 0):
       # ai must always have the same sign
-      print(f'Point: {point}')
-      print(f'Vertices: {vertices}')
       return False
   return True
 
 def convexPolygonArea(pivotPoint: typing.Tuple[float,float], vertices: np.ndarray) -> bool:
+  """Determine the area of a convex polygon
+
+  .. todo::
+    This function must be reworked. The fact that it requires a known pivot point is
+    a hack. There is certainly a better way to do this.
+
+  :param pivotPoint: A point that is known to be within the polygon
+  :type pivotPoint: tuple[float,float]
+  :param vertices: An array of points that defines the shape
+  :type vertices: np.ndarray[[float,float]]
+  :return: The area of the polygon
+  :rtype: float
+  """
   vertices = np.subtract(vertices, pivotPoint)
   vertices = list(vertices)
   vertices.sort(key = lambda coord: math.atan2(coord[1],coord[0]))
   vertices = np.array(vertices)
-  # print(vertices)
+
   x = vertices[:,0]
-  # print(x)
   y = vertices[:,1]
-  # print(y)
+
+  # This one-line implementation of Gauss's Shoelace Formula
+  # written by stackoverflow user Mahdi
   return 0.5*np.abs(np.dot(x,np.roll(y,1))-np.dot(y,np.roll(x,1)))
 
 # Borrowed , all of it

@@ -366,7 +366,7 @@ print('Calculating watershed areas...')
 # local watershed areas
 for n in range(len(hydrology)):
     node = hydrology.node(n)
-    node.localWatershed = cells.cellArea(node.position)
+    node.localWatershed = cells.cellArea(node)
     node.inheritedWatershed = 0
 
 # calculate inherited watershed areas and flow
