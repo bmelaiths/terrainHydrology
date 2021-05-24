@@ -21,6 +21,7 @@ from rasterio.transform import Affine
 import DataModel
 import HydrologyFunctions
 import Math
+import SaveFile
 
 
 # Get inputs
@@ -205,7 +206,7 @@ random.seed(globalseed)
 
 # Load input images
 
-shore = DataModel.ShoreModel(inputDomain, resolution)
+shore = DataModel.ShoreModel(resolution, gammaFileName=inputDomain)
 plt.imshow(shore.imgOutline)                    # DEBUG
 plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + '0-riverCellNetwork.png', dpi=debugdpi) # DEBUG
@@ -614,164 +615,4 @@ ax.set_xlim(xlim);
 plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + 'a-terrain-primitives.png', dpi=debugdpi)
 
-# Render output image
-
-# DEBUG
-print(f'Highest riverbed elevation: {max([node.elevation for node in hydrology.allNodes()])}')
-maxq = max([q.elevation for q in cells.allQs() if q is not None])
-print(f'Highest ridge elevation: {maxq}')
-oceanFloor = 0 - 0.25 * maxq / 0.75
-
-imgOut = np.full((outputResolution,outputResolution), oceanFloor,dtype=np.single)
-
-def TerrainFunction(prePoint):
-    point = [int(prePoint[0] * (shore.realShape[1] / outputResolution)),int(prePoint[1] * (shore.realShape[0] / outputResolution))]
-    
-    # if imgray[point[1]][point[0]]==0: This is why a new data model was implemented
-    if not shore.isOnLand(point):
-        return oceanFloor
-
-    # Gets and computes influence and elevation values for nearby terrain primitives
-    ts = Ts.query_ball_point(point,radius) # Gets all terrain primitives within a radius of the point
-    if len(ts) < 1: # if there just aren't any T points around, just put it in the ocean
-        return 0
-    wts = [w(Math.distance(point,t.position)) for t in ts] # "influence field" radii of those primitives
-    # TODO: I think this end up getting different heights for
-    hts = [ht(point,t) for t in ts]          # elevations of those primitives
-
-    # Blends the terrain primitives
-    ht_ = height_b(hts,wts) # Blends those terrain primitives
-    wt_ = wts[0]            # I guess this is supposed to be the influence radius of the closest primitive?
-    
-    wi=wt_ # IDK why he converts these here
-    hi=ht_
-    
-    nodeID = cells.nodeID(point)
-    if nodeID is None:
-        return hi
-    node = hydrology.node(nodeID)
-    geomp = geom.Point(point[0],point[1])     # Creates a Shapely point out of the input point
-    rs = [ ]
-    hrs = [ ]
-    wrs = [ ]
-    if len(node.rivers) > 0:
-        rs  = [e for e in node.rivers if geomp.distance(e) < radius ]
-        hrs = [hr(geomp,e) for e in rs]
-        wrs = [w(geomp.distance(e)) for e in rs]
-    else: # Sometimes there isn't a river, just a drainage point along the seeeee
-        riverPoint = geom.Point(node.x(),node.y(),node.elevation)
-        if geomp.distance(riverPoint) < radius:
-            rs = [ geomp.distance(riverPoint) ]
-            hrs = [ riverPoint.z ]
-            wrs = [ w(geomp.distance(riverPoint)) ]
-    
-    # Height and "influence field" calculation per the last equation in Section 7
-    # This is the so-called "replacement operator"
-    for i in range(len(rs)): 
-        hi=(1-wrs[i])*hi+wrs[i]*hrs[i] 
-        wi = (1-wrs[i])*wi+wrs[i]**2
-
-    if hi<0:
-        pass
-    
-    return hi
-
-def height_b(h,w): # height function of a blend node (section 7)
-    try:
-        ret = np.sum(np.multiply(h,w))/(np.sum(w))
-        assert(ret>=0)
-        assert(not np.isnan(ret)) # make sure ret is a number
-        return ret
-    except:
-        return 0
-
-scale = 100.0 # I think adjusting these values could be useful
-octaves = 6
-persistence = 0.5
-lacunarity = 2.0
-def ht(p,t): # Height of a terrain primitive
-    return t.elevation# +pnoise2(p[0]/scale,p[1]/scale,octaves=octaves,persistence=persistence,lacunarity=lacunarity,repeatx=shore.shape[0],repeaty=shore.shape[1],base=0)*10
-
-def hr(p,r): # Height of a river primitive?
-    d=p.distance(r)
-    # TODO profile based on Rosgen classification
-    segma = 0.1 * min(rwidth**2,d**2) # I think this is the river profile
-    projected = r.interpolate(r.project(p))
-    return projected.z+segma
-
-def w(d): # This returns the "influence field" (section 7)
-    if d <1:
-        return 1;
-    return (max(0,(radius+1)-d)/(((radius)+1)*d))**2
-
-def subroutine(conn, q):
-    #print(f'Thread ID: {conn.recv()}')
-    threadID = conn.recv()
-    for i in range(threadID, outputResolution, numProcs):
-        arr = np.full(outputResolution, oceanFloor,dtype=np.single)
-        for j in range(outputResolution):
-            arr[j] = max(oceanFloor,TerrainFunction((j,i)))
-        try:
-            q.put((i,arr.tobytes()))
-        except:
-            conn.close()
-            exit()
-        #print(f'row {i} complete')
-    
-    #conn.send(len(shore))
-    conn.close()
-
-dataQueue = Queue()
-pipes = []
-processes = []
-outputCounter = 0
-for p in range(numProcs):
-    pipes.append(Pipe())
-    processes.append(Process(target=subroutine, args=(pipes[p][1],dataQueue)))
-    processes[p].start()
-    pipes[p][0].send(p)
-for i in trange(outputResolution):
-    data = dataQueue.get()
-    imgOut[data[0]] = np.frombuffer(data[1],dtype=np.single)
-
-    if outputCounter > outputResolution/10:
-        plt.clf()
-        plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
-        plt.colorbar()
-        plt.tight_layout()                                # DEBUG
-        plt.savefig(outputDir + 'out-color.png')
-        outputCounter = 0
-    outputCounter += 1
-for p in range(numProcs):
-    processes[p].join()
-    pipes[p][0].close()
-
-plt.clf()
-plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
-plt.colorbar()
-plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + 'out-color.png')
-
-imgOut[imgOut==oceanFloor] = -5000.0 # For actual heightmap output, set 'ocean' to the nodata value
-imgOut = np.flipud(imgOut) # Adjust to GeoTIFF coordinate system
-
-projection = f'+proj=ortho +lat_0={latitude} +lon_0={longitude}' # Adjust lat_o and lon_0 for location
-transform = Affine.scale(*(shore.img.shape[1]*resolution/outputResolution,shore.img.shape[0]*resolution/outputResolution)) * \
-            Affine.translation(-outputResolution*0.5,-outputResolution*0.5)
-new_dataset = rasterio.open(
-    outputDir + '/out-geo.tif',
-    'w',
-    driver='GTiff',
-    height=imgOut.shape[0],
-    width=imgOut.shape[1],
-    count=1,
-    dtype=imgOut.dtype,
-    crs=projection,
-    transform=transform,
-    nodata=-5000.0
-)
-new_dataset.write(imgOut, 1)
-print(new_dataset.meta)
-new_dataset.close()
-
-DataModel.writeDataModel(outputDir + '/data', shore, hydrology, cells, Ts)
+SaveFile.writeDataModel(outputDir + '/data', edgeLength, shore, hydrology, cells, Ts)
