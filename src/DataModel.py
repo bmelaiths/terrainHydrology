@@ -650,8 +650,8 @@ class TerrainHoneycomb:
     edges.
     """
     def __init__(self, shore: ShoreModel=None, hydrology: HydrologyNetwork=None, resolution: float=None, dryRun: bool=False, binaryFile: typing.IO=None):
-        if binaryFile is not None and resolution is not None:
-            self._initFromBinaryFile(resolution, binaryFile)
+        if binaryFile is not None and resolution is not None and shore is not None and hydrology is not None:
+            self._initFromBinaryFile(resolution, shore, hydrology, binaryFile)
         elif shore is not None and hydrology is not None and resolution is not None:
             self._initFromModel(shore, hydrology, resolution)
         else:
@@ -745,7 +745,15 @@ class TerrainHoneycomb:
                 self.cellsRidges[n].append((self.qs[v],))
             print(f'\tFinding unaffiliated vertices for node {n} of {len(hydrology)}\r', end='')
         print()
-    def _initFromBinaryFile(self, resolution, binaryFile):
+    def _initFromBinaryFile(self, resolution, shore, hydrology, binaryFile):
+        points = [node.position for node in hydrology.allNodes()]
+        points.append((0,0))
+        points.append((0,shore.realShape[1]))
+        points.append((shore.realShape[0],0))
+        points.append((shore.realShape[0],shore.realShape[1]))
+        
+        self.vor = Voronoi(points,qhull_options='Qbb Qc Qz Qx')
+
         self.resolution = resolution
         self.point_region = [ ]
         numPoints = readValue('!Q', binaryFile)
@@ -754,6 +762,7 @@ class TerrainHoneycomb:
         
         self.regions = [ ]
         numRegions = readValue('!Q', binaryFile)
+        print(f'Number of regions: {numRegions}')
         for r in range(numRegions):
             regionArray = [ ]
             numVertices = readValue('!B', binaryFile)
@@ -762,6 +771,7 @@ class TerrainHoneycomb:
                 if idx == 0xffffffffffffffff:
                     idx = -1
                 regionArray.append(idx)
+            self.regions.append(regionArray)
         
         self.vertices = [ ]
         numVertices = readValue('!Q', binaryFile)

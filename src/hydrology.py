@@ -207,9 +207,6 @@ random.seed(globalseed)
 # Load input images
 
 shore = DataModel.ShoreModel(resolution, gammaFileName=inputDomain)
-plt.imshow(shore.imgOutline)                    # DEBUG
-plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '0-riverCellNetwork.png', dpi=debugdpi) # DEBUG
 
 imStretch = (0,int(shore.rasterShape[1]*resolution),int(shore.rasterShape[0]*resolution),0) # used to stretch debug images
 
@@ -231,14 +228,6 @@ for i in range(1,N_majorRivers):
     idx = int((firstIdx+i*dist+random.gauss(0, dist/6))%len(shore))
     point = shore[idx]
     hydrology.addNode(point, 0, 1, contourIndex=idx)
-
-# DEBUG
-imgMouthDots = shore.imgOutline.copy()
-for node in hydrology.allMouthNodes():
-    cv.circle(imgMouthDots, (int(node.x()/resolution),int(node.y()/resolution)), int((shore.rasterShape[0]/512)*10), (255,0,0), -1)
-plt.imshow(imgMouthDots)
-plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '3-riverMouths.png', dpi=debugdpi)
 
 
 # Generate river nodes
@@ -303,64 +292,6 @@ print('Generating terrain ridges...')
 
 cells = DataModel.TerrainHoneycomb(shore, hydrology, resolution, args.dryRun)
 
-print('Terrain ridges generated')
-print('Writing debug images...')
-
-pos = [node.position for node in hydrology.allNodes()]
-labels = dict(zip(range(len(hydrology)),range(len(hydrology))))
-imgRiverHeights = np.zeros(shore.rasterShape,dtype=np.uint16)
-for n in range(len(hydrology)):
-    if cells.vor_region_id(n) == -1:
-        continue
-    positions = [(int(p[0]/resolution),int(p[1]/resolution)) for p in cells.ridgePositions(n)]
-    #print(f'Node ID: {n}, Positions: {positions}')
-    cv.fillPoly(
-        imgRiverHeights,
-        DataModel.openCVFillPolyArray(positions),
-        np.int16(hydrology.node(n).elevation).item()
-    )
-
-# DEBUG
-fig = plt.figure(figsize=(20,20))
-ax = fig.add_subplot(111)
-ax.imshow(shore.img, extent=imStretch)
-ylim=ax.get_ylim();
-xlim=ax.get_xlim();
-
-if labelCells:
-    nx.draw(hydrology.graph,pos,node_size=1,labels=labels,ax=ax)
-else:
-    nx.draw(hydrology.graph,pos,node_size=1,ax=ax)
-voronoi_plot_2d(cells.vor, point_size=1, ax=ax,line_colors=['yellow'], show_vertices=False) # draws the voronoi cells?
-ax.set_ylim(ylim);
-ax.set_xlim(xlim);
-kernel = cv.getStructuringElement(cv.MORPH_RECT,(2,2))#I have no idea what this is, and it isn't used anywhere else
-plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '4-riverCellNetwork.png', dpi=debugdpi)
-plt.clf()
-
-# DEBUG
-plt.imshow(cells.imgvoronoi)
-plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '5-imgvoronoi.png', dpi=debugdpi)
-plt.clf()
-
-# DEBUG
-plt.imshow(imgRiverHeights, cmap=plt.get_cmap('terrain'))
-plt.colorbar()
-plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '6-riverHeights.png', dpi=debugdpi)
-
-### Breakdown of the image
-# Giant red circles identify river mouths
-# Blue dots identify river nodes
-# Black arrows point upstream
-# Black numbers identify the order of the nodes
-# Green outline identifies the coast
-# Yellow lines outline the voronoi cells around each river node
-# Yellow dots identify the vertices of the voronoi cells
-
-
 # Calculate watershed areas
 print('Calculating watershed areas...')
 
@@ -381,40 +312,6 @@ for node in hydrology.dfsPostorderNodes():  # search nodes in a depth-first post
 print('Classifying river nodes...')
 for n in range(len(hydrology)):
     HydrologyFunctions.classify(hydrology.node(n), hydrology, edgeLength)
-
-
-print('Writing more debug images...')
-# DEBUG This is a node graph, like the voronoi graph earlier. But the arrows are weighted by flow
-
-plt.figure(num=None, figsize=(16, 16), dpi=80)
-nodes = hydrology.allNodes()
-ids = [node.id for node in nodes]
-positions = [node.position for node in nodes]
-normalizer = max([node.flow for node in nodes])
-weights = [6*u.flow/normalizer for u,v in hydrology.allEdges()]
-plt.imshow(shore.img, extent=imStretch)
-if labelCells:
-    nx.draw(hydrology.graph,positions,node_size=1,labels=labels,width=weights)
-else:
-    nx.draw(hydrology.graph,positions,node_size=1,width=weights)
-plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '7-river-flow.png', dpi=debugdpi)
-
-
-# DEBUG Same thing, but over imgvoronoi instead of the map
-
-plt.figure(num=None, figsize=(16, 16), dpi=80)
-plt.imshow(imgRiverHeights, plt.get_cmap('terrain'), extent=imStretch)
-if labelCells:
-    nx.draw(hydrology.graph,positions,node_size=60,labels=labels,width=weights)
-else:
-    nx.draw(hydrology.graph,positions,node_size=60,width=weights)
-plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '8-river-flow-terrain.png', dpi=debugdpi)
-
-
-if args.dryRun:
-    exit()
 
 # Calculate ridge elevations
 print('Calculating ridge elevations...')
@@ -508,25 +405,6 @@ for node in hydrology.allMouthNodes():
             # the path to the sea is up to date
             p.rivers.append(line)
 
-# DEBUG
-fig = plt.figure(figsize=(20,20))
-ax = fig.add_subplot(111)
-ax.imshow(shore.img, extent=imStretch)
-ylim=ax.get_ylim();
-xlim=ax.get_xlim();
-voronoi_plot_2d(cells.vor, point_size=10, ax=ax,line_colors=['yellow'], show_vertices=False) # draws the voronoi cells?
-ax.set_ylim(ylim);
-ax.set_xlim(xlim);
-for mouth in hydrology.allMouthNodes():
-    for leaf in hydrology.allLeaves(mouth.id):
-        x = [coord[0] for coord in leaf.rivers[0].coords]
-        y = [coord[1] for coord in leaf.rivers[0].coords]
-        plt.plot(x,y)
-for node in hydrology.allNodes():
-    plt.text(node.x(),node.y(),node.id)
-plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + '9-interpolatedRiverCellNetwork.png', dpi=debugdpi)
-
 # Calculate elevations of terrain primitives
 print('Calculating terrain primitive elevations...')
 progressCounter = 0
@@ -597,22 +475,6 @@ for t in Ts.allTs():
     print(f'\tPrimitives computed: {progressCounter} out of {numTs} \r', end='')  # use display(f) if you encounter performance issues
 print()
 
-# DEBUG
-print('Generating terrain primitives image...')
-fig = plt.figure(figsize=(16,16))
-ax = fig.add_subplot(111)
-ax.imshow(shore.img, extent=imStretch)
-ax.scatter(*zip(*[t.position for t in Ts.allTs()]), c=[t.elevation for t in Ts.allTs()], cmap=plt.get_cmap('terrain'), s=5, lw=0)
-ylim=ax.get_ylim();
-xlim=ax.get_xlim();
-if labelCells:
-    nx.draw(hydrology.graph,positions,node_size=0,labels=labels,ax=ax)
-else:
-    nx.draw(hydrology.graph,positions,node_size=0,ax=ax)
-voronoi_plot_2d(cells.vor, point_size=1, ax=ax,line_colors=['yellow'], show_vertices=False)
-ax.set_ylim(ylim);
-ax.set_xlim(xlim);
-plt.tight_layout()                                # DEBUG
-plt.savefig(outputDir + 'a-terrain-primitives.png', dpi=debugdpi)
-
+print('Writing data model...')
 SaveFile.writeDataModel(outputDir + '/data', edgeLength, shore, hydrology, cells, Ts)
+print('Complete')

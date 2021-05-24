@@ -8,6 +8,9 @@ from multiprocessing import Process, Pipe, Queue
 import rasterio
 from rasterio.transform import Affine
 from tqdm import trange
+import cv2 as cv
+import networkx as nx
+from scipy.spatial import voronoi_plot_2d
 
 import DataModel
 import SaveFile
@@ -15,6 +18,14 @@ import Math
 
 parser = argparse.ArgumentParser(
     description='Implementation of Genevaux et al., "Terrain Generation Using Procedural Models Based on Hydrology", ACM Transactions on Graphics, 2013'
+)
+parser.add_argument(
+    '-g',
+    '--gamma',
+    help='An outline of the shore. Should be a grayscale image (but that doesn\'t have to be the actual color model)',
+    dest='inputDomain',
+    metavar='gamma.png',
+    required=True
 )
 parser.add_argument(
     '-ro',
@@ -54,6 +65,21 @@ parser.add_argument(
     metavar='-103.8',
     required=True
 )
+parser.add_argument(
+    '--debug-dpi',
+    help='Manually specify the resolution of the debug images. Use for high-resolution inputs',
+    dest='debugdpi',
+    metavar='500',
+    default=100,
+    required=False
+)
+parser.add_argument(
+    '--label-cells',
+    help='Include if you want cells in debug images be labeled',
+    action='store_false',
+    dest='labelCells',
+    required=False
+)
 args = parser.parse_args()
 
 outputDir = args.outputDir + '/'
@@ -61,11 +87,16 @@ outputResolution = int(args.outputResolution) # in pixels
 numProcs = int(args.num_procs)
 latitude = float(args.latitude)
 longitude = float(args.longitude)
+debugdpi = int(args.debugdpi)
+labelCells = args.labelCells
+
+imgOutline = cv.imread(args.inputDomain)
 
 resolution, edgeLength, shore, hydrology, cells, Ts = SaveFile.readDataModel('example/out/data')
 
 radius = edgeLength / 3
 rwidth = edgeLength / 2
+
 
 print(f'Highest riverbed elevation: {max([node.elevation for node in hydrology.allNodes()])}')
 maxq = max([q.elevation for q in cells.allQs() if q is not None])
