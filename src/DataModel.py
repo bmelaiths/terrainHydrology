@@ -118,7 +118,6 @@ class ShoreModel:
             struct.unpack('!Q', binaryFileName.read(struct.calcsize('!Q')))[0],
             struct.unpack('!Q', binaryFileName.read(struct.calcsize('!Q')))[0]
         )
-        print(f'Raster shape: {self.rasterShape}')
         self.imgray = np.zeros(self.rasterShape)
         for d0 in range(self.rasterShape[0]):
             for d1 in range(self.rasterShape[1]):
@@ -315,7 +314,6 @@ class HydrologyNetwork:
     def _initFromBinary(self, file):
         buffer = file.read(8)
         numberNodes = struct.unpack('!Q', buffer)[0]
-        print(f'Nodes: {numberNodes}')
 
         allpoints_list = []
 
@@ -649,7 +647,7 @@ class TerrainHoneycomb:
     instance and a couple of dictionaries to classify ridges and other
     edges.
     """
-    def __init__(self, shore: ShoreModel=None, hydrology: HydrologyNetwork=None, resolution: float=None, dryRun: bool=False, binaryFile: typing.IO=None):
+    def __init__(self, shore: ShoreModel=None, hydrology: HydrologyNetwork=None, resolution: float=None, binaryFile: typing.IO=None):
         if binaryFile is not None and resolution is not None and shore is not None and hydrology is not None:
             self._initFromBinaryFile(resolution, shore, hydrology, binaryFile)
         elif shore is not None and hydrology is not None and resolution is not None:
@@ -762,7 +760,6 @@ class TerrainHoneycomb:
         
         self.regions = [ ]
         numRegions = readValue('!Q', binaryFile)
-        print(f'Number of regions: {numRegions}')
         for r in range(numRegions):
             regionArray = [ ]
             numVertices = readValue('!B', binaryFile)
@@ -781,7 +778,6 @@ class TerrainHoneycomb:
         rasterShape = (
             readValue('!Q', binaryFile), readValue('!Q', binaryFile)
         )
-        print(f'Raster shape: {rasterShape}')
         self.imgvoronoi = np.zeros(rasterShape, dtype=np.uint16)
         for d0 in range(rasterShape[0]):
             for d1 in range(rasterShape[1]):
@@ -789,7 +785,6 @@ class TerrainHoneycomb:
         
         self.qs = [ ]
         numQs = readValue('!Q', binaryFile)
-        print(f'Number of ridge primitives: {numQs}')
         for i in range(numQs):
             if readValue('!B', binaryFile) == 0x00:
                 self.qs.append(None)
@@ -806,7 +801,6 @@ class TerrainHoneycomb:
 
         self.cellsRidges = { }
         numCells = readValue('!Q', binaryFile)
-        print(f'Number of cells: {numCells}')
         for i in range(numCells):
             cellID = readValue('!Q', binaryFile)
             numRidges = readValue('!B', binaryFile)
@@ -821,7 +815,6 @@ class TerrainHoneycomb:
         
         self.cellsDownstreamRidges = { }
         numCells = readValue('!Q', binaryFile)
-        print(f'Number of cells (downstream ridges): {numCells}')
         for i in range(numCells):
             cellID = readValue('!Q', binaryFile)
             if readValue('!B', binaryFile) == 0xff:
@@ -1050,7 +1043,6 @@ class Terrain:
         allpoints_list = [ ]
 
         numPrimitives = readValue('!Q', binaryFile)
-        print(f'Number of terrain primitives: {numPrimitives}')
         for i in range(numPrimitives):
             loc = (readValue('!f', binaryFile), readValue('!f', binaryFile))
             cellID = readValue('!Q', binaryFile)

@@ -53,7 +53,8 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
         # write point_region
         file.write(struct.pack('!Q', len(cells.point_region)))
         for idx in cells.point_region:
-            file.write(struct.pack('!Q', idx))
+            if idx != -1:
+                file.write(struct.pack('!Q', idx))
         
         # write regions array
         file.write(struct.pack('!Q', len(cells.regions)))
@@ -106,7 +107,6 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
 
         # cellsDownstreamRidges
         file.write(struct.pack('!Q', len(cells.cellsDownstreamRidges)))
-        print(f'Number of cells (downstream ridges): {len(cells.cellsDownstreamRidges)}')
         for cellID in cells.cellsDownstreamRidges:
             file.write(struct.pack('!Q', cellID))
             if cells.cellsDownstreamRidges[cellID] is not None:
@@ -121,7 +121,6 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
         ## Terrain primitives ##
 
         file.write(struct.pack('!Q', len(Ts)))
-        print(f'Number of terrain primitives: {len(Ts)}')
         for t in Ts.allTs():
             file.write(struct.pack('!f', t.position[0]))
             file.write(struct.pack('!f', t.position[1]))

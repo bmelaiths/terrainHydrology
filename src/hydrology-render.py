@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+import typing
 import matplotlib.pyplot as plt
 import argparse
 import numpy as np
@@ -8,9 +9,6 @@ from multiprocessing import Process, Pipe, Queue
 import rasterio
 from rasterio.transform import Affine
 from tqdm import trange
-import cv2 as cv
-import networkx as nx
-from scipy.spatial import voronoi_plot_2d
 
 import DataModel
 import SaveFile
@@ -20,11 +18,25 @@ parser = argparse.ArgumentParser(
     description='Implementation of Genevaux et al., "Terrain Generation Using Procedural Models Based on Hydrology", ACM Transactions on Graphics, 2013'
 )
 parser.add_argument(
-    '-g',
-    '--gamma',
-    help='An outline of the shore. Should be a grayscale image (but that doesn\'t have to be the actual color model)',
-    dest='inputDomain',
-    metavar='gamma.png',
+    '-i',
+    '--input',
+    help='The file that contains the data model you wish to render',
+    dest='inputFile',
+    metavar='output/data',
+    required=True
+)
+parser.add_argument(
+    '--lat',
+    help='Center latitude for the output GeoTIFF',
+    dest='latitude',
+    metavar='43.2',
+    required=True
+)
+parser.add_argument(
+    '--lon',
+    help='Center longitude for the output GeoTIFF',
+    dest='longitude',
+    metavar='-103.8',
     required=True
 )
 parser.add_argument(
@@ -51,61 +63,33 @@ parser.add_argument(
     metavar='output/',
     required=True
 )
-parser.add_argument(
-    '--lat',
-    help='Center latitude for the output GeoTIFF',
-    dest='latitude',
-    metavar='43.2',
-    required=True
-)
-parser.add_argument(
-    '--lon',
-    help='Center longitude for the output GeoTIFF',
-    dest='longitude',
-    metavar='-103.8',
-    required=True
-)
-parser.add_argument(
-    '--debug-dpi',
-    help='Manually specify the resolution of the debug images. Use for high-resolution inputs',
-    dest='debugdpi',
-    metavar='500',
-    default=100,
-    required=False
-)
-parser.add_argument(
-    '--label-cells',
-    help='Include if you want cells in debug images be labeled',
-    action='store_false',
-    dest='labelCells',
-    required=False
-)
 args = parser.parse_args()
 
+inputFile = args.inputFile
 outputDir = args.outputDir + '/'
 outputResolution = int(args.outputResolution) # in pixels
 numProcs = int(args.num_procs)
 latitude = float(args.latitude)
 longitude = float(args.longitude)
-debugdpi = int(args.debugdpi)
-labelCells = args.labelCells
 
-imgOutline = cv.imread(args.inputDomain)
-
-resolution, edgeLength, shore, hydrology, cells, Ts = SaveFile.readDataModel('example/out/data')
+## Read the data
+resolution, edgeLength, shore, hydrology, cells, Ts = SaveFile.readDataModel(
+    inputFile
+)
 
 radius = edgeLength / 3
 rwidth = edgeLength / 2
 
 
-print(f'Highest riverbed elevation: {max([node.elevation for node in hydrology.allNodes()])}')
 maxq = max([q.elevation for q in cells.allQs() if q is not None])
-print(f'Highest ridge elevation: {maxq}')
 oceanFloor = 0 - 0.25 * maxq / 0.75
 
 imgOut = np.full((outputResolution,outputResolution), oceanFloor,dtype=np.single)
 
-def TerrainFunction(prePoint):
+## Functions that calculate the height of a point
+
+# This function calculates the elevation of a single point on the output raster
+def TerrainFunction(prePoint: typing.Tuple[float,float]) -> float:
     point = [int(prePoint[0] * (shore.realShape[1] / outputResolution)),int(prePoint[1] * (shore.realShape[0] / outputResolution))]
     
     # if imgray[point[1]][point[0]]==0: This is why a new data model was implemented
@@ -131,7 +115,7 @@ def TerrainFunction(prePoint):
     if nodeID is None:
         return hi
     node = hydrology.node(nodeID)
-    geomp = geom.Point(point[0],point[1])     # Creates a Shapely point out of the input point
+    geomp = geom.Point(point[0],point[1]) # Creates a Shapely point out of the input point
     rs = [ ]
     hrs = [ ]
     wrs = [ ]
@@ -157,7 +141,8 @@ def TerrainFunction(prePoint):
     
     return hi
 
-def height_b(h,w): # height function of a blend node (section 7)
+# height function of a blend node (Geneveaux et al §7)
+def height_b(h: typing.List[float], w: typing.List[float]) -> float:
     try:
         ret = np.sum(np.multiply(h,w))/(np.sum(w))
         assert(ret>=0)
@@ -170,37 +155,44 @@ scale = 100.0 # I think adjusting these values could be useful
 octaves = 6
 persistence = 0.5
 lacunarity = 2.0
-def ht(p,t): # Height of a terrain primitive
+# Height of a terrain primitive
+def ht(p: typing.Tuple[float, float], t: DataModel.T) -> float:
     return t.elevation# +pnoise2(p[0]/scale,p[1]/scale,octaves=octaves,persistence=persistence,lacunarity=lacunarity,repeatx=shore.shape[0],repeaty=shore.shape[1],base=0)*10
 
-def hr(p,r): # Height of a river primitive?
+# Height of a river primitive?
+def hr(p: typing.Tuple[float, float], r: float) -> float:
     d=p.distance(r)
     # TODO profile based on Rosgen classification
     segma = 0.1 * min(rwidth**2,d**2) # I think this is the river profile
     projected = r.interpolate(r.project(p))
     return projected.z+segma
 
-def w(d): # This returns the "influence field" (section 7)
+# This returns the "influence field" (Geneveaux et al §7)
+def w(d: float) -> float:
     if d <1:
         return 1;
     return (max(0,(radius+1)-d)/(((radius)+1)*d))**2
 
-def subroutine(conn, q):
-    #print(f'Thread ID: {conn.recv()}')
+
+## This is the function that the rendering threads will run
+def subroutine(conn: Pipe, q: Queue):
     threadID = conn.recv()
+    # Render lines that are assigned to this thread
     for i in range(threadID, outputResolution, numProcs):
         arr = np.full(outputResolution, oceanFloor,dtype=np.single)
+        # Render a line
         for j in range(outputResolution):
             arr[j] = max(oceanFloor,TerrainFunction((j,i)))
+        # send the line to the master thread
         try:
             q.put((i,arr.tobytes()))
         except:
             conn.close()
             exit()
-        #print(f'row {i} complete')
-    
-    #conn.send(len(shore))
     conn.close()
+
+
+## Render the terrain
 
 dataQueue = Queue()
 pipes = []
@@ -232,6 +224,9 @@ plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
 plt.colorbar()
 plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + 'out-color.png')
+
+
+## Write the GeoTIFF
 
 imgOut[imgOut==oceanFloor] = -5000.0 # For actual heightmap output, set 'ocean' to the nodata value
 imgOut = np.flipud(imgOut) # Adjust to GeoTIFF coordinate system
