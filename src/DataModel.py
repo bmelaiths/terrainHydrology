@@ -1,10 +1,12 @@
 import cv2 as cv
+from networkx.algorithms.operators import binary
 import numpy as np
 import networkx as nx
 from scipy.spatial import cKDTree
 from scipy.spatial import Voronoi
 from poisson import PoissonGenerator
 from PIL import Image
+import shapely.geometry as geom
 import struct
 
 import typing
@@ -68,8 +70,8 @@ class ShoreModel:
     represent the line that demarcates the boundary between
     land and sea. This class also has useful functions.
 
-    :param inputFileName: The path to the image that defines the shoreline
-    :type inputFileName: str
+    :param gammaFileName: The path to the image that defines the shoreline
+    :type gammaFileName: str
     :param resolution: The resolution of the input image in meters per pixel
     :type resolution: float
 
@@ -79,10 +81,17 @@ class ShoreModel:
     .. note::
        Shape variables are all in order y,x.
     """
-    def __init__(self, inputFileName: str, resolution: float):
+    def __init__(self, resolution: float, gammaFileName: str=None, binaryFile: typing.IO=None):
         """Constructor
         """
 
+        if gammaFileName is not None:
+            self._initFromGammaImage(resolution, gammaFileName)
+        elif binaryFile is not None:
+            self._initFromBinaryFile(resolution, binaryFile)
+        else:
+            raise ValueError('You must either create a shore from an image, or reconstitute it from a binary file')
+    def _initFromGammaImage(self, resolution, inputFileName):
         self.resolution = resolution
 
         self.img = cv.imread(inputFileName)
@@ -105,6 +114,24 @@ class ShoreModel:
         
         # TODO raise exception if dimensions not square
         # TODO raise exception if multiple contours
+    def _initFromBinaryFile(self, resolution, binaryFileName):
+        self.resolution = resolution
+        self.rasterShape = (
+            struct.unpack('!Q', binaryFileName.read(struct.calcsize('!Q')))[0],
+            struct.unpack('!Q', binaryFileName.read(struct.calcsize('!Q')))[0]
+        )
+        self.imgray = np.zeros(self.rasterShape)
+        for d0 in range(self.rasterShape[0]):
+            for d1 in range(self.rasterShape[1]):
+                self.imgray[d0][d1] = struct.unpack('!B', binaryFileName.read(struct.calcsize('!B')))[0]
+        self.realShape = (self.imgray.shape[0] * self.resolution, self.imgray.shape[1] * self.resolution)
+        contourLength = struct.unpack('!Q', binaryFileName.read(struct.calcsize('!Q')))[0]
+        self.contour = [ ]
+        for i in range(contourLength):
+            self.contour.append((
+                struct.unpack('!Q', binaryFileName.read(struct.calcsize('!Q')))[0],
+                struct.unpack('!Q', binaryFileName.read(struct.calcsize('!Q')))[0]
+            ))
     def distanceToShore(self, loc) -> float:
         """Gets the distance between a point and the shore
 
@@ -228,49 +255,129 @@ class HydrologyNetwork:
     Internally, the data is held in a :class:`networkx DiGraph<networkx.DiGraph>`. A
     :class:`cKDTree<scipy.spatial.cKDTree>` is used for lookup by area.
     """
-    def __init__(self, stream=None):
+    def __init__(self, stream=None, binaryFile=None):
         self.nodeCounter = 0
         self.graph = nx.DiGraph()
         self.mouthNodes = []
 
-        if stream is None:
-            return
-
-        buffer = stream.read(8)
+        if stream is not None:
+            self._initFromStream(stream)
+        elif binaryFile is not None:
+            self._initFromBinary(binaryFile)
+    def _initFromStream(self, pipe):
+        buffer = pipe.read(8)
         numberNodes = struct.unpack('!Q', buffer)[0]
 
         allpoints_list = []
 
         for i in range(numberNodes):
-            buffer = stream.read(8)
+            buffer = pipe.read(8)
             nodeID = struct.unpack('!Q', buffer)[0]
 
-            buffer = stream.read(8)
+            buffer = pipe.read(8)
             parent = struct.unpack('!Q', buffer)[0]
             if parent == nodeID:
                 parent = None
             else:
                 parent = self.node(parent)
 
-            buffer = stream.read(1)
+            buffer = pipe.read(1)
             numChildren = struct.unpack('!B', buffer)[0]
 
             for chiild in range(numChildren):
-                buffer = stream.read(8)
+                buffer = pipe.read(8)
                 childID = struct.unpack('!Q', buffer)[0]
 
-            buffer = stream.read(4)
+            buffer = pipe.read(4)
             locX = struct.unpack('!f', buffer)[0]
 
-            buffer = stream.read(4)
+            buffer = pipe.read(4)
             locY = struct.unpack('!f', buffer)[0]
 
-            buffer = stream.read(4)
+            buffer = pipe.read(4)
             elevation = struct.unpack('!f', buffer)[0]
 
             allpoints_list.append( (locX, locY) )
 
             node = HydroPrimitive(self.nodeCounter, (locX,locY), elevation, 0, parent)
+
+            self.graph.add_node(
+                self.nodeCounter,
+                primitive=node
+            )
+            if parent is None:
+                self.mouthNodes.append(self.nodeCounter)
+            else:
+                self.graph.add_edge(parent.id, self.nodeCounter)
+
+            self.nodeCounter += 1
+
+        self.graphkd = cKDTree(allpoints_list)
+    def _initFromBinary(self, file):
+        buffer = file.read(8)
+        numberNodes = struct.unpack('!Q', buffer)[0]
+
+        allpoints_list = []
+
+        for i in range(numberNodes):
+            buffer = file.read(8)
+            nodeID = struct.unpack('!Q', buffer)[0]
+
+            buffer = file.read(4)
+            locX = struct.unpack('!f', buffer)[0]
+
+            buffer = file.read(4)
+            locY = struct.unpack('!f', buffer)[0]
+
+            buffer = file.read(4)
+            elevation = struct.unpack('!f', buffer)[0]
+
+            buffer = file.read(8)
+            parent = struct.unpack('!Q', buffer)[0]
+            if parent == nodeID:
+                parent = None
+            else:
+                parent = self.node(parent)
+            
+            buffer = file.read(struct.calcsize('!Q'))
+            contourIndex = struct.unpack('!Q', buffer)[0]
+
+            rivers = [ ]
+            buffer = file.read(struct.calcsize('!B'))
+            numRivers = struct.unpack('!B', buffer)[0]
+            for i in range(numRivers):
+                points = [ ]
+                buffer = file.read(struct.calcsize('!I'))
+                numPoints = struct.unpack('!I', buffer)[0]
+                for j in range(numPoints):
+                    buffer = file.read(struct.calcsize('!f'))
+                    riverX = struct.unpack('!f', buffer)[0]
+                    buffer = file.read(struct.calcsize('!f'))
+                    riverY = struct.unpack('!f', buffer)[0]
+                    buffer = file.read(struct.calcsize('!f'))
+                    riverZ = struct.unpack('!f', buffer)[0]
+                    points.append((riverX,riverY,riverZ))
+                rivers.append(geom.LineString(points))
+            
+            buffer = file.read(struct.calcsize('!f'))
+            localWatershed = struct.unpack('!f', buffer)[0]
+
+            buffer = file.read(struct.calcsize('!f'))
+            inheritedWatershed = struct.unpack('!f', buffer)[0]
+
+            buffer = file.read(struct.calcsize('!f'))
+            flow = struct.unpack('!f', buffer)[0]
+
+            allpoints_list.append( (locX, locY) )
+
+            node = HydroPrimitive(self.nodeCounter, (locX,locY), elevation, 0, parent)
+
+            if parent is not None:
+                node.contourIndex = contourIndex
+            node.rivers = rivers
+            node.localWatershed = localWatershed
+            node.inheritedWatershed = inheritedWatershed
+            node.flow = flow
 
             self.graph.add_node(
                 self.nodeCounter,
@@ -544,7 +651,14 @@ class TerrainHoneycomb:
     instance and a couple of dictionaries to classify ridges and other
     edges.
     """
-    def __init__(self, shore: ShoreModel, hydrology: HydrologyNetwork, edgeLength: float, resolution: float, dryRun: bool):
+    def __init__(self, shore: ShoreModel=None, hydrology: HydrologyNetwork=None, resolution: float=None, binaryFile: typing.IO=None):
+        if binaryFile is not None and resolution is not None and shore is not None and hydrology is not None:
+            self._initFromBinaryFile(resolution, shore, hydrology, binaryFile)
+        elif shore is not None and hydrology is not None and resolution is not None:
+            self._initFromModel(shore, hydrology, resolution)
+        else:
+            raise ValueError()
+    def _initFromModel(self, shore, hydrology, resolution):
         self.resolution = resolution
         self.edgeLength = edgeLength
 
@@ -572,75 +686,152 @@ class TerrainHoneycomb:
                 openCVFillPolyArray(positions),
                 np.int16(self.vor_region_id(n)+1).item()
             )
-        if not dryRun:
-            # this loop will create the ridge primitives
-            self.qs = [ ]
-            for iv in range(len(self.vertices)): # loop through all the voronoi vertices
-                if not shore.isOnLand(self.vertices[iv]):
-                    self.qs.append(None) # if the vertex is not on land, it isn't worth saving
-                    continue
-                # find all the nodes of which this ridge primitive is part of a border
-                nodeIdxes = [ ]
-                # for all the nodes in this ridge primitive's vicinity
-                for nodeID in hydrology.query_ball_point(self.vertices[iv], edgeLength * 10):
-                    # if this ridge primitive is part of the border,
-                    if iv in self.regions[self.vor_region_id(nodeID)]:
-                        # then add it to the list
-                        nodeIdxes.append(nodeID)
-                self.qs.append(Q(self.vertices[iv],nodeIdxes, iv))
-                print(f'\tCreating ridge primitive {iv} of {len(self.vertices)}\r', end='')
-            print()
 
-            self.cellsRidges = { }
-            self.cellsDownstreamRidges = { }
-            # Classify all ridges
-            for ri in range(len(self.vor.ridge_vertices)):
-                for n in self.vor.ridge_points[ri]: # Each ridge separates exactly two nodes
-                    if n >= len(self.hydrology):
-                        continue # Apparently there are nodes that don't exist; skip these
-                    node = hydrology.node(n)
-                    otherNode = self.vor.ridge_points[ri][self.vor.ridge_points[ri] != n][0]
-                    # if this ridge is the outflow ridge for this node, mark it as such and move on
-                    if node.parent is not None and node.parent.id == otherNode:
-                        # this ridge is the outflow ridge for this node
-                        v1 = self.vertices[self.vor.ridge_vertices[ri][0]]
-                        v2 = self.vertices[self.vor.ridge_vertices[ri][1]]
-                        if not self.shore.isOnLand(v1) or not self.shore.isOnLand(v2):
-                            # If one or both vertices is not on land, then don't bother
-                            # trying to make the river flow through the ridge neatly
-                            self.cellsDownstreamRidges[n] = None
-                        else:
-                            self.cellsDownstreamRidges[n] = (v1, v2)
-                        break # the outflow ridge of this node is an inflow ridge for the other one
-                    if otherNode in [nd.id for nd in hydrology.upstream(n)]:
-                        continue # this is an inflow ridge, so it need not be considered further
-                    # the ridge at ri is not transected by a river
-                    if n not in self.cellsRidges:
-                        self.cellsRidges[n] = [ ]
-                    vertex0 = self.qs[self.vor.ridge_vertices[ri][0]]
-                    vertex1 = self.qs[self.vor.ridge_vertices[ri][1]]
-                    if vertex0 is None or vertex1 is None:
-                        continue
-                    self.cellsRidges[n].append((vertex0,vertex1))
-                print(f'\tClassifying ridge {ri} of {len(self.vor.ridge_vertices)}\r', end='')
-            print()
+        self.qs = [ ]
+        for iv in range(len(self.vertices)):
+            if not shore.isOnLand(self.vertices[iv]):
+                self.qs.append(None)
+                continue
+            regionIdxes = [self.regions.index(bound) for bound in self.regions if iv in bound]
+            nodeIdxes = [list(self.point_region).index(regionIndex) for regionIndex in regionIdxes]
+            self.qs.append(Q(self.vertices[iv],nodeIdxes, iv))
+            print(f'\tCreating ridge primitive {iv} of {len(self.vertices)}\r', end='')
+        print()
 
-            # Add vertices that are not attached to ridges
-            for n in range(len(self.hydrology)):
-                verts = self.regions[self.vor_region_id(n)].copy()
+        self.cellsRidges = { }
+        self.cellsDownstreamRidges = { }
+        # Classify all ridges
+        for ri in range(len(self.vor.ridge_vertices)):
+            for n in self.vor.ridge_points[ri]: # Each ridge separates exactly two nodes
+                if n >= len(self.hydrology):
+                    continue # Apparently there are nodes that don't exist; skip these
+                node = hydrology.node(n)
+                otherNode = self.vor.ridge_points[ri][self.vor.ridge_points[ri] != n][0]
+                # if this ridge is the outflow ridge for this node, mark it as such and move on
+                if node.parent is not None and node.parent.id == otherNode:
+                    # this ridge is the outflow ridge for this node
+                    v1 = self.vertices[self.vor.ridge_vertices[ri][0]]
+                    v2 = self.vertices[self.vor.ridge_vertices[ri][1]]
+                    if not self.shore.isOnLand(v1) or not self.shore.isOnLand(v2):
+                        # If one or both vertices is not on land, then don't bother
+                        # trying to make the river flow through the ridge neatly
+                        self.cellsDownstreamRidges[n] = None
+                    else:
+                        self.cellsDownstreamRidges[n] = (v1, v2)
+                    break # the outflow ridge of this node is an inflow ridge for the other one
+                if otherNode in [nd.id for nd in hydrology.upstream(n)]:
+                    continue # this is an inflow ridge, so it need not be considered further
+                # the ridge at ri is not transected by a river
                 if n not in self.cellsRidges:
                     self.cellsRidges[n] = [ ]
-                # Eliminate vertices that are attached to ridges
-                for ridge in self.cellsRidges[n]:
-                    for q in ridge:
-                        if q is not None and q.vorIndex in verts:
-                            verts.remove(q.vorIndex)
-                for v in verts:
-                    if not self.shore.isOnLand(self.vertices[v]):
-                        continue
-                    self.cellsRidges[n].append((self.qs[v],))
-                print(f'\tFinding unaffiliated vertices for node {n} of {len(hydrology)}\r', end='')
-            print()
+                vertex0 = self.qs[self.vor.ridge_vertices[ri][0]]
+                vertex1 = self.qs[self.vor.ridge_vertices[ri][1]]
+                if vertex0 is None or vertex1 is None:
+                    continue
+                self.cellsRidges[n].append((vertex0,vertex1))
+            print(f'\tClassifying ridge {ri} of {len(self.vor.ridge_vertices)}\r', end='')
+        print()
+
+        # Add vertices that are not attached to ridges
+        for n in range(len(self.hydrology)):
+            verts = self.regions[self.vor_region_id(n)].copy()
+            if n not in self.cellsRidges:
+                self.cellsRidges[n] = [ ]
+            # Eliminate vertices that are attached to ridges
+            for ridge in self.cellsRidges[n]:
+                for q in ridge:
+                    if q is not None and q.vorIndex in verts:
+                        verts.remove(q.vorIndex)
+            for v in verts:
+                if not self.shore.isOnLand(self.vertices[v]):
+                    continue
+                self.cellsRidges[n].append((self.qs[v],))
+            print(f'\tFinding unaffiliated vertices for node {n} of {len(hydrology)}\r', end='')
+        print()
+    def _initFromBinaryFile(self, resolution, shore, hydrology, binaryFile):
+        points = [node.position for node in hydrology.allNodes()]
+        points.append((0,0))
+        points.append((0,shore.realShape[1]))
+        points.append((shore.realShape[0],0))
+        points.append((shore.realShape[0],shore.realShape[1]))
+        
+        self.vor = Voronoi(points,qhull_options='Qbb Qc Qz Qx')
+
+        self.resolution = resolution
+        self.point_region = [ ]
+        numPoints = readValue('!Q', binaryFile)
+        for i in range(numPoints):
+            self.point_region.append(readValue('!Q', binaryFile))
+        
+        self.regions = [ ]
+        numRegions = readValue('!Q', binaryFile)
+        for r in range(numRegions):
+            regionArray = [ ]
+            numVertices = readValue('!B', binaryFile)
+            for v in range(numVertices):
+                idx = readValue('!Q', binaryFile)
+                if idx == 0xffffffffffffffff:
+                    idx = -1
+                regionArray.append(idx)
+            self.regions.append(regionArray)
+        
+        self.vertices = [ ]
+        numVertices = readValue('!Q', binaryFile)
+        for i in range(numVertices):
+            self.vertices.append((readValue('!f', binaryFile),readValue('!f', binaryFile)))
+        
+        rasterShape = (
+            readValue('!Q', binaryFile), readValue('!Q', binaryFile)
+        )
+        self.imgvoronoi = np.zeros(rasterShape, dtype=np.uint16)
+        for d0 in range(rasterShape[0]):
+            for d1 in range(rasterShape[1]):
+                self.imgvoronoi[d0][d1] = readValue('!H', binaryFile)
+        
+        self.qs = [ ]
+        numQs = readValue('!Q', binaryFile)
+        for i in range(numQs):
+            if readValue('!B', binaryFile) == 0x00:
+                self.qs.append(None)
+                continue
+            position = (readValue('!f', binaryFile),readValue('!f', binaryFile))
+            nodeIdxes = [ ]
+            numBorders = readValue('!B', binaryFile)
+            for j in range(numBorders):
+                nodeIdxes.append(readValue('!Q', binaryFile))
+            voronoiIdx = readValue('!Q', binaryFile)
+            q = Q(position, nodeIdxes, voronoiIdx)
+            q.elevation = readValue('!f', binaryFile)
+            self.qs.append(q)
+
+        self.cellsRidges = { }
+        numCells = readValue('!Q', binaryFile)
+        for i in range(numCells):
+            cellID = readValue('!Q', binaryFile)
+            numRidges = readValue('!B', binaryFile)
+            for j in range(numRidges):
+                if readValue('!B', binaryFile) < 2:
+                    self.cellsRidges[cellID] = (readValue('!Q', binaryFile))
+                else:
+                    self.cellsRidges[cellID] = (
+                        readValue('!Q', binaryFile),
+                        readValue('!Q', binaryFile)
+                    )
+        
+        self.cellsDownstreamRidges = { }
+        numCells = readValue('!Q', binaryFile)
+        for i in range(numCells):
+            cellID = readValue('!Q', binaryFile)
+            if readValue('!B', binaryFile) == 0xff:
+                self.cellsDownstreamRidges[cellID] = None
+            else:
+                end0x = readValue('!f', binaryFile)
+                end0y = readValue('!f', binaryFile)
+                end1x = readValue('!f', binaryFile)
+                end1y = readValue('!f', binaryFile)
+                self.cellsDownstreamRidges[cellID] = (
+                    (end0x, end0y), (end1x, end1y)
+                )
     def vor_region_id(self, node: int) -> int:
         """Returns the index of the *voronoi region*
 
@@ -840,7 +1031,14 @@ class Terrain:
     :param num_points: (Roughly) the number of points in each cell
     :type num_points: int
     """
-    def __init__(self, hydrology, cells, num_points):
+    def __init__(self, hydrology=None, cells=None, num_points=None, binaryFile=None):
+        if binaryFile is not None:
+            self._initReconstitute(binaryFile)
+        elif hydrology is not None and cells is not None and num_points is not None:
+            self._initCreate(hydrology, cells, num_points)
+        else:
+            raise ValueError()
+    def _initCreate(self, hydrology, cells, num_points):
         self.cellTs = { }
         self.tList = [ ]
         
@@ -874,6 +1072,28 @@ class Terrain:
         allpoints_list = [[t.position[0],t.position[1]] for t in self.allTs()]
         allpoints_nd = np.array(allpoints_list)
         self.apkd = cKDTree(allpoints_nd)
+    def _initReconstitute(self, binaryFile):
+        self.cellTs = { }
+        self.tList = [ ]
+        allpoints_list = [ ]
+
+        numPrimitives = readValue('!Q', binaryFile)
+        for i in range(numPrimitives):
+            loc = (readValue('!f', binaryFile), readValue('!f', binaryFile))
+            cellID = readValue('!Q', binaryFile)
+            elevation = readValue('!f', binaryFile)
+
+            t = T(loc,cellID)
+            t.elevation = elevation
+
+            if cellID not in self.cellTs:
+                self.cellTs[cellID] = [ ]
+            self.cellTs[cellID].append(t)
+            self.tList.append(t)
+            allpoints_list.append(loc)
+
+        allpoints_nd = np.array(allpoints_list)
+        self.apkd = cKDTree(allpoints_nd)
     def allTs(self) -> typing.List[T]:
         """Simply returns all the terrain primitives
 
@@ -901,3 +1121,14 @@ class Terrain:
         :rtype: list[T]
         """
         return [self.tList[i] for i in self.apkd.query_ball_point(loc,radius)]
+    def __len__(self) -> int:
+        """Returns the number of nodes in the forest
+
+        :return: The number of primitives on the map
+        :rtype: int
+        """
+        return len(self.tList)
+
+def readValue(type, stream):
+    buffer = stream.read(struct.calcsize(type))
+    return struct.unpack(type, buffer)[0]

@@ -12,9 +12,11 @@ The approach described in Genevaux et al is an ontogenetic approach that is mean
 
 ## Usage
 
-`hydrology.py` is located in the `src/` directory. The `-h` switch will display the basic options.
+This project consists of three scripts: `hydrology.py`, `hydrology-render.py`, and `hydrology-visualize.py`. They are all located in the `src/` directory, and the `-h` switch will display basic options for each.
 
-### Input
+### `hydrology.py`
+
+This script will generate terrain and stores it in a binary file. This binary file contains the full data model that can be rendered at an arbitrary resolution.
 
 The program requires three images as inputs. They should all be the same resolution.
 
@@ -22,34 +24,70 @@ The program requires three images as inputs. They should all be the same resolut
 1. The river slope map is a grayscale image (though the actual color model does not matter). This map indicates the slope of rivers. Lighter values represent steeper slopes, and darker values represent more level slopes.
 1. The terrain slope map is also a grayscale image. It indicates the slope of terrain independent of the rivers.
 
-Three other parameters must be specified as command line switches.
-
 Switch | Notes
 ------ | -----
+`-g`, `--gamma` | The gamma, or shoreline
+`-s`, `--river-slope` | The river slope map
+`-t`, `--terrain-slope` | The terrain slope map
 `-ri` | This is the spatial resolution of the input images in meters per pixel.
 `--num-rivers` | This is the number of drainages to create along the coast.
 `p` | This is the approximate number of terrain primitives for each cell.
+`--dry-run` | Only calculate the river network and forget about anything that has to do with ridges. This is useful for designing landscapes, as it can allow for faster feedback
+`--accelerate` | Accelerate Your Life™ with a natively-compiled module that can generate the river network much more quickly. (See "Native module" section below)
+`-o`, `--output` | The file that will contain the data model
+
+### `hydrology-render.py`
+
+This script will render the terrain as a GeoTIFF and a small `.png` image. The file `out-geo.tif` is a GeoTIFF file that can be read by GIS software.
+
+Switch | Notes
+------ | -----
+`-i` | The file that contains the data model you wish to render
 `-ro` | This is the number of pixels or samples on each side of the output raster
 `--lat` | This is the center latitude of the output GeoTIFF
 `--lon` | This is the center longitude of the output GeoTIFF
-`--dry-run` | Only calculate the river network and forget about anything that has to do with ridges. This is useful for designing landscapes, as it can allow for faster feedback
-`--debug-dpi` | Manually specify the resolution of the debug images. Defaults to 100.
-`--accelerate` | Accelerate Your Life™ with a natively-compiled module that can generate the river network much more quickly. (See "Native module" section below)
+`-o` | The directory in which to dump the output files
 
-Optionally, `--num-procs` can be used to specify the number of processes to use in rendering the output raster. This will take advantage of the parallel processing capabilities of your CPU, and the number specified here should be equal to the number of cores in your CPU(s). Numbers larger than this obviously will not help, but numbers less than this will reduce performance.
+Optionally, `--num-procs` can be used to specify the number of processes to use in rendering the output raster. This will take advantage of the parallel processing capabilities of your CPU, and the number specified here should be equal to the number of cores in your CPU(s). Numbers larger than this obviously will not help, but numbers less than this may reduce performance.
 
-### Output
+### `hydrology-visualize.py`
 
-A directory must be specified where the script will dump all of its output.
+![A portion of the terrain visualized. The edges of the hydrology graph are weighted for flow. Cells are colored according to the cell node's elevation.](example/out/visualize.jpg)
 
-There are two outputs that will be useful to users. Firstly, `out-color.png` is a human-friendly elevation map. Secondly, `out.tif` is a GeoTIFF that can be read by GIS software. To adjust the location that the GeoTIFF specifies, edit the `projection` string on line 610.
+This script will visualize certain components of the data model. This can be useful for debugging or adding new features.
 
-As this program is in the early stages of development, it produces a number of charts and figures which are helpful for debugging. The final results are written to `out.png` and `out-color.png`. All these files will be placed in the output directory.
+The background can either be an outline of the shore, or the cells can be color coded for the Voronoi cell ID, or color coded for the height of the cell node's elevation.
+
+The terrain primitives can be displayed as well as the interpolated paths of the rivers.
+
+The hydrology network can be visualized. The edges can be weighted according to river flow, if desired.
+
+Switch | Notes
+------ | -----
+`-xl`, `--lower-x` | x lower bound
+`-yl`, `--lower-y` | y lower bound
+`-xu`, `--upper-x` | x upper bound
+`-yu`, `--upper-y` | y upper bound
+`--river-heights` | river height cells as background
+`--voronoi-cells` | voronoi cells as background
+`--terrain-primitives` | show terrain primitives
+`--river-paths` | show rivers
+`--hydrology-network` | show hydrology network
+`--hydrology-network-flow` | show hydrology network with
+`-o` | The path+name of the image to write
 
 ### Example
 
 ```
-src/hydrology.py -g example/in/gamma.png -s example/in/riverslope.png -t example/in/terrainslope.png -ri 100 -p 50 -o example/out/ -ro 1000 --lat -46.9 --lon -83.5
+src/hydrology.py -g example/in/gamma.png -s example/in/riverslope.png -t example/in/terrainslope.png -ri 100 -p 50 -o example/out/data
+```
+
+```
+src/hydrology-render.py -i example/out/data --lat 43.2 --lon -103.8 -ro 500 -o example/out/
+```
+
+```
+src/hydrology-visualize.py -i example/out/data -g example/in/gamma.png -xl 60000 -xu 100000 -yl 60000 -yu 120000 --river-heights --hydrology-network-flow -o example/out/visualize.jpg
 ```
 
 ## Documentation
