@@ -105,18 +105,6 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
 
         print(f"\tVertices: {sectionSize} bytes")
 
-        # imgvoronoi
-        sectionSize = 0
-        file.write(struct.pack('!Q', shore.rasterShape[0]))
-        file.write(struct.pack('!Q', shore.rasterShape[1]))
-        sectionSize += struct.calcsize('!Q')*2
-        for d0 in range(shore.rasterShape[0]):
-            for d1 in range(shore.rasterShape[1]):
-                file.write(struct.pack('!H', cells.imgvoronoi[d0][d1]))
-                sectionSize += struct.calcsize('!H')
-
-        print(f"\timgvoronoi: {sectionSize} bytes")
-
         # qs
         sectionSize = 0
         file.write(struct.pack('!Q', len(cells.qs)))

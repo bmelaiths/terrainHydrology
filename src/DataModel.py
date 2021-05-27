@@ -675,17 +675,6 @@ class TerrainHoneycomb:
         self.point_region = self.vor.point_region
         self.regions = self.vor.regions
         self.vertices = self.vor.vertices
-        
-        self.imgvoronoi = np.zeros(shore.rasterShape, dtype=np.uint16)
-        for n in range(len(hydrology)):
-            if self.vor_region_id(n) == -1:
-                continue
-            positions = [(int(p[0]/self.resolution),int(p[1]/self.resolution)) for p in self.ridgePositions(n)]
-            cv.fillPoly(
-                self.imgvoronoi,
-                openCVFillPolyArray(positions),
-                np.int16(self.vor_region_id(n)+1).item()
-            )
 
         self.qs = [ ]
         for iv in range(len(self.vertices)):
@@ -783,15 +772,7 @@ class TerrainHoneycomb:
         numVertices = readValue('!Q', binaryFile)
         for i in range(numVertices):
             self.vertices.append((readValue('!f', binaryFile),readValue('!f', binaryFile)))
-        
-        rasterShape = (
-            readValue('!Q', binaryFile), readValue('!Q', binaryFile)
-        )
-        self.imgvoronoi = np.zeros(rasterShape, dtype=np.uint16)
-        for d0 in range(rasterShape[0]):
-            for d1 in range(rasterShape[1]):
-                self.imgvoronoi[d0][d1] = readValue('!H', binaryFile)
-        
+
         self.qs = [ ]
         numQs = readValue('!Q', binaryFile)
         for i in range(numQs):
@@ -1004,8 +985,7 @@ class TerrainHoneycomb:
             if len(vertices) < 1:
                 # Ignore cells with malformed shapes
                 continue
-                Math.pointInConvexPolygon(point, vertices, self.hydrology.node(id).position, True)
-            if Math.pointInConvexPolygon(point, vertices, self.hydrology.node(id).position, False):
+            if Math.pointInConvexPolygon(point, vertices, self.hydrology.node(id).position):
                 return id
         return None
 
