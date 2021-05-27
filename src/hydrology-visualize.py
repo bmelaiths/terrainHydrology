@@ -133,10 +133,14 @@ elif args.showVoronoiCells:
     print('Rendering voronoi cell raster...')
     for y in trange(rastershape[0]):
         for x in range(rastershape[1]):
-            imgvoronoi[x][y] = cells.vor_region_id(cells.nodeID((
+            nodeID = cells.nodeID((
                 lowerX + (y/rastershape[0]) * (upperX-lowerX),
                 lowerY + (x/rastershape[1]) * (upperY-lowerY)
-            )))
+            ))
+            if nodeID is not None:
+                imgvoronoi[x][y] = cells.vor_region_id(nodeID)
+            else:
+                imgvoronoi[x][y] = 0
     plt.imshow(imgvoronoi, extent=(lowerX, upperX, upperY, lowerY))
 elif args.showRiverHeights:
     rastershape = (
@@ -152,7 +156,11 @@ elif args.showRiverHeights:
                 lowerY + (x/rastershape[1]) * (upperY-lowerY)
             )
             if shore.isOnLand(point):
-                imgRiverHeights[x][y] = hydrology.node(cells.nodeID(point)).elevation
+                nodeID = cells.nodeID(point)
+                if nodeID is not None:
+                    imgRiverHeights[x][y] = hydrology.node(nodeID).elevation
+                else:
+                    imgRiverHeights[x][y] = 0
             else:
                 imgRiverHeights[x][y] = 0
     plt.imshow(imgRiverHeights, extent=(lowerX, upperX, upperY, lowerY))
@@ -196,6 +204,7 @@ plt.gca().set_xlim((lowerX, upperX))
 plt.axis('on')
 plt.tick_params(left=True,bottom=True,labelleft=True,labelbottom=True)
 plt.tight_layout()
+plt.show()
 print('Saving the image...')
 plt.savefig(args.outputFile)
 print('All done')

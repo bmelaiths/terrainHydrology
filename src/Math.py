@@ -3,7 +3,7 @@ import math
 
 import typing
 
-def pointInConvexPolygon(point: typing.Tuple[float,float], vertices: np.ndarray, pivotPoint: typing.Tuple[float,float]) -> bool:
+def pointInConvexPolygon(point: typing.Tuple[float,float], vertices: np.ndarray, pivotPoint: typing.Tuple[float,float], printDebug) -> bool:
   """Determine if a point is within a convex polygon
 
   Algorithm derived from Wolfram: _An Efficient Test for a Point to Be in a Convex Polygon: http://demonstrations.wolfram.com/AnEfficientTestForAPointToBeInAConvexPolygon/
@@ -21,17 +21,21 @@ def pointInConvexPolygon(point: typing.Tuple[float,float], vertices: np.ndarray,
   :return: True if the point is within the polygon, False otherwise
   :rtype: bool
   """
-
+  if printDebug:
+    print(f'Pre-translation vertices: {vertices}')
   previousSignPositive = None
-  # make point the new origin
+  # make pivot point the new origin
   vertices = np.subtract(vertices, pivotPoint)
   vertices = list(vertices)
+  if printDebug:
+    print(f'translation to pivot point: {vertices}')
   # ensure that the points are arranged such that the polygon does not self-intersect
   vertices.sort(key = lambda coord: math.atan2(coord[1],coord[0]))
   vertices = np.array(vertices)
-
-  # translate the test point to the correct reference frame
-  point = np.subtract(point, pivotPoint)
+  vertices += pivotPoint # restore shape to original location
+  vertices = np.subtract(vertices, point) # make the test point the new origin
+  if printDebug:
+    print(f'sorted vertices: {vertices}')
 
   for i in range(len(vertices)):
     v0, v1 = vertices[i], vertices[(i+1)%len(vertices)]
@@ -41,6 +45,8 @@ def pointInConvexPolygon(point: typing.Tuple[float,float], vertices: np.ndarray,
       previousSignPositive = (ai > 0)
       continue
     if previousSignPositive != (ai > 0):
+      if printDebug:
+        print(f'vertex violated: {vertices}')
       # ai must always have the same sign
       return False
   return True

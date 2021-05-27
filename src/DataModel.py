@@ -651,14 +651,14 @@ class TerrainHoneycomb:
     instance and a couple of dictionaries to classify ridges and other
     edges.
     """
-    def __init__(self, shore: ShoreModel=None, hydrology: HydrologyNetwork=None, resolution: float=None, binaryFile: typing.IO=None):
-        if binaryFile is not None and resolution is not None and shore is not None and hydrology is not None:
-            self._initFromBinaryFile(resolution, shore, hydrology, binaryFile)
-        elif shore is not None and hydrology is not None and resolution is not None:
-            self._initFromModel(shore, hydrology, resolution)
+    def __init__(self, shore: ShoreModel=None, hydrology: HydrologyNetwork=None, resolution: float=None, edgeLength: float=None, binaryFile: typing.IO=None):
+        if binaryFile is not None and resolution is not None and edgeLength is not None and shore is not None and hydrology is not None:
+            self._initFromBinaryFile(resolution, edgeLength, shore, hydrology, binaryFile)
+        elif shore is not None and hydrology is not None and resolution is not None and edgeLength is not None:
+            self._initFromModel(shore, hydrology, resolution, edgeLength)
         else:
             raise ValueError()
-    def _initFromModel(self, shore, hydrology, resolution):
+    def _initFromModel(self, shore, hydrology, resolution, edgeLength):
         self.resolution = resolution
         self.edgeLength = edgeLength
 
@@ -748,7 +748,11 @@ class TerrainHoneycomb:
                 self.cellsRidges[n].append((self.qs[v],))
             print(f'\tFinding unaffiliated vertices for node {n} of {len(hydrology)}\r', end='')
         print()
-    def _initFromBinaryFile(self, resolution, shore, hydrology, binaryFile):
+    def _initFromBinaryFile(self, resolution, edgeLength, shore, hydrology, binaryFile):
+        self.edgeLength = edgeLength
+        self.shore = shore
+        self.hydrology = hydrology
+
         points = [node.position for node in hydrology.allNodes()]
         points.append((0,0))
         points.append((0,shore.realShape[1]))
@@ -993,14 +997,15 @@ class TerrainHoneycomb:
         :rtype: int
         """
         # check hydrology nodes within a certain distance
-        for id in self.hydrology.query_ball_point(point, self.edgeLength * 2):
+        for id in self.hydrology.query_ball_point(point, self.edgeLength):
             # if this point is within the voronoi region of one of those nodes,
             # then that is the point's node
             vertices = self.cellVertices(id)
             if len(vertices) < 1:
                 # Ignore cells with malformed shapes
                 continue
-            if Math.pointInConvexPolygon(point, vertices, self.hydrology.node(id).position):
+                Math.pointInConvexPolygon(point, vertices, self.hydrology.node(id).position, True)
+            if Math.pointInConvexPolygon(point, vertices, self.hydrology.node(id).position, False):
                 return id
         return None
 

@@ -221,7 +221,7 @@ print(f'\tRate: {len(hydrology)/(end-start).total_seconds()} node/sec')
 
 ## Create terrain partition (voronoi cells)
 print('Generating terrain ridges...')
-cells = DataModel.TerrainHoneycomb(shore, hydrology, resolution)
+cells = DataModel.TerrainHoneycomb(shore, hydrology, resolution, edgeLength)
 
 
 ## Calculate watershed areas

@@ -204,7 +204,7 @@ def readDataModel(path):
 
         shore = DataModel.ShoreModel(rasterResolution, binaryFile=file)
         hydrology = DataModel.HydrologyNetwork(binaryFile=file)
-        cells = DataModel.TerrainHoneycomb(resolution=rasterResolution, shore=shore, hydrology=hydrology, binaryFile=file)
+        cells = DataModel.TerrainHoneycomb(resolution=rasterResolution, edgeLength=edgeLength, shore=shore, hydrology=hydrology, binaryFile=file)
         terrain = DataModel.Terrain(binaryFile=file)
 
         file.close()
