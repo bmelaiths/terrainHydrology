@@ -22,14 +22,9 @@ def pointInConvexPolygon(point: typing.Tuple[float,float], vertices: np.ndarray,
   :rtype: bool
   """
   previousSignPositive = None
-  # make pivot point the new origin
-  vertices = np.subtract(vertices, pivotPoint)
-  vertices = list(vertices)
-  # ensure that the points are arranged such that the polygon does not self-intersect
-  vertices.sort(key = lambda coord: math.atan2(coord[1],coord[0]))
-  vertices = np.array(vertices)
-  vertices += pivotPoint # restore shape to original location
-  vertices = np.subtract(vertices, point) # make the test point the new origin
+
+  # make the test point the new origin
+  vertices = np.subtract(vertices, point)
 
   for i in range(len(vertices)):
     v0, v1 = vertices[i], vertices[(i+1)%len(vertices)]

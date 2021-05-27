@@ -8,6 +8,7 @@ from poisson import PoissonGenerator
 from PIL import Image
 import shapely.geometry as geom
 import struct
+import math
 
 import typing
 
@@ -672,9 +673,22 @@ class TerrainHoneycomb:
         points.append((shore.realShape[0],shore.realShape[1]))
         
         self.vor = Voronoi(points,qhull_options='Qbb Qc Qz Qx')
-        self.point_region = self.vor.point_region
+        self.point_region = list(self.vor.point_region)
         self.regions = self.vor.regions
         self.vertices = self.vor.vertices
+
+        # sort region vertices so that the polygons are convex
+        for rid in range(len(self.regions)):
+            nodeID = self.id_vor_region(rid)
+            if nodeID is None or nodeID >= len(self.hydrology):
+                continue # if this region is not associated with a node, don't bother
+            region = [iv for iv in self.regions[rid] if iv != -1]
+            pivotPoint = self.hydrology.node(nodeID).position
+            region.sort(key = lambda idx: math.atan2(
+                    self.vertices[idx][1] - pivotPoint[1], # y
+                    self.vertices[idx][0] - pivotPoint[0]  # x
+            ))
+            self.regions[rid] = region
 
         self.qs = [ ]
         for iv in range(len(self.vertices)):
@@ -834,6 +848,23 @@ class TerrainHoneycomb:
            class, your approach is definitely breaking a key design principle.
         """
         return self.point_region[node]
+    def id_vor_region(self, regionID: int) -> int:
+        """ Returns the index of the *node*
+
+        This method is the opposite of :func:`TerrainHoneycomb.vor_region_id`
+
+        :param regionID: The voronoi region id
+        :type regionID: int
+
+        :return: The ID of the hydrology node that this region corresponds to. If this region is not associated with an input point, None is returned
+        :rtype: int
+        .. note::
+            This method is also for internal use
+        """
+        if regionID in self.point_region:
+            return self.point_region.index(regionID)
+        else:
+            return None
     def ridgePositions(self, node: int) -> typing.List[typing.Tuple[float,float]]:
         """Gets the position of each vertex that makes up the cell
 
