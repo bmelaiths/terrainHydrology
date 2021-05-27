@@ -41,7 +41,7 @@ size_t Primitive::binarySize()
 {
   return
   (
-    sizeof(size_t) * (2 + children.size()) + // for all the size_t sized data
+    sizeof(uint64_t) * (3 + children.size()) + // for all the size_t sized data
     sizeof(uint8_t) * 1 +                    // for all the char sized data
     sizeof(float) * 3                        // for all the floats
   );
@@ -56,22 +56,27 @@ void Primitive::toBinary(uint8_t *buffer)
   // write that data to the buffer
   memcpy(buffer + idx, &ID, sizeof(uint64_t));
   // advance the index appropriately
-  idx += sizeof(size_t);
+  idx += sizeof(uint64_t);
 
-  uint64_t PARENT;
+  uint64_t PARENT, CONTOUR_INDEX;
   if (parent == NULL)
   {
     // this is how the calling program will know that this
     // is a mouth node
     PARENT = ID;
+    CONTOUR_INDEX = htobe64((uint64_t)contourIndex);
   }
   else
   {
     PARENT = htobe64((uint64_t)parent->id);
+    CONTOUR_INDEX = 0x0;
   }
   
   memcpy(buffer + idx, &PARENT, sizeof(uint64_t));
-  idx += sizeof(size_t);
+  idx += sizeof(uint64_t);
+
+  memcpy(buffer + idx, &CONTOUR_INDEX, sizeof(uint64_t));
+  idx += sizeof(uint64_t);
 
   uint8_t numChildren = (uint8_t) children.size();
   memcpy(buffer + idx, &numChildren, sizeof(uint8_t));

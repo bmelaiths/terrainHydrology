@@ -277,10 +277,13 @@ class HydrologyNetwork:
 
             buffer = pipe.read(8)
             parent = struct.unpack('!Q', buffer)[0]
+            buffer = pipe.read(8)
+            contourIndex = struct.unpack('!Q', buffer)[0]
             if parent == nodeID:
                 parent = None
             else:
                 parent = self.node(parent)
+                contourIndex = None
 
             buffer = pipe.read(1)
             numChildren = struct.unpack('!B', buffer)[0]
@@ -301,6 +304,8 @@ class HydrologyNetwork:
             allpoints_list.append( (locX, locY) )
 
             node = HydroPrimitive(self.nodeCounter, (locX,locY), elevation, 0, parent)
+            if contourIndex is not None:
+                node.contourIndex = contourIndex
 
             self.graph.add_node(
                 self.nodeCounter,
@@ -321,8 +326,8 @@ class HydrologyNetwork:
         allpoints_list = []
 
         for i in range(numberNodes):
-            buffer = file.read(8)
-            nodeID = struct.unpack('!Q', buffer)[0]
+            buffer = file.read(struct.calcsize('!I'))
+            nodeID = struct.unpack('!I', buffer)[0]
 
             buffer = file.read(4)
             locX = struct.unpack('!f', buffer)[0]
@@ -333,23 +338,23 @@ class HydrologyNetwork:
             buffer = file.read(4)
             elevation = struct.unpack('!f', buffer)[0]
 
-            buffer = file.read(8)
-            parent = struct.unpack('!Q', buffer)[0]
+            buffer = file.read(struct.calcsize('!I'))
+            parent = struct.unpack('!I', buffer)[0]
             if parent == nodeID:
                 parent = None
             else:
                 parent = self.node(parent)
-            
-            buffer = file.read(struct.calcsize('!Q'))
-            contourIndex = struct.unpack('!Q', buffer)[0]
+
+            buffer = file.read(struct.calcsize('!I'))
+            contourIndex = struct.unpack('!I', buffer)[0]
 
             rivers = [ ]
             buffer = file.read(struct.calcsize('!B'))
             numRivers = struct.unpack('!B', buffer)[0]
             for i in range(numRivers):
                 points = [ ]
-                buffer = file.read(struct.calcsize('!I'))
-                numPoints = struct.unpack('!I', buffer)[0]
+                buffer = file.read(struct.calcsize('!H'))
+                numPoints = struct.unpack('!H', buffer)[0]
                 for j in range(numPoints):
                     buffer = file.read(struct.calcsize('!f'))
                     riverX = struct.unpack('!f', buffer)[0]
@@ -679,6 +684,7 @@ class TerrainHoneycomb:
 
         # sort region vertices so that the polygons are convex
         for rid in range(len(self.regions)):
+            print(f'\tOrganizing vertices for region {rid} of {len(self.regions)}\r', end='')
             nodeID = self.id_vor_region(rid)
             if nodeID is None or nodeID >= len(self.hydrology):
                 continue # if this region is not associated with a node, don't bother
@@ -689,6 +695,7 @@ class TerrainHoneycomb:
                     self.vertices[idx][0] - pivotPoint[0]  # x
             ))
             self.regions[rid] = region
+        print()
 
         self.qs = [ ]
         for iv in range(len(self.vertices)):
@@ -1096,7 +1103,7 @@ class Terrain:
         numPrimitives = readValue('!Q', binaryFile)
         for i in range(numPrimitives):
             loc = (readValue('!f', binaryFile), readValue('!f', binaryFile))
-            cellID = readValue('!Q', binaryFile)
+            cellID = readValue('!I', binaryFile)
             elevation = readValue('!f', binaryFile)
 
             t = T(loc,cellID)

@@ -205,7 +205,7 @@ else: # Generate the hydrology using the native module
     readByte = proc.stdout.read(1)
     cyclesRun = cyclesRun + 1
     while struct.unpack('B', readByte)[0] == 0x2e:
-        print(f'\Cycles: {cyclesRun}\t{cyclesRun/(datetime.datetime.now()-start).total_seconds()} cycles/sec\r', end='')
+        print(f'\tCycles: {cyclesRun}\t{cyclesRun/(datetime.datetime.now()-start).total_seconds()} cycles/sec\r', end='')
         readByte = proc.stdout.read(1)
         cyclesRun = cyclesRun + 1
     end = datetime.datetime.now()
@@ -372,7 +372,12 @@ for t in Ts.allTs():
                 ridgeElevation = q1.elevation
         else:
             closestRdist = dist
-            ridgeElevation = q0.elevation + (math.sqrt(Math.distance(q0.position,t.position)**2 - dist**2) / Math.distance(q0.position,q1.position)) * (q1.elevation - q0.elevation)
+            try:
+                ridgeElevation = q0.elevation + (math.sqrt(Math.distance(q0.position,t.position)**2 - dist**2) / Math.distance(q0.position,q1.position)) * (q1.elevation - q0.elevation)
+            except:
+                print(f'That math domain error has occured')
+                print(f'q0.elevation: {q0.elevation}, q0.position: {q0.position}, t.positon: {t.position}, dist: {dist}, q1.position: {q1.positon}, q1.elevation: {q1.elevation}')
+                exit()
     
     # see if the seeeeee is closer
     dist_gamma = shore.distanceToShore(t.position)

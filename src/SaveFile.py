@@ -40,16 +40,16 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
         file.write(struct.pack('!Q', len(hydrology)))
         sectionSize += struct.calcsize('!Q')
         for node in hydrology.allNodes():
-            file.write(struct.pack('!Q', node.id))
+            file.write(struct.pack('!I', node.id))
             file.write(struct.pack('!f', node.x()))
             file.write(struct.pack('!f', node.y()))
             file.write(struct.pack('!f', node.elevation))
-            file.write(struct.pack('!Q', node.parent.id if node.parent is not None else node.id))
-            file.write(struct.pack('!Q', node.contourIndex if node.parent is None else 0))
+            file.write(struct.pack('!I', node.parent.id if node.parent is not None else node.id))
+            file.write(struct.pack('!I', node.contourIndex if node.parent is None else 0))
             file.write(struct.pack('!B', len(node.rivers)))
             for river in node.rivers:
-                file.write(struct.pack('!I', len(river.coords)))
-                sectionSize += struct.calcsize('!I')
+                file.write(struct.pack('!H', len(river.coords)))
+                sectionSize += struct.calcsize('!H')
                 for point in river.coords:
                     file.write(struct.pack('!f', point[0]))
                     file.write(struct.pack('!f', point[1]))
@@ -58,7 +58,7 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
             file.write(struct.pack('!f', node.localWatershed))
             file.write(struct.pack('!f', node.inheritedWatershed))
             file.write(struct.pack('!f', node.flow if node.parent is not None else 0))
-            sectionSize += struct.calcsize('!Q')*3 + struct.calcsize('!f')*6 + struct.calcsize('!B')
+            sectionSize += struct.calcsize('!I')*2 + struct.calcsize('!H') + struct.calcsize('!f')*6 + struct.calcsize('!B')
 
         print(f"\tHydrology nodes: {sectionSize} bytes")
 
@@ -174,9 +174,9 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
         for t in Ts.allTs():
             file.write(struct.pack('!f', t.position[0]))
             file.write(struct.pack('!f', t.position[1]))
-            file.write(struct.pack('!Q', t.cell))
+            file.write(struct.pack('!I', t.cell))
             file.write(struct.pack('!f', t.elevation))
-            sectionSize += struct.calcsize('!Q') + struct.calcsize('!f')*3
+            sectionSize += struct.calcsize('!I') + struct.calcsize('!f')*3
 
         print(f"\tTerrain primitives: {sectionSize} bytes")
 
