@@ -89,6 +89,14 @@ parser.add_argument(
     required=False
 )
 parser.add_argument(
+    '--num-procs',
+    help='The number of processes/threads to use for calculating terrain primitives. This should be the number of cores you have on your system.',
+    dest='num_procs',
+    metavar='4',
+    default=4,
+    required=False
+)
+parser.add_argument(
     '-o',
     '--output',
     help='File that will contain the data model',
@@ -135,6 +143,7 @@ sigma = .75 # sigma * edgeLength is the minimum distance between two nodes
 ## Terrain Parameters
 terrainSlopeRate = 1.0 # Maximum rate at which ridges climb in vertical meters per horizontal meter
 num_points = int(args.num_points) # The (rough) number of terrain primitives for each cell
+numProcs = int(args.num_procs) # The number of processes to use in calculating terrain primitives
 
 ## Output File
 outputFile = args.outputFile
@@ -338,76 +347,91 @@ for node in hydrology.allMouthNodes():
 
 ## Calculate elevations of terrain primitives
 print('Calculating terrain primitive elevations...')
-# numTs = len(Ts.allTs())
-# for t in Ts.allTs():
-for ti in trange(len(Ts)):
-    t = Ts.getT(ti)
-    ridges = cells.cellRidges(t.cell)
-    # find distance to closest sgment, and elevation at that point
-    closestRdist = None
-    ridgeElevation = None
-    for ridge in ridges:
-        if len(ridge) < 2:
+def subroutine(conn: Pipe, q: Queue):
+    threadID = conn.recv()
+    for ti in range(threadID, len(Ts), numProcs):
+        t = Ts.getT(ti)
+        ridges = cells.cellRidges(t.cell)
+        # find distance to closest sgment, and elevation at that point
+        closestRdist = None
+        ridgeElevation = None
+        for ridge in ridges:
+            if len(ridge) < 2:
+                q0 = ridge[0]
+                dist = Math.distance(q0.position,t.position)
+                if closestRdist is None or dist < closestRdist:
+                    closestRdist = dist
+                    ridgeElevation = q0.elevation
+                continue
+            
             q0 = ridge[0]
-            dist = Math.distance(q0.position,t.position)
-            if closestRdist is None or dist < closestRdist:
-                closestRdist = dist
-                ridgeElevation = q0.elevation
-            continue
-        
-        q0 = ridge[0]
-        q1 = ridge[1]
-        dist, isToEndpoint = Math.point_segment_distance_is_endpoint(
-            t.position[0],t.position[1],
-            q0.position[0],q0.position[1],
-            q1.position[0],q1.position[1]
-        )
-        if closestRdist is not None and dist > closestRdist:
-            continue
-        if isToEndpoint:
-            if Math.distance(q0.position,t.position) < Math.distance(q1.position,t.position):
-                closestRdist = Math.distance(q0.position,t.position)
-                ridgeElevation = q0.elevation
+            q1 = ridge[1]
+            dist, isToEndpoint = Math.point_segment_distance_is_endpoint(
+                t.position[0],t.position[1],
+                q0.position[0],q0.position[1],
+                q1.position[0],q1.position[1]
+            )
+            if closestRdist is not None and dist > closestRdist:
+                continue
+            if isToEndpoint:
+                if Math.distance(q0.position,t.position) < Math.distance(q1.position,t.position):
+                    closestRdist = Math.distance(q0.position,t.position)
+                    ridgeElevation = q0.elevation
+                else:
+                    closestRdist = Math.distance(q1.position,t.position)
+                    ridgeElevation = q1.elevation
             else:
-                closestRdist = Math.distance(q1.position,t.position)
-                ridgeElevation = q1.elevation
-        else:
-            closestRdist = dist
-            try:
-                ridgeElevation = q0.elevation + (math.sqrt(Math.distance(q0.position,t.position)**2 - dist**2) / Math.distance(q0.position,q1.position)) * (q1.elevation - q0.elevation)
-            except:
-                print(f'That math domain error has occured')
-                print(f'q0.elevation: {q0.elevation}, q0.position: {q0.position}, t.positon: {t.position}, dist: {dist}, q1.position: {q1.positon}, q1.elevation: {q1.elevation}')
-                exit()
-    
-    # see if the seeeeee is closer
-    dist_gamma = shore.distanceToShore(t.position)
-    if closestRdist is None or (dist_gamma < closestRdist):
-        closestRdist = dist_gamma
-        ridgeElevation = 0
-    
-    point = geom.Point(t.position[0],t.position[1])
-    projected = None
-    distancefromN = None
-    node = hydrology.node(t.cell)
-    if len(node.rivers) > 0:
-        local_rivers = node.rivers # tries to get a line to the seeeee
-        # index of the point on the interpolated river line that is closest to the Tee point
-        rividx = [point.distance(x) for x in local_rivers].index(min([point.distance(x) for x in local_rivers]))
-        # gets the point along the river that is the distance along the river to the point nearest to the Tee
-        projected = local_rivers[rividx].interpolate(local_rivers[rividx].project(point))
-        distancefromN = point.distance(local_rivers[rividx]) # distance to that point
-    else: # handle cases of stub rivers
-        projected = geom.Point(node.x(),node.y(),node.elevation)
-        distancefromN = point.distance(projected)
-    
-    if distancefromN==0 and closestRdist==0:
-        distancefromN=1
-    
-    lerpedelevation = projected.z*(closestRdist/(closestRdist+distancefromN))+ridgeElevation*(distancefromN/(closestRdist+distancefromN))
-    
-    t.elevation = lerpedelevation
+                closestRdist = dist
+                try:
+                    ridgeElevation = q0.elevation + (math.sqrt(Math.distance(q0.position,t.position)**2 - dist**2) / Math.distance(q0.position,q1.position)) * (q1.elevation - q0.elevation)
+                except:
+                    print(f'That math domain error has occured')
+                    print(f'q0.elevation: {q0.elevation}, q0.position: {q0.position}, t.positon: {t.position}, dist: {dist}, q1.position: {q1.positon}, q1.elevation: {q1.elevation}')
+                    exit()
+        
+        # see if the seeeeee is closer
+        dist_gamma = shore.distanceToShore(t.position)
+        if closestRdist is None or (dist_gamma < closestRdist):
+            closestRdist = dist_gamma
+            ridgeElevation = 0
+        
+        point = geom.Point(t.position[0],t.position[1])
+        projected = None
+        distancefromN = None
+        node = hydrology.node(t.cell)
+        if len(node.rivers) > 0:
+            local_rivers = node.rivers # tries to get a line to the seeeee
+            # index of the point on the interpolated river line that is closest to the Tee point
+            rividx = [point.distance(x) for x in local_rivers].index(min([point.distance(x) for x in local_rivers]))
+            # gets the point along the river that is the distance along the river to the point nearest to the Tee
+            projected = local_rivers[rividx].interpolate(local_rivers[rividx].project(point))
+            distancefromN = point.distance(local_rivers[rividx]) # distance to that point
+        else: # handle cases of stub rivers
+            projected = geom.Point(node.x(),node.y(),node.elevation)
+            distancefromN = point.distance(projected)
+        
+        if distancefromN==0 and closestRdist==0:
+            distancefromN=1
+        
+        lerpedelevation = projected.z*(closestRdist/(closestRdist+distancefromN))+ridgeElevation*(distancefromN/(closestRdist+distancefromN))
+        t.elevation = lerpedelevation
 
+        q.put(t)
+
+# The terrain primitives will be calculated in parallel
+dataQueue = Queue()
+pipes = []
+processes = []
+for p in range(numProcs):
+    pipes.append(Pipe())
+    processes.append(Process(target=subroutine, args=(pipes[p][1],dataQueue)))
+    processes[p].start()
+    pipes[p][0].send(p)
+for ti in trange(len(Ts)):
+    Ts.tList[ti] = dataQueue.get()
+for p in range(numProcs):
+    processes[p].join()
+    pipes[p][0].close()
 
 ## Save the data
 print('Writing data model...')
