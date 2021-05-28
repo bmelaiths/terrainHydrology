@@ -704,9 +704,12 @@ class TerrainHoneycomb:
             if not shore.isOnLand(self.vertices[iv]):
                 self.qs.append(None)
                 continue
-            regionIdxes = [self.regions.index(bound) for bound in self.regions if iv in bound]
-            nodeIdxes = [list(self.point_region).index(regionIndex) for regionIndex in regionIdxes]
-            self.qs.append(Q(self.vertices[iv],nodeIdxes, iv))
+            nearbyNodes = self.hydrology.query_ball_point(self.vertices[iv], edgeLength*2)
+            borderedNodes = [ ]
+            for nodeID in nearbyNodes:
+                if iv in self.regions[self.vor_region_id(nodeID)]:
+                    borderedNodes.append(nodeID)
+            self.qs.append(Q(self.vertices[iv], borderedNodes, iv))
 
         print('\tClassifying ridges...')
         self.cellsRidges = { }
