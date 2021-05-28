@@ -34,6 +34,7 @@ Switch | Notes
 `p` | This is the approximate number of terrain primitives for each cell.
 `--dry-run` | Only calculate the river network and forget about anything that has to do with ridges. This is useful for designing landscapes, as it can allow for faster feedback
 `--accelerate` | Accelerate Your Life™ with a natively-compiled module that can generate the river network much more quickly. (See "Native module" section below)
+`--num-procs` | The number of processes to use in the calculation of terrain primitive elevations. It is analogous to the `--num-procs` flag in `hydrology-render.py` below.
 `-o`, `--output` | The file that will contain the data model
 
 ### `hydrology-render.py`
