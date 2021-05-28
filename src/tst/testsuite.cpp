@@ -214,7 +214,7 @@ namespace
     }
     TEST(HydrologyTest, IDTest)
     {
-        Hydrology hydrology(Point(0,0), Point(15,20));
+        Hydrology hydrology(Point(0,0), Point(15,20), 1.0);
 
         Primitive node0 = *hydrology.addMouthNode  (
             Point(6.0f,11.0f), 0.0f, 0, 0
@@ -253,7 +253,7 @@ namespace
 
     TEST(HydrologyTest, BallPointSearch)
     {
-        Hydrology hydrology(Point(0,0), Point(15,20));
+        Hydrology hydrology(Point(0,0), Point(15,20), 1.0);
 
         Primitive node0 = *hydrology.addMouthNode  (
             Point(6.0f,11.0f), 0.0f, 0, 0
@@ -289,7 +289,7 @@ namespace
 
     TEST(HydrologyTest, BallPointSearchII)
     {
-        Hydrology hydrology(Point(0,0), Point(15,20));
+        Hydrology hydrology(Point(0,0), Point(15,20), 1.0);
 
         Primitive node0 = *hydrology.addMouthNode  (
             Point(3.0f, 7.0f), 0.0f, 0, 0
@@ -765,7 +765,7 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryIDTest)
     {
-        Hydrology hydrology(Point(-1,-1),Point(4,6));
+        Hydrology hydrology(Point(-1,-1),Point(4,6), 1.0);
         hydrology.addMouthNode(
             Point(0.0,0.0), 0.0, 0, 0
         );
@@ -790,7 +790,7 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryParentTest)
     {
-        Hydrology hydrology(Point(-1,-1),Point(4,6));
+        Hydrology hydrology(Point(-1,-1),Point(4,6), 1.0);
         hydrology.addMouthNode(
             Point(0.0,0.0), 0.0, 0, 0
         );
@@ -815,7 +815,7 @@ namespace
     }
     TEST(PrimitiveTests, ToChildrenTest)
     {
-        Hydrology hydrology(Point(-1,-1),Point(4,6));
+        Hydrology hydrology(Point(-1,-1),Point(4,6), 1.0);
         hydrology.addMouthNode(
             Point(3.14,5.2), 12.1,5,10
         );
@@ -833,7 +833,7 @@ namespace
         node.toBinary(buffer);
 
         uint8_t numChildren;
-        memcpy(&numChildren, buffer + sizeof(uint64_t) * 2, sizeof(uint8_t));
+        memcpy(&numChildren, buffer + sizeof(uint64_t) * 3, sizeof(uint8_t));
         ASSERT_EQ(2, numChildren);
 
         uint64_t childID;
@@ -842,7 +842,7 @@ namespace
             memcpy
             (
                 &childID,
-                buffer + sizeof(uint64_t)*2 + sizeof(uint8_t) + sizeof(uint64_t)*child,
+                buffer + sizeof(uint64_t)*3 + sizeof(uint8_t) + sizeof(uint64_t)*child,
                 sizeof(uint64_t)
             );
             ASSERT_EQ(child+1, be64toh(childID));
@@ -852,7 +852,7 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryLocXTest)
     {
-        Hydrology hydrology(Point(-1,-1),Point(4,6));
+        Hydrology hydrology(Point(-1,-1),Point(4,6), 1.0);
         hydrology.addMouthNode(
             Point(3.14,5.2), 12.1,5,10
         );
@@ -873,7 +873,7 @@ namespace
         memcpy(
             &locX,
             buffer
-                + sizeof(uint64_t)*2
+                + sizeof(uint64_t)*3
                 + sizeof(uint8_t)
                 + sizeof(uint64_t)*2,
             sizeof(float)
@@ -885,7 +885,7 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryLocYTest)
     {
-        Hydrology hydrology(Point(-1,-1),Point(4,6));
+        Hydrology hydrology(Point(-1,-1),Point(4,6), 1.0);
         hydrology.addMouthNode(
             Point(3.14,5.2), 12.1,5,10
         );
@@ -906,7 +906,7 @@ namespace
         memcpy(
             &locY,
             buffer
-                + sizeof(uint64_t)*2
+                + sizeof(uint64_t)*3
                 + sizeof(uint8_t)
                 + sizeof(uint64_t)*2
                 + sizeof(float),
@@ -919,7 +919,7 @@ namespace
     }
     TEST(PrimitiveTests, ToBinaryElevationTest)
     {
-        Hydrology hydrology(Point(-1,-1),Point(4,6));
+        Hydrology hydrology(Point(-1,-1),Point(4,6), 1.0);
         hydrology.addMouthNode(
             Point(3.14,5.2), 12.1,5,10
         );
@@ -940,7 +940,7 @@ namespace
         memcpy(
             &elevation,
             buffer
-                + sizeof(uint64_t)*2
+                + sizeof(uint64_t)*3
                 + sizeof(uint8_t)
                 + sizeof(uint64_t)*2
                 + sizeof(float)*2,

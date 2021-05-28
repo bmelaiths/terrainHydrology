@@ -5,7 +5,17 @@
 
 HydrologyParameters::HydrologyParameters(Point lowerLeft, Point upperRight)
 {
-  hydrology = Hydrology(lowerLeft, upperRight);
+  float dimension;
+  // this just figures out a nice way to divide the area into tiles
+  if (upperRight.x() - lowerLeft.x() > upperRight.y() - lowerLeft.y())
+  {
+    dimension = (upperRight.x() - lowerLeft.x()) / 10;
+  }
+  else
+  {
+    dimension = (upperRight.y() - lowerLeft.y()) / 10;
+  }
+  hydrology = Hydrology(lowerLeft, upperRight, dimension);
 }
 
 HydrologyParameters::HydrologyParameters(FILE *stream)
@@ -21,8 +31,6 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
   minY = float_swap(minY);
   maxX = float_swap(maxX);
   maxY = float_swap(maxY);
-
-  hydrology = Hydrology(Point(minX,minY), Point(maxX,maxY));
 
   /* Read in various parameters */
 
@@ -45,6 +53,8 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
   slopeRate =     float_swap(slopeRate);
   maxTries =   (int) be16toh(maxTriesIn);
   riverAngleDev = float_swap(riverAngleDev);
+
+  hydrology = Hydrology(Point(minX,minY), Point(maxX,maxY), edgeLength);
 
   /* Read in the raster data */
 

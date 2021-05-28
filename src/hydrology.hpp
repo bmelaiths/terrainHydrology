@@ -165,8 +165,9 @@ class Hydrology
    * 
    * @param lowerLeft The lower left corner of the area for the hydrology network
    * @param upperRight The upper right corner of the area for the hydrology network
+   * @param edgeLength The edge length parameter of the simulation
    */
-  Hydrology(Point lowerLeft, Point upperRight);
+  Hydrology(Point lowerLeft, Point upperRight, float edgeLength);
   ~Hydrology();
   Hydrology(const Hydrology& other);
   Hydrology(Hydrology&& other);

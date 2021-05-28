@@ -125,19 +125,9 @@ Edge::Edge(Primitive *node0, Primitive *node1)
 {
 }
 
-Hydrology::Hydrology(Point lowerLeft, Point upperRight)
+Hydrology::Hydrology(Point lowerLeft, Point upperRight, float edgeLength)
 {
-  float dimension;
-  // this just figures out a nice way to divide the area into tiles
-  if (upperRight.x() - lowerLeft.x() > upperRight.y() - lowerLeft.y())
-  {
-    dimension = (upperRight.x() - lowerLeft.x()) / 10;
-  }
-  else
-  {
-    dimension = (upperRight.y() - lowerLeft.y()) / 10;
-  }
-  trees = Forest<Primitive*>(lowerLeft, upperRight, dimension);
+  trees = Forest<Primitive*>(lowerLeft, upperRight, edgeLength * 10);
 }
 
 Hydrology::~Hydrology()
