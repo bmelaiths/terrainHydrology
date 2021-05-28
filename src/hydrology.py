@@ -189,7 +189,7 @@ if not args.accelerate: # Generate the hydrology in Python
     print()
 else: # Generate the hydrology using the native module
     if not os.path.exists(buildRiversExe):
-        print('The executable does not exist. Run "make" to build it.')
+        print('The executable does not exist. Run "make buildRivers" in the src/ directory to build it.')
         exit()
     proc = subprocess.Popen( # start the native module
         ['./' + buildRiversExe],

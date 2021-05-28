@@ -10,6 +10,7 @@ import shapely.geometry as geom
 import struct
 import math
 from tqdm import trange
+import datetime
 
 import typing
 
@@ -682,11 +683,11 @@ class TerrainHoneycomb:
         self.point_region = list(self.vor.point_region)
         self.regions = self.vor.regions
         self.vertices = self.vor.vertices
+        self.region_point = {self.point_region[i]: i for i in range(len(self.point_region))}
 
         # sort region vertices so that the polygons are convex
         print('\tOrganizing vertices into convex polygons...')
         for rid in trange(len(self.regions)):
-            # print(f'\tOrganizing vertices for region {rid} of {len(self.regions)}\r', end='')
             nodeID = self.id_vor_region(rid)
             if nodeID is None or nodeID >= len(self.hydrology):
                 continue # if this region is not associated with a node, don't bother
@@ -777,7 +778,9 @@ class TerrainHoneycomb:
         numPoints = readValue('!Q', binaryFile)
         for i in range(numPoints):
             self.point_region.append(readValue('!Q', binaryFile))
-        
+
+        self.region_point = {self.point_region[i]: i for i in range(len(self.point_region))}
+
         self.regions = [ ]
         numRegions = readValue('!Q', binaryFile)
         for r in range(numRegions):
@@ -870,7 +873,7 @@ class TerrainHoneycomb:
             This method is also for internal use
         """
         try:
-            return self.point_region.index(regionID)
+            return self.region_point[regionID]
         except:
             return None # This region does not correspond to an input point
     def ridgePositions(self, node: int) -> typing.List[typing.Tuple[float,float]]:
