@@ -9,6 +9,7 @@ from PIL import Image
 import shapely.geometry as geom
 import struct
 import math
+from tqdm import trange
 
 import typing
 
@@ -683,8 +684,9 @@ class TerrainHoneycomb:
         self.vertices = self.vor.vertices
 
         # sort region vertices so that the polygons are convex
-        for rid in range(len(self.regions)):
-            print(f'\tOrganizing vertices for region {rid} of {len(self.regions)}\r', end='')
+        print('\tOrganizing vertices into convex polygons...')
+        for rid in trange(len(self.regions)):
+            # print(f'\tOrganizing vertices for region {rid} of {len(self.regions)}\r', end='')
             nodeID = self.id_vor_region(rid)
             if nodeID is None or nodeID >= len(self.hydrology):
                 continue # if this region is not associated with a node, don't bother
@@ -695,23 +697,22 @@ class TerrainHoneycomb:
                     self.vertices[idx][0] - pivotPoint[0]  # x
             ))
             self.regions[rid] = region
-        print()
 
+        print('\tCreating ridge primitives...')
         self.qs = [ ]
-        for iv in range(len(self.vertices)):
+        for iv in trange(len(self.vertices)):
             if not shore.isOnLand(self.vertices[iv]):
                 self.qs.append(None)
                 continue
             regionIdxes = [self.regions.index(bound) for bound in self.regions if iv in bound]
             nodeIdxes = [list(self.point_region).index(regionIndex) for regionIndex in regionIdxes]
             self.qs.append(Q(self.vertices[iv],nodeIdxes, iv))
-            print(f'\tCreating ridge primitive {iv} of {len(self.vertices)}\r', end='')
-        print()
 
+        print('\tClassifying ridges...')
         self.cellsRidges = { }
         self.cellsDownstreamRidges = { }
         # Classify all ridges
-        for ri in range(len(self.vor.ridge_vertices)):
+        for ri in trange(len(self.vor.ridge_vertices)):
             for n in self.vor.ridge_points[ri]: # Each ridge separates exactly two nodes
                 if n >= len(self.hydrology):
                     continue # Apparently there are nodes that don't exist; skip these
@@ -739,11 +740,10 @@ class TerrainHoneycomb:
                 if vertex0 is None or vertex1 is None:
                     continue
                 self.cellsRidges[n].append((vertex0,vertex1))
-            print(f'\tClassifying ridge {ri} of {len(self.vor.ridge_vertices)}\r', end='')
-        print()
 
+        print('\tFinding unaffiliated vertices...')
         # Add vertices that are not attached to ridges
-        for n in range(len(self.hydrology)):
+        for n in trange(len(self.hydrology)):
             verts = self.regions[self.vor_region_id(n)].copy()
             if n not in self.cellsRidges:
                 self.cellsRidges[n] = [ ]
@@ -756,8 +756,6 @@ class TerrainHoneycomb:
                 if not self.shore.isOnLand(self.vertices[v]):
                     continue
                 self.cellsRidges[n].append((self.qs[v],))
-            print(f'\tFinding unaffiliated vertices for node {n} of {len(hydrology)}\r', end='')
-        print()
     def _initFromBinaryFile(self, resolution, edgeLength, shore, hydrology, binaryFile):
         self.edgeLength = edgeLength
         self.shore = shore
@@ -868,10 +866,10 @@ class TerrainHoneycomb:
         .. note::
             This method is also for internal use
         """
-        if regionID in self.point_region:
+        try:
             return self.point_region.index(regionID)
-        else:
-            return None
+        except:
+            return None # This region does not correspond to an input point
     def ridgePositions(self, node: int) -> typing.List[typing.Tuple[float,float]]:
         """Gets the position of each vertex that makes up the cell
 
@@ -1076,7 +1074,7 @@ class Terrain:
         
         poisson_generator = PoissonGenerator( repeatPattern, first_point_zero)
         points = poisson_generator.find_point_set(num_points, num_iterations, iterations_per_point, num_rotations)
-        for n in range(len(hydrology)):
+        for n in trange(len(hydrology)):
             xllim, xulim, yllim, yulim = cells.boundingBox(n)
             if xllim is None:
                 # Ignore cells that are too small
@@ -1088,9 +1086,6 @@ class Terrain:
             cellTs = [T(p,n) for p in points_filtered]
             self.cellTs[n] = cellTs
             self.tList += cellTs
-
-            print(f'\tPrimitives created: {n} of {len(hydrology)} \r', end='')  # use display(f) if you encounter performance issues
-        print()
 
         allpoints_list = [[t.position[0],t.position[1]] for t in self.allTs()]
         allpoints_nd = np.array(allpoints_list)
@@ -1133,6 +1128,15 @@ class Terrain:
         :rtype: list[T]
         """
         return self.Ts[cell].copy()
+    def getT(self, tid: int) -> T:
+        """Gets a terrain primitive identified by its index in the list of all primitives
+
+        :param tid: The index of the primitive you wish to retrieve
+        :type tid: int
+        :return: The terrain primitive
+        :rtype: T
+        """
+        return self.tList[tid]
     def query_ball_point(self, loc: typing.Tuple[float,float], radius: float) -> typing.List[T]:
         """Gets all terrain primitives within a given radius of a given location
 

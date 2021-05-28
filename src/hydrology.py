@@ -338,9 +338,10 @@ for node in hydrology.allMouthNodes():
 
 ## Calculate elevations of terrain primitives
 print('Calculating terrain primitive elevations...')
-progressCounter = 0
-numTs = len(Ts.allTs())
-for t in Ts.allTs():
+# numTs = len(Ts.allTs())
+# for t in Ts.allTs():
+for ti in trange(len(Ts)):
+    t = Ts.getT(ti)
     ridges = cells.cellRidges(t.cell)
     # find distance to closest sgment, and elevation at that point
     closestRdist = None
@@ -406,10 +407,6 @@ for t in Ts.allTs():
     lerpedelevation = projected.z*(closestRdist/(closestRdist+distancefromN))+ridgeElevation*(distancefromN/(closestRdist+distancefromN))
     
     t.elevation = lerpedelevation
-    
-    progressCounter = progressCounter + 1
-    print(f'\tPrimitives computed: {progressCounter} out of {numTs} \r', end='')  # use display(f) if you encounter performance issues
-print()
 
 
 ## Save the data
