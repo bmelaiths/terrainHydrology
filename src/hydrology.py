@@ -386,7 +386,7 @@ def subroutine(conn: Pipe, q: Queue):
                     ridgeElevation = q0.elevation + (math.sqrt(Math.distance(q0.position,t.position)**2 - dist**2) / Math.distance(q0.position,q1.position)) * (q1.elevation - q0.elevation)
                 except:
                     print(f'That math domain error has occured')
-                    print(f'q0.elevation: {q0.elevation}, q0.position: {q0.position}, t.positon: {t.position}, dist: {dist}, q1.position: {q1.positon}, q1.elevation: {q1.elevation}')
+                    print(f'q0.elevation: {q0.elevation}, q0.position: {q0.position}, t.positon: {t.position}, dist: {dist}, q1.position: {q1.position}, q1.elevation: {q1.elevation}')
                     exit()
         
         # see if the seeeeee is closer
