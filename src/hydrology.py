@@ -2,6 +2,7 @@
 
 import datetime
 import argparse
+from os import read
 import random
 import matplotlib.pyplot as plt
 import cv2 as cv
@@ -450,24 +451,17 @@ else:
     )
 
     # Display updates as native module calculates the elevations
-    cyclesRun = 0
-    start = datetime.datetime.now()
-    readByte = primitivesProc.stdout.read(1)
-    cyclesRun = cyclesRun + 1
-    while struct.unpack('B', readByte)[0] == 0x2e:
-        # print(f'\tPrimitives computed: {cyclesRun}\t{cyclesRun/(datetime.datetime.now()-start).total_seconds()} primitives/sec\r', end='')
-        print(f'\tPrimitives computed: {cyclesRun}\r', end='')
+    for tid in trange(len(Ts)):
         readByte = primitivesProc.stdout.read(1)
-        cyclesRun = cyclesRun + 1
-    end = datetime.datetime.now()
-    print()
+    readByte = primitivesProc.stdout.read(1)
+    assert struct.unpack('B',readByte)[0] == 0x21
 
     for t in Ts.allTs():
         readByte = primitivesProc.stdout.read(struct.calcsize('!f'))
         t.elevation = struct.unpack('!f', readByte)[0]
 
     # clean up
-    # os.remove('src/binaryFile')
+    os.remove('src/binaryFile')
 
 ## Save the data
 print('Writing data model...')
