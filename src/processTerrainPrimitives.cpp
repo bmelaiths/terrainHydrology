@@ -28,7 +28,7 @@ int main()
   }
   #endif
 
-  PrimitiveParameters params(input);
+  PrimitiveParameters params(INPUT);
 
 
   //perform computations

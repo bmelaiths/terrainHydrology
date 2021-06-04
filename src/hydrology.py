@@ -446,10 +446,8 @@ else:
         exit()
     primitivesProc = subprocess.Popen( # start the native module
         ['./' + computePrimitivesExe],
-        stdin=subprocess.PIPE,
         stdout=subprocess.PIPE
     )
-    print('\tData sent to native module...')
 
     # Display updates as native module calculates the elevations
     cyclesRun = 0
@@ -467,6 +465,9 @@ else:
     for t in Ts.allTs():
         readByte = primitivesProc.stdout.read(struct.calcsize('!f'))
         t.elevation = struct.unpack('!f', readByte)[0]
+
+    # clean up
+    os.remove('src/binaryFile')
 
 ## Save the data
 print('Writing data model...')

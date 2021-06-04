@@ -40,7 +40,7 @@ hydrologyParameters.o : hydrologyParameters.cpp raster.hpp hydrology.hpp
 hydrologyFunctions.o : hydrologyFunctions.cpp hydrologyFunctions.hpp hydrology.hpp hydrologyParameters.hpp
 
 buildRivers: hydrologyFunctions.o hydrologyParameters.o buildRivers.o hydrology.o floatEndian.o
-	g++ $^ $(CPPFLAGS) -lopencv_imgproc -o $@
+	g++ $^ $(CPPFLAGS) -lopencv_imgproc -lgeos_c -o $@
 
 terrainHoneycomb.o : terrainHoneycomb.cpp terrainHoneycomb.hpp
 
