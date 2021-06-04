@@ -182,6 +182,73 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
 
         file.close()
 
+def writeToTerrainModule(pipe, shore, edgeLength, hydrology, cells, Ts):
+    pipe.write(struct.pack('!f', 0))
+    pipe.write(struct.pack('!f', 0))
+    pipe.write(struct.pack('!f', shore.realShape[0]))
+    pipe.write(struct.pack('!f', shore.realShape[1]))
+
+    pipe.write(struct.pack('!f', edgeLength))
+    pipe.write(struct.pack('!f', shore.resolution)) # resolution
+
+    # write the shore contour
+    pipe.write(struct.pack('!Q', len(shore.contour)))
+    for point in shore.contour:
+        pipe.write(struct.pack('!Q', point[0]))
+        pipe.write(struct.pack('!Q', point[1]))
+
+    # write all hydrology primitives
+    pipe.write(struct.pack('!Q', len(hydrology)))
+    for node in hydrology.allNodes():
+        pipe.write(struct.pack('!I', node.id))
+        pipe.write(struct.pack('!f', node.x()))
+        pipe.write(struct.pack('!f', node.y()))
+        pipe.write(struct.pack('!f', node.elevation))
+        pipe.write(struct.pack('!I', node.parent.id if node.parent is not None else node.id))
+        pipe.write(struct.pack('!I', node.contourIndex if node.parent is None else 0))
+        pipe.write(struct.pack('!B', len(node.rivers)))
+        for river in node.rivers:
+            pipe.write(struct.pack('!H', len(river.coords)))
+            for point in river.coords:
+                pipe.write(struct.pack('!f', point[0]))
+                pipe.write(struct.pack('!f', point[1]))
+                pipe.write(struct.pack('!f', point[2]))
+        pipe.write(struct.pack('!f', node.localWatershed))
+        pipe.write(struct.pack('!f', node.inheritedWatershed))
+        pipe.write(struct.pack('!f', node.flow if node.parent is not None else 0))
+
+    # qs
+    pipe.write(struct.pack('!Q', len(cells.qs)))
+    for q in cells.qs:
+        if q is None:
+            pipe.write(struct.pack('!B', 0x00))
+        else:
+            pipe.write(struct.pack('!B', 0xff))
+            pipe.write(struct.pack('!f', q.position[0]))
+            pipe.write(struct.pack('!f', q.position[1]))
+            pipe.write(struct.pack('!f', q.elevation))
+            pipe.write(struct.pack('!Q', q.vorIndex))
+            pipe.write(struct.pack('!B', len(q.nodes)))
+            for node in q.nodes:
+                pipe.write(struct.pack('!Q', node))
+
+    # cellsRidges
+    pipe.write(struct.pack('!Q', len(cells.cellsRidges)))
+    for cellID in cells.cellsRidges:
+        pipe.write(struct.pack('!Q', cellID))
+        pipe.write(struct.pack('!B', len(cells.cellsRidges[cellID])))
+        for ridge in cells.cellsRidges[cellID]:
+            pipe.write(struct.pack('!B', len(ridge)))
+            pipe.write(struct.pack('!Q', ridge[0].vorIndex))
+            if len(ridge) > 1:
+                pipe.write(struct.pack('!Q', ridge[1].vorIndex))
+
+    pipe.write(struct.pack('!Q', len(Ts)))
+    for t in Ts.allTs():
+        pipe.write(struct.pack('!f', t.position[0]))
+        pipe.write(struct.pack('!f', t.position[1]))
+        pipe.write(struct.pack('!I', t.cell))
+
 def readDataModel(path):
     with open(path, 'rb') as file:
         versionNumber = struct.unpack('!H', file.read(struct.calcsize('!H')))[0]

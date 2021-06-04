@@ -172,8 +172,17 @@ if args.showTerrainPrimitives:
         *zip(*[t.position for t in Ts.allTs()]),
         c=[t.elevation for t in Ts.allTs()],
         cmap=plt.get_cmap('terrain'),
-        s=5, lw=0
+        s=20, lw=0
     )
+    for t in Ts.allTs():
+        plt.annotate(
+            f'{t.elevation:.1f}',
+            xy=t.position,
+            xytext=(7,0),
+            textcoords='offset points',
+            ha='left',
+            va='center'
+        )
 
 # Show the hydrology network, if applicable
 if args.showHydrology or args.showRiverFlow:

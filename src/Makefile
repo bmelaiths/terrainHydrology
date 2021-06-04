@@ -23,8 +23,8 @@ testsuite.o : tst/testsuite.cpp kdtree.hpp raster.hpp forest.hpp $(GTEST_HEADERS
 	@ echo "Compiling Tests..."
 	@ g++ $(CPPFLAGS) -isystem $(GTEST_DIR)/include $^ -c
 
-testsuite : testsuite.o gtest-all.o gtest_main.o hydrologyFunctions.o hydrologyParameters.o hydrology.o floatEndian.o
-	g++ $(CPPFLAGS) $^ -lpthread -lopencv_core -lopencv_imgproc -o $@
+testsuite : testsuite.o gtest-all.o gtest_main.o terrainHoneycomb.o terrainElevation.o hydrologyFunctions.o hydrologyParameters.o hydrology.o floatEndian.o
+	g++ $(CPPFLAGS) $^ -lpthread -lopencv_core -lopencv_imgproc -lgeos_c -o $@
 
 test : testsuite
 	@ ./testsuite
@@ -42,6 +42,17 @@ hydrologyFunctions.o : hydrologyFunctions.cpp hydrologyFunctions.hpp hydrology.h
 buildRivers: hydrologyFunctions.o hydrologyParameters.o buildRivers.o hydrology.o floatEndian.o
 	g++ $^ $(CPPFLAGS) -lopencv_imgproc -o $@
 
+terrainHoneycomb.o : terrainHoneycomb.cpp terrainHoneycomb.hpp
+
+terrainPrimitives.o : terrainPrimitives.cpp terrainPrimitives.hpp
+
+terrainElevation.o : terrainElevation.cpp terrainElevation.hpp
+
+ts.o : ts.cpp ts.hpp
+
+terrainPrimitives: ts.o terrainElevation.o terrainHoneycomb.o hydrology.o floatEndian.o terrainPrimitives.o processTerrainPrimitives.cpp
+	g++ $^ $(CPPFLAGS) -lopencv_imgproc -lgeos_c -o $@
+
 clean :
-	@ rm -vf buildRivers testsuite *.gch *.o
+	@ rm -vf terrainPrimitives buildRivers testsuite *.gch *.o
 	@ cd $(GTEST_DIR)/scripts/test/ && make clean

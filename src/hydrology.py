@@ -27,6 +27,7 @@ import Math
 import SaveFile
 
 buildRiversExe = 'src/buildRivers'
+computePrimitivesExe = 'src/terrainPrimitives'
 
 # Get inputs
 
@@ -401,7 +402,7 @@ def subroutine(conn: Pipe, q: Queue):
         node = hydrology.node(t.cell)
         if len(node.rivers) > 0:
             local_rivers = node.rivers # tries to get a line to the seeeee
-            # index of the point on the interpolated river line that is closest to the Tee point
+            # gets the river that is closest to the terrain primitive
             rividx = [point.distance(x) for x in local_rivers].index(min([point.distance(x) for x in local_rivers]))
             # gets the point along the river that is the distance along the river to the point nearest to the Tee
             projected = local_rivers[rividx].interpolate(local_rivers[rividx].project(point))
@@ -419,19 +420,53 @@ def subroutine(conn: Pipe, q: Queue):
         q.put(t)
 
 # The terrain primitives will be calculated in parallel
-dataQueue = Queue()
-pipes = []
-processes = []
-for p in range(numProcs):
-    pipes.append(Pipe())
-    processes.append(Process(target=subroutine, args=(pipes[p][1],dataQueue)))
-    processes[p].start()
-    pipes[p][0].send(p)
-for ti in trange(len(Ts)):
-    Ts.tList[ti] = dataQueue.get()
-for p in range(numProcs):
-    processes[p].join()
-    pipes[p][0].close()
+if not args.accelerate: # Calculate the elevations in Python
+    dataQueue = Queue()
+    pipes = []
+    processes = []
+    for p in range(numProcs):
+        pipes.append(Pipe())
+        processes.append(Process(target=subroutine, args=(pipes[p][1],dataQueue)))
+        processes[p].start()
+        pipes[p][0].send(p)
+    for ti in trange(len(Ts)):
+        Ts.tList[ti] = dataQueue.get()
+    for p in range(numProcs):
+        processes[p].join()
+        pipes[p][0].close()
+else:
+    # Write the binary data to a file
+    with open('src/binaryFile', 'w+b') as file:
+        SaveFile.writeToTerrainModule(file, shore, edgeLength, hydrology, cells, Ts)
+        file.close()
+
+    # Run the native module
+    if not os.path.exists(computePrimitivesExe):
+        print('The executable does not exist. Run "make buildRivers" in the src/ directory to build it.')
+        exit()
+    primitivesProc = subprocess.Popen( # start the native module
+        ['./' + computePrimitivesExe],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE
+    )
+    print('\tData sent to native module...')
+
+    # Display updates as native module calculates the elevations
+    cyclesRun = 0
+    start = datetime.datetime.now()
+    readByte = primitivesProc.stdout.read(1)
+    cyclesRun = cyclesRun + 1
+    while struct.unpack('B', readByte)[0] == 0x2e:
+        # print(f'\tPrimitives computed: {cyclesRun}\t{cyclesRun/(datetime.datetime.now()-start).total_seconds()} primitives/sec\r', end='')
+        print(f'\tPrimitives computed: {cyclesRun}\r', end='')
+        readByte = primitivesProc.stdout.read(1)
+        cyclesRun = cyclesRun + 1
+    end = datetime.datetime.now()
+    print()
+
+    for t in Ts.allTs():
+        readByte = primitivesProc.stdout.read(struct.calcsize('!f'))
+        t.elevation = struct.unpack('!f', readByte)[0]
 
 ## Save the data
 print('Writing data model...')

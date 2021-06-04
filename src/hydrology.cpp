@@ -37,6 +37,40 @@ elevation(elevation), priority(priority)
 
 }
 
+Primitive::Primitive
+( //for mouth nodes in a dump
+  size_t id, Point loc, float elevation, int contourIndex,
+  std::vector<GEOSGeometry*> rivers, float localWatershed,
+  float inheritedWatershed, float flow
+)
+:
+id(id), parent(NULL), loc(loc), elevation(elevation),
+contourIndex(contourIndex), rivers(rivers), localWatershed(localWatershed),
+inheritedWatershed(inheritedWatershed), flow(flow)
+{
+}
+
+Primitive::Primitive
+( //for regular nodes in a dump
+  size_t id, Primitive *parent, Point loc, float elevation,
+  std::vector<GEOSGeometry*> rivers, float localWatershed,
+  float inheritedWatershed, float flow
+)
+:
+id(id), parent(parent), loc(loc), elevation(elevation),
+priority(0), rivers(rivers), localWatershed(localWatershed),
+inheritedWatershed(inheritedWatershed), flow(flow)
+{
+}
+
+Primitive::~Primitive()
+{
+  for (GEOSGeometry* river : rivers)
+  {
+    GEOSGeom_destroy(river);
+  }
+}
+
 size_t Primitive::binarySize()
 {
   return
@@ -119,6 +153,10 @@ float Primitive::getElevation() {return elevation;}
 int Primitive::getPriority() {return priority;}
 
 int Primitive::getContourIndex() {return contourIndex;}
+
+size_t Primitive::numRivers() const {return rivers.size();}
+
+std::vector<GEOSGeometry*> Primitive::getRivers() {return rivers;}
 
 Edge::Edge(Primitive *node0, Primitive *node1)
 : node0(node0), node1(node1)
@@ -261,6 +299,44 @@ AreaLock Hydrology::lockArea(Point loc, float radius)
   return trees.lockArea(loc, radius);
 }
 
+Primitive* Hydrology::dumpMouthNode
+(
+  Point loc, float elevation, int priority, int contourIndex,
+  std::vector<GEOSGeometry*> rivers, float inheritedWatershed,
+  float localWatershed, float flow
+)
+{
+  Primitive *node = new Primitive(
+    indexedNodes.size(), loc, elevation, 0, rivers,
+    localWatershed, inheritedWatershed, flow
+  );
+
+  trees.insert(loc, node);
+  indexedNodes.push_back(node);
+
+  return node;
+}
+
+Primitive* Hydrology::dumpRegularNode
+(
+  Point loc, float elevation, int priority, size_t parent,
+  std::vector<GEOSGeometry*> rivers, float inheritedWatershed,
+  float localWatershed, float flow
+)
+{
+  Primitive *node = new Primitive(
+    indexedNodes.size(), indexedNodes[parent], loc, elevation,
+    rivers, localWatershed, inheritedWatershed, flow
+  );
+
+  trees.insert(loc, node);
+  indexedNodes.push_back(node);
+
+  node->getParent()->children.push_back(node);
+
+  return node;
+}
+
 std::vector<Edge> Hydrology::queryArea(Point loc, float radius)
 {
   std::vector<Primitive*> closeIdxes = trees.searchRange(loc, radius);
@@ -283,6 +359,10 @@ std::vector<Edge> Hydrology::queryArea(Point loc, float radius)
 
 Primitive Hydrology::getNode(size_t idx) {
   return *indexedNodes[idx];
+}
+
+Primitive* Hydrology::getNodeP(size_t idx) {
+  return indexedNodes[idx];
 }
 
 size_t Hydrology::numNodes()

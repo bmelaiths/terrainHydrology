@@ -9,6 +9,7 @@
 #include "../kdtree.hpp"
 #include "../hydrology.hpp"
 #include "../forest.hpp"
+#include "../terrainElevation.hpp"
 
 namespace
 {
@@ -968,4 +969,60 @@ namespace
     //     ASSERT_EQ(params.riverSlope.get(984*100,15*100),34);
     //     ASSERT_EQ(params.riverSlope.get(875*100,924*100),15);
     // }
+    TEST(TerrainTests, DistanceTest)
+    {
+        Point p0(0,0);
+        Point p1(1,0);
+
+        float dist = distance(p0, p1);
+
+        ASSERT_TRUE(abs(dist-1) < 0.01);
+    }
+    TEST(TerrainTests, DistanceTestI)
+    {
+        Q q0(Point(97360.9219,30977.2168),1239.06372,1084,std::vector<size_t>());
+        Q q1(Point(97604.7656,31752.8867),1200.42749,1087,std::vector<size_t>());
+        T t(Point(96373.5156,31288.375),800);
+
+        float dist = distance(t.getLoc(),q0.getPosition());
+
+        ASSERT_GT(dist, 1035);
+        ASSERT_LT(dist, 1036);
+    }
+    TEST(TerrainTests, PointSegmentTest)
+    {
+        Point p0(0,0);
+        Point p1(1,1);
+
+        Point tst(0.75,0.25);
+
+        endpointAndDistance ead = point_segment_distance(tst,p0,p1);
+
+        ASSERT_TRUE(abs(ead.dist-0.353553) < 0.01);
+    }
+    TEST(TerrainTests, PointSegmentTestII)
+    {
+        Point p0(73527,32541);
+        Point p1(73843,34327);
+        Point p2(73833,34339);
+
+        Point tst(73578,33562);
+
+        endpointAndDistance eadI = point_segment_distance(tst,p0,p1);
+        endpointAndDistance eadII = point_segment_distance(tst,p1,p2);
+
+        ASSERT_TRUE(eadI.dist < eadII.dist);
+    }
+    TEST(TerrainTest, LERPRidgeTest)
+    {
+        Q q0(Point(97360.9219,30977.2168),1239.06372,1084,std::vector<size_t>());
+        Q q1(Point(97604.7656,31752.8867),1200.42749,1087,std::vector<size_t>());
+        T t(Point(96373.5156,31288.375),800);
+        float dist = 1035.27661;
+
+        float lerpedElev = lerpRidge(&q0, &q1, t, dist);
+
+        ASSERT_GT(lerpedElev, q1.getElevation() - 0.0001);
+        ASSERT_LT(lerpedElev, q0.getElevation() + 0.0001);
+    }
 }

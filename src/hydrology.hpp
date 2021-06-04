@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#include <geos_c.h>
+
 #include "point.hpp"
 #include "kdtree.hpp"
 #include "forest.hpp"
@@ -26,6 +28,8 @@ class Primitive
   float elevation;
   int priority;
   int contourIndex;
+  std::vector<GEOSGeometry*> rivers;
+  float localWatershed, inheritedWatershed, flow;
 
   public:
   friend Hydrology;
@@ -58,6 +62,40 @@ class Primitive
   ( //for regular nodes
     size_t id, Primitive *parent, Point loc, float elevation, int priority
   );
+  /**
+   * @brief This constructor is for mouth nodes
+   * 
+   * @param id The ID of this node. See `Hydrology` for this value’s significance
+   * @param loc The location of the node in meters
+   * @param elevation The node’s elevation in meters
+   * @param priority The priority of the node. See `Hydrology` for this value’s significance
+   * @param contourIndex This is the index in the contour vector that is closest to this node
+   * @param rivers The rivers that flow through this node
+   */
+  Primitive
+  ( //for mouth nodes in a dump
+    size_t id, Point loc, float elevation, int contourIndex,
+    std::vector<GEOSGeometry*> rivers, float localWatershed,
+    float inheritedWatershed, float flow
+  );
+  /**
+   * @brief This constructor is for regular nodes
+   * 
+   * @param id The ID of this node. See `Hydrology` for this value’s significance
+   * @param parent A pointer to the node's parent
+   * @param loc The location of the node in meters
+   * @param elevation The node’s elevation in meters
+   * @param priority The priority of the node. See `Hydrology` for this value’s significance
+   * @param rivers The rivers that flow through this node
+   */
+  Primitive
+  ( //for regular nodes in a dump
+    size_t id, Primitive *parent, Point loc, float elevation,
+    std::vector<GEOSGeometry*> rivers, float localWatershed,
+    float inheritedWatershed, float flow
+  );
+
+  ~Primitive();
 
   /**
    * @brief The size of this node's binary representation
@@ -127,6 +165,8 @@ class Primitive
    * @return int 
    */
   int getContourIndex();
+  size_t numRivers() const;
+  std::vector<GEOSGeometry*> getRivers();
 };
 
 /**
@@ -200,6 +240,17 @@ class Hydrology
     Point loc, float elevation, int priority, size_t parent
   );
 
+  Primitive* dumpMouthNode(
+    Point loc, float elevation, int priority, int contourIndex,
+    std::vector<GEOSGeometry*> rivers, float inheritedWatershed,
+    float localWatershed, float flow
+  );
+  Primitive* dumpRegularNode(
+    Point loc, float elevation, int priority, size_t parent,
+    std::vector<GEOSGeometry*> rivers, float inheritedWatershed,
+    float localWatershed, float flow
+  );
+
   /**
    * @brief Acquires a lock on the specified area
    * 
@@ -226,6 +277,8 @@ class Hydrology
    * @return Primitive The node at that index
    */
   Primitive getNode(size_t idx);
+
+  Primitive* getNodeP(size_t idx);
   /**
    * @brief Returns the total number of nodes in the network
    * 
