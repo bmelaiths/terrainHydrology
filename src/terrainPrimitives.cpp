@@ -6,6 +6,15 @@
 
 PrimitiveParameters::PrimitiveParameters(FILE *stream)
 {
+  /*
+    This method is very similar to HydrologyParameters::HydrologyParameters()
+
+    Though verbose, this method is very simple. Basically,
+    1. A variable is declared (unless it is declared in the class)
+    2. fread() data into that variable
+    3. Adjust the endian order, if necessary
+  */
+
   float minX, maxX, minY, maxY;
   fread(&minX, sizeof(float), 1, stream);
   fread(&minY, sizeof(float), 1, stream);
@@ -18,11 +27,9 @@ PrimitiveParameters::PrimitiveParameters(FILE *stream)
 
   fread(&edgeLength, sizeof(float), 1, stream);
   edgeLength = float_swap(edgeLength);
-  // printf("Edge length: %f\n", edgeLength);
 
   fread(&resolution, sizeof(float), 1, stream);
   resolution = float_swap(resolution);
-  // printf("Resolution: %f\n", resolution);
 
   hydrology = Hydrology(Point(minX,minY), Point(maxX,maxY), edgeLength);
 
@@ -47,10 +54,12 @@ PrimitiveParameters::PrimitiveParameters(FILE *stream)
     contour.push_back(cv::Point2f(inPoints[i][Y],inPoints[i][X]));
   }
 
+  /*
+    Read in the hydrology nodes
+  */
   uint64_t numNodes;
   fread(&numNodes, sizeof(uint64_t), 1, stream);
   numNodes = be64toh(numNodes);
-  // printf("Number of nodes: %ld\n", numNodes);
   for (uint64_t i = 0; i < numNodes; i++)
   {
     uint32_t nodeID;
@@ -71,7 +80,9 @@ PrimitiveParameters::PrimitiveParameters(FILE *stream)
     parentID = be32toh(parentID);
     contourIndex = be32toh(contourIndex);
 
-    // printf("Node ID: %d, ", nodeID);
+    /*
+      Read in the rivers, using the GEOS library
+    */
 
     uint8_t numRivers;
     fread(&numRivers, sizeof(uint8_t), 1, stream);
@@ -128,10 +139,12 @@ PrimitiveParameters::PrimitiveParameters(FILE *stream)
     }
   }
 
+  /*
+    Read the ridge primitives
+  */
   uint64_t numQs;
   fread(&numQs, sizeof(uint64_t), 1, stream);
   numQs = be64toh(numQs);
-  // printf("Number of Qs: %ld\n", numQs);
   for (uint64_t i = 0; i < numQs; i++)
   {
     uint8_t hasQ;
@@ -169,10 +182,13 @@ PrimitiveParameters::PrimitiveParameters(FILE *stream)
     cells.dumpQ(Point(x,y), elevation, vorIndex, neighbors);
   }
 
+  /*
+    Read in the cells ridges dictionary
+  */
+
   uint64_t cellsToProcess;
   fread(&cellsToProcess, sizeof(uint64_t), 1, stream);
   cellsToProcess = be64toh(cellsToProcess);
-  // printf("Cells to Process: %ld\n", cellsToProcess);
   for (uint64_t i = 0; i < cellsToProcess; i++)
   {
     uint64_t cellID;
@@ -209,15 +225,17 @@ PrimitiveParameters::PrimitiveParameters(FILE *stream)
 
         Ridge ridge(cells.getQ(r0));
         cells.dumpCellRidge(cellID, ridge);
-        // printf("%ld, ", r0);
       }
     }
   }
 
+  /*
+    Read in the terrain primitives
+  */
+
   uint64_t tsToProcess;
   fread(&tsToProcess, sizeof(uint64_t), 1, stream);
   tsToProcess = be64toh(tsToProcess);
-  // printf("Ts to Process: %ld\n", tsToProcess);
   for (uint64_t i = 0; i < tsToProcess; i++)
   {
     float x, y;

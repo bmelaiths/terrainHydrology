@@ -4,6 +4,7 @@
 
 float distance(const Point& p0, const Point& p1)
 {
+  // traditional Euclidean distance calculation
   return sqrtf32(
     powf32(p1.x()-p0.x(),2)+
     powf32(p1.y()-p0.y(),2)
@@ -18,13 +19,14 @@ endpointAndDistance point_segment_distance
   float dx = q1Loc.x() - q0Loc.x();
   float dy = q1Loc.y() - q0Loc.y();
   if (abs(dx) < FLOAT_TOLERANCE && abs(dy) < FLOAT_TOLERANCE)
-  {
+  { // the segment is just a point
     return {
       .dist = hypotf32(tLoc.x() - q0Loc.x(), tLoc.y() - q0Loc.y()),
       .isEndpoint = true
     };
   }
 
+  // calculate the t that minimizes the distance
   float t =
     (((tLoc.x()-q0Loc.x()) * dx) + ((tLoc.y() - q0Loc.y()) * dy)) /
     (dx * dx + dy * dy)
@@ -32,6 +34,8 @@ endpointAndDistance point_segment_distance
 
   bool isEndpoint = true;
 
+  // See if this represents one of the segment's endpoints,
+  // or a point in the middle
   if (t < 0)
   {
     dx = tLoc.x() - q0Loc.x();
@@ -59,16 +63,18 @@ float lerpRidge(Q *q0, Q *q1, T& t, float dist)
   float result =
     q0->getElevation() +
     (
-      (
+      ( // this gets the distance along the ridge that the t corresponds to
         sqrtf32(
           pow(distance(q0->getPosition(),t.getLoc()),2) -
           pow(dist,2)
         ) /
         distance(q0->getPosition(),q1->getPosition())
       ) *
-      (q1->getElevation() - q0->getElevation())
+      (q1->getElevation() - q0->getElevation()) // the slope
     )
   ;
+  // If the t is really close to the first endpoint, the calculation
+  // may fail. In that case, return the elevation of that primitive
   return isnan(result) ? q0->getElevation() : result;
 }
 
@@ -78,6 +84,11 @@ float computePrimitiveElevation
   std::vector<cv::Point>& contour, float resolution
 )
 {
+  /*
+    The point of this loop is to find the ridge that the primitive
+    is closest to, and to interpolate the elevation of the point
+    along the ridge that the primitive corresponds to.
+  */
   std::vector<Ridge> ridges = cells.getCellRidges(t.getCellID());
   float closestRidgeDist = -1.0;
   float ridgeElevation = -1.0;
@@ -133,7 +144,10 @@ float computePrimitiveElevation
     }
   }
 
-  // distance to shore (gamma)
+  /*
+    If the shore is closer than the closest ridge, then use that
+    instead.
+  */
   float distToGamma = resolution * (float) cv::pointPolygonTest(
     contour,
     cv::Point2f(

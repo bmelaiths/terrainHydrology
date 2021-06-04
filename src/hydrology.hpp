@@ -100,7 +100,7 @@ class Primitive
   /**
    * @brief The size of this node's binary representation
    * 
-   * @return size_t The size (in bytes?)
+   * @return size_t The size (presumably in bytes)
    */
   size_t binarySize();
   /**
@@ -165,7 +165,17 @@ class Primitive
    * @return int 
    */
   int getContourIndex();
+  /**
+   * @brief Gets the number of rivers objects that flow into and through this node
+   * 
+   * @return size_t 
+   */
   size_t numRivers() const;
+  /**
+   * @brief Gets the rivers that flow into and through this node
+   * 
+   * @return std::vector<GEOSGeometry*> 
+   */
   std::vector<GEOSGeometry*> getRivers();
 };
 
@@ -239,12 +249,47 @@ class Hydrology
   Primitive* addRegularNode(
     Point loc, float elevation, int priority, size_t parent
   );
-
+  /**
+   * @brief Creates and adds a node that is already complete
+   * 
+   * This method is for mouth nodes.
+   * 
+   * Mostly used for the module that computes the elevations of
+   * terrain primitives.
+   * 
+   * @param loc The location of the node
+   * @param elevation The elevation of the node
+   * @param priority The priority of the node
+   * @param contourIndex The index of the node's location on the shore
+   * @param rivers The rivers that flow through this node
+   * @param inheritedWatershed The area of the inherited watershed (in square meters)
+   * @param localWatershed The area of this particular node
+   * @param flow The volume of flow through this node
+   * @return Primitive* 
+   */
   Primitive* dumpMouthNode(
     Point loc, float elevation, int priority, int contourIndex,
     std::vector<GEOSGeometry*> rivers, float inheritedWatershed,
     float localWatershed, float flow
   );
+  /**
+   * @brief The index of the node's location on the shore
+   * 
+   * This method is for non-mouth nodes.
+   * 
+   * Mostly used for the module that computes the elevations of
+   * terrain primitives.
+   * 
+   * @param loc The location of the node
+   * @param elevation The elevation of the node
+   * @param priority The priority of the node
+   * @param parent The ID of the parent node
+   * @param rivers The rivers that flow through this node
+   * @param inheritedWatershed The area of the inherited watershed (in square meters)
+   * @param localWatershed The area of this particular node
+   * @param flow The volume of flow through this node
+   * @return Primitive* 
+   */
   Primitive* dumpRegularNode(
     Point loc, float elevation, int priority, size_t parent,
     std::vector<GEOSGeometry*> rivers, float inheritedWatershed,
@@ -277,8 +322,14 @@ class Hydrology
    * @return Primitive The node at that index
    */
   Primitive getNode(size_t idx);
-
+  /**
+   * @brief Get a pointer to the node with the specified index
+   * 
+   * @param idx The index of the node to find
+   * @return Primitive* A pointer to the node at that index
+   */
   Primitive* getNodeP(size_t idx);
+
   /**
    * @brief Returns the total number of nodes in the network
    * 

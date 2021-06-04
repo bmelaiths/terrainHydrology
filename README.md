@@ -109,7 +109,7 @@ To generate PDF documentation, you will need the LaTeX toolchain.
 
 ## Native module
 
-There is a native module that can accelerate the process of generating the river network. It uses OpenMP to generate the network in parallel, but it must be compiled. It was developed on Fedora and has been tested on Ubuntu. In the `src` directory, use `make buildRivers` to build the module, and use the `--accelerate` flag to use it.
+There are two native modules that can greatly accelerate the process of generating terrain. One module is designed to generate the river network. The other is designed to compute the elevations of terrain primitives. Both modules use OpenMP to perform their computations in parallel, and both must be compiled. They were developed on Fedora and have been tested on Ubuntu. In the `src` directory, use `make buildRivers` and `make terrainPrimitives` to build the module, and use the `--accelerate` flag to use them.
 
 ### Dependencies for the native module
 
@@ -118,10 +118,12 @@ There is a native module that can accelerate the process of generating the river
 To compile the module, you will need the OpenCV library and the necessary header files. On Ubuntu (and hopefully other Debian-based systems), you can use
 
 > `apt install libopencv-dev`
+> `apt install libgeos-dev`
 
-On Fedora and RPM-based distributions, this command should suffice
+On Fedora and RPM-based distributions, these commands should suffice
 
 > `dnf install opencv-devel`
+> `dnf install geos-devel`
 
 You will also need OpenMP. It seems to come with Ubuntu and Fedora, but it's also widely available in package repositories.
 

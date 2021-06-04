@@ -9,6 +9,10 @@
 #include "terrainHoneycomb.hpp"
 #include "ts.hpp"
 
+/**
+ * @brief Reads data from the Python module
+ * 
+ */
 class PrimitiveParameters
 {
 public:
@@ -19,6 +23,11 @@ public:
   TerrainHoneycomb cells;
   Terrain ts;
 public:
+  /**
+   * @brief Construct a new Primitive Parameters object
+   * 
+   * @param stream A stream from which to receive the data
+   */
   PrimitiveParameters(FILE *stream);
   ~PrimitiveParameters() = default;
 };
