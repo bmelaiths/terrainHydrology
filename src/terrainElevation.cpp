@@ -81,7 +81,8 @@ float lerpRidge(Q *q0, Q *q1, T& t, float dist)
 float computePrimitiveElevation
 (
   T& t, Hydrology& hydrology, TerrainHoneycomb& cells, Terrain& ts,
-  std::vector<cv::Point>& contour, float resolution
+  std::vector<cv::Point>& contour, float resolution,
+  GEOSContextHandle_t geosContext
 )
 {
   /*
@@ -166,8 +167,8 @@ float computePrimitiveElevation
   double closestRiverDist;
   GEOSGeometry *projectedPoint;
 
-  GEOSGeometry *point = GEOSGeom_createPointFromXY(
-    t.getLoc().x(),t.getLoc().y()
+  GEOSGeometry *point = GEOSGeom_createPointFromXY_r(
+    geosContext, t.getLoc().x(),t.getLoc().y()
   );
   Primitive* node = hydrology.getNodeP(t.getCellID());
 
@@ -177,7 +178,7 @@ float computePrimitiveElevation
     for (GEOSGeometry *river : node->getRivers())
     {
       double riverDistance;
-      GEOSDistance(point, river, &riverDistance);
+      GEOSDistance_r(geosContext, point, river, &riverDistance);
       if (closestRiver == NULL || riverDistance < closestRiverDist)
       {
         closestRiverDist = riverDistance;
@@ -185,24 +186,24 @@ float computePrimitiveElevation
       }
     }
 
-    double projectedDistance = GEOSProject(closestRiver, point);
-    projectedPoint = GEOSInterpolate(
-      closestRiver, projectedDistance
+    double projectedDistance = GEOSProject_r(geosContext, closestRiver, point);
+    projectedPoint = GEOSInterpolate_r(
+      geosContext, closestRiver, projectedDistance
     );
     //this line is probably redundant
-    GEOSDistance(point, projectedPoint, &closestRiverDist);
+    GEOSDistance_r(geosContext, point, projectedPoint, &closestRiverDist);
   }
   else
   {
-    GEOSCoordSequence *pointSeq = GEOSCoordSeq_create(1,3);
-    GEOSCoordSeq_setXYZ(
-      pointSeq, 0,
+    GEOSCoordSequence *pointSeq = GEOSCoordSeq_create_r(geosContext, 1,3);
+    GEOSCoordSeq_setXYZ_r(
+      geosContext, pointSeq, 0,
       node->getLoc().x(), 
       node->getLoc().y(),
       node->getElevation()
     );
-    projectedPoint = GEOSGeom_createPoint(pointSeq);
-    GEOSDistance(point, projectedPoint, &closestRiverDist);
+    projectedPoint = GEOSGeom_createPoint_r(geosContext, pointSeq);
+    GEOSDistance_r(geosContext, point, projectedPoint, &closestRiverDist);
   }
 
   if
@@ -216,7 +217,7 @@ float computePrimitiveElevation
 
   // return lerped elevation
   double projectedZ;
-  GEOSGeomGetZ(projectedPoint, &projectedZ);
+  GEOSGeomGetZ_r(geosContext, projectedPoint, &projectedZ);
   return
     projectedZ * (closestRidgeDist/(closestRidgeDist+closestRiverDist)) +
     ridgeElevation*(closestRiverDist/(closestRidgeDist+closestRiverDist))

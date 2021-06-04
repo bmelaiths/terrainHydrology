@@ -50,7 +50,9 @@ terrainElevation.o : terrainElevation.cpp terrainElevation.hpp
 
 ts.o : ts.cpp ts.hpp
 
-terrainPrimitives: ts.o terrainElevation.o terrainHoneycomb.o hydrology.o floatEndian.o terrainPrimitives.o processTerrainPrimitives.cpp
+processTerrainPrimitives.o : processTerrainPrimitives.cpp
+
+terrainPrimitives: ts.o terrainElevation.o terrainHoneycomb.o hydrology.o floatEndian.o terrainPrimitives.o processTerrainPrimitives.o
 	g++ $^ $(CPPFLAGS) -lopencv_imgproc -lgeos_c -o $@
 
 clean :

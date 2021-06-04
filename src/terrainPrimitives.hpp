@@ -27,8 +27,9 @@ public:
    * @brief Construct a new Primitive Parameters object
    * 
    * @param stream A stream from which to receive the data
+   * @param geosContext A GEOSContextHandle will be needed to re-encode the rivers
    */
-  PrimitiveParameters(FILE *stream);
+  PrimitiveParameters(FILE *stream, GEOSContextHandle_t geosContext);
   ~PrimitiveParameters() = default;
 };
 

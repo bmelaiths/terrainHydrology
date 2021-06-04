@@ -4,7 +4,7 @@
 
 #include "floatEndian.hpp"
 
-PrimitiveParameters::PrimitiveParameters(FILE *stream)
+PrimitiveParameters::PrimitiveParameters(FILE *stream, GEOSContextHandle_t geosContext)
 {
   /*
     This method is very similar to HydrologyParameters::HydrologyParameters()
@@ -95,7 +95,7 @@ PrimitiveParameters::PrimitiveParameters(FILE *stream)
       fread(&numPoints, sizeof(uint16_t), 1, stream);
       numPoints = be16toh(numPoints);
 
-      GEOSCoordSequence *string = GEOSCoordSeq_create(numPoints, 3);
+      GEOSCoordSequence *string = GEOSCoordSeq_create_r(geosContext, numPoints, 3);
 
       for (uint16_t point = 0; point < numPoints; point++)
       {
@@ -108,10 +108,10 @@ PrimitiveParameters::PrimitiveParameters(FILE *stream)
         y = float_swap(y);
         z = float_swap(z);
 
-        GEOSCoordSeq_setXYZ(string, point, x, y, z);
+        GEOSCoordSeq_setXYZ_r(geosContext, string, point, x, y, z);
       }
 
-      rivers.push_back(GEOSGeom_createLineString(string));
+      rivers.push_back(GEOSGeom_createLineString_r(geosContext, string));
     }
 
     float localWatershed, inheritedWatershed, flow;

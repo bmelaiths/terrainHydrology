@@ -21,12 +21,14 @@
  * @param ts The Terrain object (Not used)
  * @param contour The shoreline
  * @param resolution The number of meters per pixel in the raster that the contour is derived from
+ * @param geosContext The GEOS context handle for the thread in which this function is called
  * @return float The elevation that the primitive should have
  */
 float computePrimitiveElevation
 (
   T& t, Hydrology& hydrology, TerrainHoneycomb& cells, Terrain& ts,
-  std::vector<cv::Point>& contour, float resolution
+  std::vector<cv::Point>& contour, float resolution,
+  GEOSContextHandle_t geosContext
 );
 
 /**
