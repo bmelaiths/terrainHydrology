@@ -206,6 +206,8 @@ float computePrimitiveElevation
     GEOSDistance_r(geosContext, point, projectedPoint, &closestRiverDist);
   }
 
+  GEOSGeom_destroy(point);
+
   if
   (
     abs(closestRiverDist) < FLOAT_TOLERANCE &&
@@ -218,6 +220,7 @@ float computePrimitiveElevation
   // return lerped elevation
   double projectedZ;
   GEOSGeomGetZ_r(geosContext, projectedPoint, &projectedZ);
+  GEOSGeom_destroy(projectedPoint);
   return
     projectedZ * (closestRidgeDist/(closestRidgeDist+closestRiverDist)) +
     ridgeElevation*(closestRiverDist/(closestRidgeDist+closestRiverDist))

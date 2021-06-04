@@ -14,7 +14,6 @@ void writeError(const char *fmt, ...)
 int main()
 {
   //initialize the GEOS library
-  initGEOS(NULL, &writeError);
   std::vector<GEOSContextHandle_t> geosContexts;
   for (int i = 0; i < omp_get_max_threads(); i++)
   {
@@ -54,7 +53,7 @@ int main()
   fwrite(&allDone, sizeof(uint8_t), 1, stdout);
   fflush(stdout);
 
-  //write results
+  // write results
   for (size_t i = 0; i < params.ts.numTs(); i++)
   {
     float elev = params.ts.getT(i).getElevation();
@@ -62,4 +61,13 @@ int main()
     fwrite(&elev, sizeof(float), 1, stdout);
     fflush(stdout);
   }
+
+  for (GEOSContextHandle_t geosContext : geosContexts)
+  {
+    GEOS_finish_r(geosContext);
+  }
+  
+  #ifdef FILEINPUT
+  fclose(input);
+  #endif
 }

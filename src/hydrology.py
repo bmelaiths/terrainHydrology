@@ -467,7 +467,7 @@ else:
         t.elevation = struct.unpack('!f', readByte)[0]
 
     # clean up
-    os.remove('src/binaryFile')
+    # os.remove('src/binaryFile')
 
 ## Save the data
 print('Writing data model...')
