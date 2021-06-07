@@ -5,10 +5,11 @@ import matplotlib.pyplot as plt
 import argparse
 import numpy as np
 import shapely.geometry as geom
-from multiprocessing import Process, Pipe, Queue
+from multiprocessing import Process, Pipe, Queue, shared_memory, Value
 import rasterio
 from rasterio.transform import Affine
 from tqdm import trange
+import time
 
 import DataModel
 import SaveFile
@@ -84,7 +85,15 @@ rwidth = edgeLength / 2
 maxq = max([q.elevation for q in cells.allQs() if q is not None])
 oceanFloor = 0 - 0.25 * maxq / 0.75
 
-imgOut = np.full((outputResolution,outputResolution), oceanFloor,dtype=np.single)
+imgInit = np.full((outputResolution,outputResolution), oceanFloor,dtype=np.single)
+
+bufferString = 'HydrologyRender-sklvv482'
+sharedBuffer = shared_memory.SharedMemory(
+    bufferString, create=True, size=imgInit.nbytes
+)
+imgOut = np.ndarray(imgInit.shape, dtype=imgInit.dtype, buffer=sharedBuffer.buf)
+imgOut[:] = imgInit[:]
+del imgInit
 
 ## Functions that calculate the height of a point
 
@@ -175,46 +184,50 @@ def w(d: float) -> float:
 
 
 ## This is the function that the rendering threads will run
-def subroutine(conn: Pipe, q: Queue):
+def subroutine(conn: Pipe):
     threadID = conn.recv()
+
+    sharedBuffer = shared_memory.SharedMemory(
+        bufferString, create=False
+    )
+    imgOut = np.ndarray(
+        (outputResolution,outputResolution),
+        dtype=np.single,
+        buffer=sharedBuffer.buf
+    )
+
     # Render lines that are assigned to this thread
     for i in range(threadID, outputResolution, numProcs):
-        arr = np.full(outputResolution, oceanFloor,dtype=np.single)
         # Render a line
         for j in range(outputResolution):
-            arr[j] = max(oceanFloor,TerrainFunction((j,i)))
+            imgOut[i,j] = max(oceanFloor,TerrainFunction((j,i)))
         # send the line to the master thread
-        try:
-            q.put((i,arr.tobytes()))
-        except:
-            conn.close()
-            exit()
+        with counter.get_lock():
+            counter.value += 1
     conn.close()
+
+    sharedBuffer.close()
 
 
 ## Render the terrain
 
+counter = Value('i', 0)
 dataQueue = Queue()
 pipes = []
 processes = []
-outputCounter = 0
 for p in range(numProcs):
     pipes.append(Pipe())
-    processes.append(Process(target=subroutine, args=(pipes[p][1],dataQueue)))
+    processes.append(Process(target=subroutine, args=(pipes[p][1],)))
     processes[p].start()
     pipes[p][0].send(p)
-for i in trange(outputResolution):
-    data = dataQueue.get()
-    imgOut[data[0]] = np.frombuffer(data[1],dtype=np.single)
+while counter.value < outputResolution:
+    time.sleep(15)
 
-    if outputCounter > outputResolution/10:
-        plt.clf()
-        plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
-        plt.colorbar()
-        plt.tight_layout()                                # DEBUG
-        plt.savefig(outputDir + 'out-color.png')
-        outputCounter = 0
-    outputCounter += 1
+    plt.clf()
+    plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
+    plt.colorbar()
+    plt.tight_layout()                                # DEBUG
+    plt.savefig(outputDir + 'out-color.png')
 for p in range(numProcs):
     processes[p].join()
     pipes[p][0].close()
@@ -249,3 +262,5 @@ new_dataset = rasterio.open(
 new_dataset.write(imgOut, 1)
 print(new_dataset.meta)
 new_dataset.close()
+
+sharedBuffer.unlink()
