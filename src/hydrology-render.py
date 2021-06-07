@@ -81,19 +81,27 @@ resolution, edgeLength, shore, hydrology, cells, Ts = SaveFile.readDataModel(
 radius = edgeLength / 3
 rwidth = edgeLength / 2
 
-
+# oceanFloor is calculated ensure that all land appears as green in the output
+# image. It should be about 25% of the way up the color ramp
 maxq = max([q.elevation for q in cells.allQs() if q is not None])
 oceanFloor = 0 - 0.25 * maxq / 0.75
 
-imgInit = np.full((outputResolution,outputResolution), oceanFloor,dtype=np.single)
+outputShape = (outputResolution,outputResolution) # shape of the output matrix
+outputType = np.single # dtype of the output matrix
 
+# Create an array that is all water by default
+imgInit = np.full(outputShape, oceanFloor,dtype=outputType)
+
+# create a region of shared memory for processes to write to
 bufferString = 'HydrologyRender-sklvv482'
 sharedBuffer = shared_memory.SharedMemory(
     bufferString, create=True, size=imgInit.nbytes
 )
-imgOut = np.ndarray(imgInit.shape, dtype=imgInit.dtype, buffer=sharedBuffer.buf)
-imgOut[:] = imgInit[:]
-del imgInit
+
+# The image will be written to the shared memory as in a numpy matrix
+imgOut = np.ndarray(outputShape, dtype=outputType, buffer=sharedBuffer.buf)
+imgOut[:] = imgInit[:] # Load ocean floor fill
+del imgInit # This matrix is no longer needed
 
 ## Functions that calculate the height of a point
 
@@ -187,12 +195,13 @@ def w(d: float) -> float:
 def subroutine(conn: Pipe):
     threadID = conn.recv()
 
+    # Access the shared memory region
     sharedBuffer = shared_memory.SharedMemory(
         bufferString, create=False
     )
-    imgOut = np.ndarray(
-        (outputResolution,outputResolution),
-        dtype=np.single,
+    imgOut = np.ndarray( # Access the shared memory through a numpy matrix
+        outputShape,
+        dtype=outputType,
         buffer=sharedBuffer.buf
     )
 
@@ -201,11 +210,12 @@ def subroutine(conn: Pipe):
         # Render a line
         for j in range(outputResolution):
             imgOut[i,j] = max(oceanFloor,TerrainFunction((j,i)))
-        # send the line to the master thread
+        # Increment the counter so the master thread can track progress
         with counter.get_lock():
             counter.value += 1
-    conn.close()
 
+    # Free resources
+    conn.close()
     sharedBuffer.close()
 
 
@@ -220,8 +230,11 @@ for p in range(numProcs):
     processes.append(Process(target=subroutine, args=(pipes[p][1],)))
     processes[p].start()
     pipes[p][0].send(p)
+print('Rendering terrain...')
 while counter.value < outputResolution:
-    time.sleep(15)
+    for i in range(15):
+        time.sleep(1)
+        print(f'\tRendered {counter.value*outputResolution} samples out of {outputResolution**2}', end='\r')
 
     plt.clf()
     plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
@@ -231,6 +244,8 @@ while counter.value < outputResolution:
 for p in range(numProcs):
     processes[p].join()
     pipes[p][0].close()
+
+print()
 
 plt.clf()
 plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
