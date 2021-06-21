@@ -8,8 +8,8 @@ import shapely.geometry as geom
 from multiprocessing import Process, Pipe, Queue, shared_memory, Value
 import rasterio
 from rasterio.transform import Affine
-from tqdm import trange
 import time
+import math
 
 import DataModel
 import SaveFile
@@ -30,7 +30,7 @@ parser.add_argument(
     '--lat',
     help='Center latitude for the output GeoTIFF',
     dest='latitude',
-    metavar='43.2',
+    metavar='-43.2',
     required=True
 )
 parser.add_argument(
@@ -63,6 +63,13 @@ parser.add_argument(
     dest='outputDir',
     metavar='output/',
     required=True
+)
+parser.add_argument(
+    '--extreme-memory',
+    help='An experimental method of conserving memory when rendering large terrains',
+    dest='extremeMemory',
+    action='store_true',
+    required=False
 )
 args = parser.parse_args()
 
@@ -192,6 +199,32 @@ def w(d: float) -> float:
 
 
 ## This is the function that the rendering threads will run
+def subroutineExtremeMemory(start: int, end: int, q: Queue):
+    # Access the shared memory region
+    sharedBuffer = shared_memory.SharedMemory(
+        bufferString, create=False
+    )
+    imgOut = np.ndarray( # Access the shared memory through a numpy matrix
+        outputShape,
+        dtype=outputType,
+        buffer=sharedBuffer.buf
+    )
+
+    # Render lines that are assigned to this thread
+    for i in range(start, end):
+        # Render a line
+        for j in range(outputResolution):
+            imgOut[i,j] = max(oceanFloor,TerrainFunction((j,i)))
+        # Increment the counter so the master thread can track progress
+        # with counter.get_lock():
+        #     counter.value += 1
+
+    # Free resources
+    sharedBuffer.close()
+
+    # Nofity parent process
+    q.put(0x0)
+
 def subroutine(conn: Pipe):
     threadID = conn.recv()
 
@@ -221,29 +254,46 @@ def subroutine(conn: Pipe):
 
 ## Render the terrain
 
-counter = Value('i', 0)
-dataQueue = Queue()
-pipes = []
-processes = []
-for p in range(numProcs):
-    pipes.append(Pipe())
-    processes.append(Process(target=subroutine, args=(pipes[p][1],)))
-    processes[p].start()
-    pipes[p][0].send(p)
-print('Rendering terrain...')
-while counter.value < outputResolution:
-    for i in range(15):
-        time.sleep(1)
-        print(f'\tRendered {counter.value*outputResolution} samples out of {outputResolution**2}', end='\r')
+plt.figure(figsize=(20,20))
 
-    plt.clf()
-    plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
-    plt.colorbar()
-    plt.tight_layout()                                # DEBUG
-    plt.savefig(outputDir + 'out-color.png')
-for p in range(numProcs):
-    processes[p].join()
-    pipes[p][0].close()
+if not args.extremeMemory:
+    counter = Value('i', 0)
+    dataQueue = Queue()
+    processes = []
+    for p in range(numProcs):
+        processes.append(Process(target=subroutine, args=(p,)))
+        processes[p].start()
+    print('Rendering terrain...')
+    while counter.value < outputResolution:
+        for i in range(15):
+            time.sleep(1)
+            print(f'\tRendered {100.0*(counter.value)/(outputResolution)}%', end='\r')
+
+        plt.clf()
+        plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
+        plt.colorbar()
+        plt.tight_layout()                                # DEBUG
+        plt.savefig(outputDir + 'out-color.png')
+    for p in range(numProcs):
+        processes[p].join()
+else:
+    chunk = 500
+    chunki = 0
+    processes = []
+    dataQueue = Queue()
+    persist = Value('B', 0)
+    for p in range(numProcs):
+        processes.append(Process(target=subroutine, args=(chunki*chunk,(chunki+1)*chunk, dataQueue)))
+        processes[p].start()
+        chunki += 1
+    while chunki < math.ceil(outputResolution/chunk):
+        dataQueue.get()
+        processes.append(Process(target=subroutine, args=(chunki*chunk,(chunki+1)*chunk, dataQueue)))
+        processes[len(processes)-1].start()
+        chunki += 1
+    persist.value = 1
+    for p in processes:
+        p.join()
 
 print()
 
