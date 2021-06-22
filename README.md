@@ -77,6 +77,32 @@ Switch | Notes
 `--hydrology-network-flow` | show hydrology network with
 `-o` | The path+name of the image to write
 
+### `hydrology-riverout.py`
+
+This script will read the data model and write an ESRI shapefile that shows the paths of the rivers over the terrain.
+
+Switch | Notes
+------ | -----
+`-i` | The file that contains the data model you wish to interpret
+`--lat` | This is the center latitude of the output shapefile
+`--lon` | This is the center longitude of the output shapefile
+`-o` | The path and name of the output shapefile
+
+Note that an ESRI shapefile actually consists of multiple files. For example, if you specify the name `example`, this script will write the files `example.shp`, `example.shx`, `example.dbf`, and `example.prj`. These files should be kept together.
+
+### `hydrology-nodeout.py`
+
+This script will read the data model and write an ESRI shapefile that depicts all the nodes in the hydrology network, along with their associated data.
+
+Switch | Notes
+------ | -----
+`-i` | The file that contains the data model you wish to interpret
+`--lat` | This is the center latitude of the output shapefile
+`--lon` | This is the center longitude of the output shapefile
+`-o` | The path and name of the output shapefile
+
+Note that an ESRI shapefile actually consists of multiple files. For example, if you specify the name `example`, this script will write the files `example.shp`, `example.shx`, `example.dbf`, and `example.prj`. These files should be kept together.
+
 ### Example
 
 ```
