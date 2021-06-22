@@ -74,8 +74,6 @@ with shapefile.Writer(outputFile, shapeType=3) as w:
             riverFlow = path[len(path)-1].flow
             for ni in range(1,len(path)):
                 upstreamFlow = max([n.flow for n in hydrology.upstream(path[ni].id)])
-                if leafNode.id == 812:
-                    print(path[ni].id)
                 # If this river is merely a tributary to a larger
                 # stream, terminate the course and record the
                 # flow at that point
