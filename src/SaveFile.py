@@ -4,7 +4,7 @@ import DataModel
 
 def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hydrology: DataModel.HydrologyNetwork, cells: DataModel.TerrainHoneycomb, Ts: DataModel.Terrain):
     with open(path, 'wb') as file:
-        file.write(struct.pack('!H', 0)) # version number. Increment every time a breaking change is made
+        file.write(struct.pack('!H', 1)) # version number. Increment every time a breaking change is made
 
         ## Parameters ##
 
@@ -57,7 +57,7 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
                     sectionSize += struct.calcsize('!f')*3
             file.write(struct.pack('!f', node.localWatershed))
             file.write(struct.pack('!f', node.inheritedWatershed))
-            file.write(struct.pack('!f', node.flow if node.parent is not None else 0))
+            file.write(struct.pack('!f', node.flow))
             sectionSize += struct.calcsize('!I')*2 + struct.calcsize('!H') + struct.calcsize('!f')*6 + struct.calcsize('!B')
 
         print(f"\tHydrology nodes: {sectionSize} bytes")
@@ -252,6 +252,8 @@ def writeToTerrainModule(pipe, shore, edgeLength, hydrology, cells, Ts):
 def readDataModel(path):
     with open(path, 'rb') as file:
         versionNumber = struct.unpack('!H', file.read(struct.calcsize('!H')))[0]
+        if versionNumber != 1:
+            raise ValueError('This file was not created with the correct version of the hydrology script.')
 
         coordinateType = struct.unpack('!B', file.read(struct.calcsize('!B')))[0]
         rasterResolution = struct.unpack('!f', file.read(struct.calcsize('!f')))[0]
