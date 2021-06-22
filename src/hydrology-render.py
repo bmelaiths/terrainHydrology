@@ -225,9 +225,7 @@ def subroutineExtremeMemory(start: int, end: int, q: Queue):
     # Nofity parent process
     q.put(0x0)
 
-def subroutine(conn: Pipe):
-    threadID = conn.recv()
-
+def subroutine(threadID: int):
     # Access the shared memory region
     sharedBuffer = shared_memory.SharedMemory(
         bufferString, create=False
@@ -248,7 +246,6 @@ def subroutine(conn: Pipe):
             counter.value += 1
 
     # Free resources
-    conn.close()
     sharedBuffer.close()
 
 
