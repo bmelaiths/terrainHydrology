@@ -280,12 +280,12 @@ else:
     dataQueue = Queue()
     persist = Value('B', 0)
     for p in range(numProcs):
-        processes.append(Process(target=subroutine, args=(chunki*chunk,(chunki+1)*chunk, dataQueue)))
+        processes.append(Process(target=subroutineExtremeMemory, args=(chunki*chunk,(chunki+1)*chunk, dataQueue)))
         processes[p].start()
         chunki += 1
     while chunki < math.ceil(outputResolution/chunk):
         dataQueue.get()
-        processes.append(Process(target=subroutine, args=(chunki*chunk,(chunki+1)*chunk, dataQueue)))
+        processes.append(Process(target=subroutineExtremeMemory, args=(chunki*chunk,(chunki+1)*chunk, dataQueue)))
         processes[len(processes)-1].start()
         chunki += 1
     persist.value = 1
