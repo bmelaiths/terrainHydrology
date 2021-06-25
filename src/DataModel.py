@@ -1,12 +1,20 @@
 import cv2 as cv
+from networkx.algorithms.operators import binary
 import numpy as np
 import networkx as nx
 from scipy.spatial import cKDTree
 from scipy.spatial import Voronoi
 from poisson import PoissonGenerator
 from PIL import Image
+import shapely.geometry as geom
+import struct
+import math
+from tqdm import trange
+import datetime
 
 import typing
+
+import Math
 
 class RasterData:
     """A simple abstraction of raster data based on an image.
@@ -28,6 +36,8 @@ class RasterData:
     """
     def __init__(self, inputFileName: str, resolution: float):
         self.raster = Image.open(inputFileName)
+        self.xSize = self.raster.size[0]
+        self.ySize = self.raster.size[1]
         self.raster = self.raster.convert('L')
         self.raster = self.raster.load()
         self.resolution = resolution
@@ -40,6 +50,21 @@ class RasterData:
         :rtype: float
         """
         return self.raster[int(loc[0]/self.resolution),int(loc[1]/self.resolution)]
+    def toBinary(self):
+        binary = None
+        for y in range(self.ySize):
+            # print(f'Working on row {y}')
+            row = None
+            for x in range(self.xSize):
+                if row is not None:
+                    row = row + struct.pack('!f', self.raster[x,y])
+                else:
+                    row = struct.pack('!f', self.raster[x,y])
+            if binary is not None:
+                binary = binary + row
+            else:
+                binary = row
+        return binary
 
 class ShoreModel:
     """This class represents the land area.
@@ -48,15 +73,28 @@ class ShoreModel:
     represent the line that demarcates the boundary between
     land and sea. This class also has useful functions.
 
-    :param inputFileName: The path to the image that defines the shoreline
-    :type inputFileName: str
+    :param gammaFileName: The path to the image that defines the shoreline
+    :type gammaFileName: str
     :param resolution: The resolution of the input image in meters per pixel
     :type resolution: float
+
+    :cvar realShape: The spatial dimensions of the area that the gamma image covers, in meters
+    :vartype realShape: numpy.ndarray[float,float]
+
+    .. note::
+       Shape variables are all in order y,x.
     """
-    def __init__(self, inputFileName: str, resolution: float):
+    def __init__(self, resolution: float, gammaFileName: str=None, binaryFile: typing.IO=None):
         """Constructor
         """
 
+        if gammaFileName is not None:
+            self._initFromGammaImage(resolution, gammaFileName)
+        elif binaryFile is not None:
+            self._initFromBinaryFile(resolution, binaryFile)
+        else:
+            raise ValueError('You must either create a shore from an image, or reconstitute it from a binary file')
+    def _initFromGammaImage(self, resolution, inputFileName):
         self.resolution = resolution
 
         self.img = cv.imread(inputFileName)
@@ -79,6 +117,24 @@ class ShoreModel:
         
         # TODO raise exception if dimensions not square
         # TODO raise exception if multiple contours
+    def _initFromBinaryFile(self, resolution, binaryFileName):
+        self.resolution = resolution
+        self.rasterShape = (
+            struct.unpack('!Q', binaryFileName.read(struct.calcsize('!Q')))[0],
+            struct.unpack('!Q', binaryFileName.read(struct.calcsize('!Q')))[0]
+        )
+        self.imgray = np.zeros(self.rasterShape)
+        for d0 in range(self.rasterShape[0]):
+            for d1 in range(self.rasterShape[1]):
+                self.imgray[d0][d1] = struct.unpack('!B', binaryFileName.read(struct.calcsize('!B')))[0]
+        self.realShape = (self.imgray.shape[0] * self.resolution, self.imgray.shape[1] * self.resolution)
+        contourLength = struct.unpack('!Q', binaryFileName.read(struct.calcsize('!Q')))[0]
+        self.contour = [ ]
+        for i in range(contourLength):
+            self.contour.append((
+                struct.unpack('!Q', binaryFileName.read(struct.calcsize('!Q')))[0],
+                struct.unpack('!Q', binaryFileName.read(struct.calcsize('!Q')))[0]
+            ))
     def distanceToShore(self, loc) -> float:
         """Gets the distance between a point and the shore
 
@@ -101,8 +157,8 @@ class ShoreModel:
         :rtype: bool
         """
         
-        if 0 <= loc[0] < self.realShape[0] and 0 <= loc[1] < self.realShape[1]:
-            return self.imgray[int(loc[1]/self.resolution)][int(loc[0]/self.resolution)] != 0
+        if 0 <= loc[0] < self.realShape[1] and 0 <= loc[1] < self.realShape[0]:
+            return self.imgray[int(loc[1]/self.resolution)][int(loc[0]/self.resolution)] == 255 # != 0
         else:
             return False
     def __getitem__(self, index: int):
@@ -202,10 +258,147 @@ class HydrologyNetwork:
     Internally, the data is held in a :class:`networkx DiGraph<networkx.DiGraph>`. A
     :class:`cKDTree<scipy.spatial.cKDTree>` is used for lookup by area.
     """
-    def __init__(self):
+    def __init__(self, stream=None, binaryFile=None):
         self.nodeCounter = 0
         self.graph = nx.DiGraph()
         self.mouthNodes = []
+
+        if stream is not None:
+            self._initFromStream(stream)
+        elif binaryFile is not None:
+            self._initFromBinary(binaryFile)
+    def _initFromStream(self, pipe):
+        buffer = pipe.read(8)
+        numberNodes = struct.unpack('!Q', buffer)[0]
+
+        allpoints_list = []
+
+        for i in range(numberNodes):
+            buffer = pipe.read(8)
+            nodeID = struct.unpack('!Q', buffer)[0]
+
+            buffer = pipe.read(8)
+            parent = struct.unpack('!Q', buffer)[0]
+            buffer = pipe.read(8)
+            contourIndex = struct.unpack('!Q', buffer)[0]
+            if parent == nodeID:
+                parent = None
+            else:
+                parent = self.node(parent)
+                contourIndex = None
+
+            buffer = pipe.read(1)
+            numChildren = struct.unpack('!B', buffer)[0]
+
+            for chiild in range(numChildren):
+                buffer = pipe.read(8)
+                childID = struct.unpack('!Q', buffer)[0]
+
+            buffer = pipe.read(4)
+            locX = struct.unpack('!f', buffer)[0]
+
+            buffer = pipe.read(4)
+            locY = struct.unpack('!f', buffer)[0]
+
+            buffer = pipe.read(4)
+            elevation = struct.unpack('!f', buffer)[0]
+
+            allpoints_list.append( (locX, locY) )
+
+            node = HydroPrimitive(self.nodeCounter, (locX,locY), elevation, 0, parent)
+            if contourIndex is not None:
+                node.contourIndex = contourIndex
+
+            self.graph.add_node(
+                self.nodeCounter,
+                primitive=node
+            )
+            if parent is None:
+                self.mouthNodes.append(self.nodeCounter)
+            else:
+                self.graph.add_edge(parent.id, self.nodeCounter)
+
+            self.nodeCounter += 1
+
+        self.graphkd = cKDTree(allpoints_list)
+    def _initFromBinary(self, file):
+        buffer = file.read(8)
+        numberNodes = struct.unpack('!Q', buffer)[0]
+
+        allpoints_list = []
+
+        for i in range(numberNodes):
+            buffer = file.read(struct.calcsize('!I'))
+            nodeID = struct.unpack('!I', buffer)[0]
+
+            buffer = file.read(4)
+            locX = struct.unpack('!f', buffer)[0]
+
+            buffer = file.read(4)
+            locY = struct.unpack('!f', buffer)[0]
+
+            buffer = file.read(4)
+            elevation = struct.unpack('!f', buffer)[0]
+
+            buffer = file.read(struct.calcsize('!I'))
+            parent = struct.unpack('!I', buffer)[0]
+            if parent == nodeID:
+                parent = None
+            else:
+                parent = self.node(parent)
+
+            buffer = file.read(struct.calcsize('!I'))
+            contourIndex = struct.unpack('!I', buffer)[0]
+
+            rivers = [ ]
+            buffer = file.read(struct.calcsize('!B'))
+            numRivers = struct.unpack('!B', buffer)[0]
+            for i in range(numRivers):
+                points = [ ]
+                buffer = file.read(struct.calcsize('!H'))
+                numPoints = struct.unpack('!H', buffer)[0]
+                for j in range(numPoints):
+                    buffer = file.read(struct.calcsize('!f'))
+                    riverX = struct.unpack('!f', buffer)[0]
+                    buffer = file.read(struct.calcsize('!f'))
+                    riverY = struct.unpack('!f', buffer)[0]
+                    buffer = file.read(struct.calcsize('!f'))
+                    riverZ = struct.unpack('!f', buffer)[0]
+                    points.append((riverX,riverY,riverZ))
+                rivers.append(geom.LineString(points))
+            
+            buffer = file.read(struct.calcsize('!f'))
+            localWatershed = struct.unpack('!f', buffer)[0]
+
+            buffer = file.read(struct.calcsize('!f'))
+            inheritedWatershed = struct.unpack('!f', buffer)[0]
+
+            buffer = file.read(struct.calcsize('!f'))
+            flow = struct.unpack('!f', buffer)[0]
+
+            allpoints_list.append( (locX, locY) )
+
+            node = HydroPrimitive(self.nodeCounter, (locX,locY), elevation, 0, parent)
+
+            if parent is not None:
+                node.contourIndex = contourIndex
+            node.rivers = rivers
+            node.localWatershed = localWatershed
+            node.inheritedWatershed = inheritedWatershed
+            node.flow = flow
+
+            self.graph.add_node(
+                self.nodeCounter,
+                primitive=node
+            )
+            if parent is None:
+                self.mouthNodes.append(self.nodeCounter)
+            else:
+                self.graph.add_edge(parent.id, self.nodeCounter)
+
+            self.nodeCounter += 1
+
+        self.graphkd = cKDTree(allpoints_list)
     def addNode(self, loc: typing.Tuple[float,float], elevation: float, priority: int, contourIndex: int=None, parent: int=None) -> HydroPrimitive:
         """Creates and adds a HydrologyPrimitive to the network
 
@@ -234,7 +427,7 @@ class HydrologyNetwork:
         :rtype: HydroPrimitive
         """
         node = HydroPrimitive(self.nodeCounter, loc, elevation, priority, parent)
-        if contourIndex is not None:
+        if parent is None or contourIndex is not None:
             node.contourIndex = contourIndex
             self.mouthNodes.append(self.nodeCounter)
         self.graph.add_node(
@@ -246,6 +439,32 @@ class HydrologyNetwork:
         self.nodeCounter += 1
         allpoints_list = np.array([self.graph.nodes[n]['primitive'].position for n in range(self.nodeCounter)])
         self.graphkd = cKDTree(allpoints_list)
+        
+        # Classify the new leaf
+        node.priority = 1
+
+        # Classify priorities of affected nodes
+        classifyNode = node.parent
+        while True:
+            if classifyNode is None:
+                break
+            children = self.upstream(classifyNode.id)
+            maxNumber = max([child.priority for child in children])
+            numMax = len([child.priority for child in children if child.priority == maxNumber])
+            if numMax > 1 and classifyNode.priority < maxNumber + 1:
+                # if there is more than one child with the maximum number,
+                # and the parent isn't already set for it, then change it
+                classifyNode.priority = maxNumber + 1
+            elif classifyNode.priority < maxNumber:
+                # if the parent isn't already set for the maximum number,
+                # change it
+                classifyNode.priority = maxNumber
+            else:
+                # if the parent does not need to be changed at all, then
+                # none of its ancestors do, and the graph is fully adjsuted
+                break
+            classifyNode = classifyNode.parent
+
         return node
     def query_ball_point(self, loc: typing.Tuple[float,float], radius: float) -> typing.List[int]:
         """Gets all nodes that are within a certain distance of a location
@@ -426,8 +645,12 @@ class TerrainHoneycomb:
     :type shore: ShoreModel
     :param hydrology: The filled-out HydrologyNetwork for the land area
     :type hydrology: HydrologyNetwork
+    :param edgeLength: The edge length in the simulation
+    :type edgeLength: float
     :param resolution: The resolution of the underlying rasters in meters per pixel
     :type resolution: float
+    :param dryRun: Indicate that this object is being used for a dry run, thus ridge data will not be needed
+    :type dryRun: bool
 
     .. note::
        ``resolution`` should be the same that was passed to the ShoreModel.
@@ -436,8 +659,16 @@ class TerrainHoneycomb:
     instance and a couple of dictionaries to classify ridges and other
     edges.
     """
-    def __init__(self, shore: ShoreModel, hydrology: HydrologyNetwork, resolution: float):
+    def __init__(self, shore: ShoreModel=None, hydrology: HydrologyNetwork=None, resolution: float=None, edgeLength: float=None, binaryFile: typing.IO=None):
+        if binaryFile is not None and resolution is not None and edgeLength is not None and shore is not None and hydrology is not None:
+            self._initFromBinaryFile(resolution, edgeLength, shore, hydrology, binaryFile)
+        elif shore is not None and hydrology is not None and resolution is not None and edgeLength is not None:
+            self._initFromModel(shore, hydrology, resolution, edgeLength)
+        else:
+            raise ValueError()
+    def _initFromModel(self, shore, hydrology, resolution, edgeLength):
         self.resolution = resolution
+        self.edgeLength = edgeLength
 
         self.shore     = shore
         self.hydrology = hydrology
@@ -449,78 +680,168 @@ class TerrainHoneycomb:
         points.append((shore.realShape[0],shore.realShape[1]))
         
         self.vor = Voronoi(points,qhull_options='Qbb Qc Qz Qx')
-        
-        self.imgvoronoi = np.zeros(shore.rasterShape, dtype=np.uint16)
-        for n in range(len(hydrology)):
-            if self.vor_region_id(n) == -1:
-                continue
-            positions = [(int(p[0]/self.resolution),int(p[1]/self.resolution)) for p in self.ridgePositions(n)]
-            cv.fillPoly(
-                self.imgvoronoi,
-                openCVFillPolyArray(positions),
-                np.int16(self.vor_region_id(n)+1).item()
-            )
-        ret, thresh = cv.threshold(shore.imgray, 127, 1, 0)
-        mask = np.array(thresh, dtype=np.uint16) * (256*256-1)
-        self.imgvoronoi = cv.bitwise_and(self.imgvoronoi,mask)
-        
+        self.point_region = list(self.vor.point_region)
+        self.regions = self.vor.regions
+        self.vertices = self.vor.vertices
+        self.region_point = {self.point_region[i]: i for i in range(len(self.point_region))}
+
+        # sort region vertices so that the polygons are convex
+        print('\tOrganizing vertices into convex polygons...')
+        for rid in trange(len(self.regions)):
+            nodeID = self.id_vor_region(rid)
+            if nodeID is None or nodeID >= len(self.hydrology):
+                continue # if this region is not associated with a node, don't bother
+            region = [iv for iv in self.regions[rid] if iv != -1]
+            pivotPoint = self.hydrology.node(nodeID).position
+            region.sort(key = lambda idx: math.atan2(
+                    self.vertices[idx][1] - pivotPoint[1], # y
+                    self.vertices[idx][0] - pivotPoint[0]  # x
+            ))
+            self.regions[rid] = region
+
+        print('\tCreating ridge primitives...')
         self.qs = [ ]
-        for iv in range(len(self.vor.vertices)):
-            if not shore.isOnLand(self.vor.vertices[iv]):
+        for iv in trange(len(self.vertices)):
+            if not shore.isOnLand(self.vertices[iv]):
                 self.qs.append(None)
                 continue
-            regionIdxes = [self.vor.regions.index(bound) for bound in self.vor.regions if iv in bound]
-            nodeIdxes = [list(self.vor.point_region).index(regionIndex) for regionIndex in regionIdxes]
-            self.qs.append(Q(self.vor.vertices[iv],nodeIdxes, iv))
-            print(f'\tCreating ridge primitive {iv} of {len(self.vor.vertices)}\r', end='')
-        print()
+            nearbyNodes = self.hydrology.query_ball_point(self.vertices[iv], edgeLength*2)
+            borderedNodes = [ ]
+            for nodeID in nearbyNodes:
+                if iv in self.regions[self.vor_region_id(nodeID)]:
+                    borderedNodes.append(nodeID)
+            self.qs.append(Q(self.vertices[iv], borderedNodes, iv))
 
+        print('\tClassifying ridges...')
         self.cellsRidges = { }
         self.cellsDownstreamRidges = { }
-        for n in range(len(hydrology)):
-            connectedNodes = [nd.id for nd in hydrology.upstream(n)]
-            node = hydrology.node(n)
-            if node.parent is not None:
-                connectedNodes.append(node.parent.id)
-            
-            verts = self.vor.regions[self.vor_region_id(n)].copy()
-            ridges = [ ]
-            for ri in range(len(self.vor.ridge_points)):
-                if n not in self.vor.ridge_points[ri]:
-                    continue
-                if node.parent is not None:
-                    if self.vor.ridge_points[ri][0] == node.parent.id or self.vor.ridge_points[ri][1] == node.parent.id:
-                        # this is the downstream ridge
-                        v1 = self.vor.vertices[self.vor.ridge_vertices[ri][0]]
-                        v2 = self.vor.vertices[self.vor.ridge_vertices[ri][1]]
-                        if not self.shore.isOnLand(v1) or not self.shore.isOnLand(v2):
-                            # this is a bad way to handle this
-                            self.cellsDownstreamRidges[n] = None
-                            continue
-                        else:
-                            self.cellsDownstreamRidges[n] = (
-                                self.vor.vertices[self.vor.ridge_vertices[ri][0]], self.vor.vertices[self.vor.ridge_vertices[ri][1]]
-                            )
-                            continue
-                # ri points to a ridge of this node
-                if self.vor.ridge_points[ri][0] in connectedNodes or self.vor.ridge_points[ri][1] in connectedNodes:
-                    continue
-                # ri does not point to a ridge that an edge goes through
+        # Classify all ridges
+        for ri in trange(len(self.vor.ridge_vertices)):
+            for n in self.vor.ridge_points[ri]: # Each ridge separates exactly two nodes
+                if n >= len(self.hydrology):
+                    continue # Apparently there are nodes that don't exist; skip these
+                node = hydrology.node(n)
+                otherNode = self.vor.ridge_points[ri][self.vor.ridge_points[ri] != n][0]
+                # if this ridge is the outflow ridge for this node, mark it as such and move on
+                if node.parent is not None and node.parent.id == otherNode:
+                    # this ridge is the outflow ridge for this node
+                    v1 = self.vertices[self.vor.ridge_vertices[ri][0]]
+                    v2 = self.vertices[self.vor.ridge_vertices[ri][1]]
+                    if not self.shore.isOnLand(v1) or not self.shore.isOnLand(v2):
+                        # If one or both vertices is not on land, then don't bother
+                        # trying to make the river flow through the ridge neatly
+                        self.cellsDownstreamRidges[n] = None
+                    else:
+                        self.cellsDownstreamRidges[n] = (v1, v2)
+                    break # the outflow ridge of this node is an inflow ridge for the other one
+                if otherNode in [nd.id for nd in hydrology.upstream(n)]:
+                    continue # this is an inflow ridge, so it need not be considered further
+                # the ridge at ri is not transected by a river
+                if n not in self.cellsRidges:
+                    self.cellsRidges[n] = [ ]
                 vertex0 = self.qs[self.vor.ridge_vertices[ri][0]]
                 vertex1 = self.qs[self.vor.ridge_vertices[ri][1]]
                 if vertex0 is None or vertex1 is None:
                     continue
-                # both ends of the ridge are on land
-                if vertex0.vorIndex in verts:
-                    verts.remove(vertex0.vorIndex)
-                if vertex1.vorIndex in verts:
-                    verts.remove(vertex1.vorIndex)
-                ridges.append((vertex0, vertex1))
-            ridges += [(self.qs[vert],) for vert in verts if self.qs[vert] is not None]
-            # ridges includes vertices that are not part of a ridge (but only vertices on land)
-            self.cellsRidges[n] = ridges
-            print(f'\tOrganizing ridges for cell {n} of {len(hydrology)}\r', end='')
-        print()
+                self.cellsRidges[n].append((vertex0,vertex1))
+
+        print('\tFinding unaffiliated vertices...')
+        # Add vertices that are not attached to ridges
+        for n in trange(len(self.hydrology)):
+            verts = self.regions[self.vor_region_id(n)].copy()
+            if n not in self.cellsRidges:
+                self.cellsRidges[n] = [ ]
+            # Eliminate vertices that are attached to ridges
+            for ridge in self.cellsRidges[n]:
+                for q in ridge:
+                    if q is not None and q.vorIndex in verts:
+                        verts.remove(q.vorIndex)
+            for v in verts:
+                if not self.shore.isOnLand(self.vertices[v]):
+                    continue
+                self.cellsRidges[n].append((self.qs[v],))
+    def _initFromBinaryFile(self, resolution, edgeLength, shore, hydrology, binaryFile):
+        self.edgeLength = edgeLength
+        self.shore = shore
+        self.hydrology = hydrology
+
+        points = [node.position for node in hydrology.allNodes()]
+        points.append((0,0))
+        points.append((0,shore.realShape[1]))
+        points.append((shore.realShape[0],0))
+        points.append((shore.realShape[0],shore.realShape[1]))
+        
+        self.vor = Voronoi(points,qhull_options='Qbb Qc Qz Qx')
+
+        self.resolution = resolution
+        self.point_region = [ ]
+        numPoints = readValue('!Q', binaryFile)
+        for i in range(numPoints):
+            self.point_region.append(readValue('!Q', binaryFile))
+
+        self.region_point = {self.point_region[i]: i for i in range(len(self.point_region))}
+
+        self.regions = [ ]
+        numRegions = readValue('!Q', binaryFile)
+        for r in range(numRegions):
+            regionArray = [ ]
+            numVertices = readValue('!B', binaryFile)
+            for v in range(numVertices):
+                idx = readValue('!Q', binaryFile)
+                if idx == 0xffffffffffffffff:
+                    idx = -1
+                regionArray.append(idx)
+            self.regions.append(regionArray)
+        
+        self.vertices = [ ]
+        numVertices = readValue('!Q', binaryFile)
+        for i in range(numVertices):
+            self.vertices.append((readValue('!f', binaryFile),readValue('!f', binaryFile)))
+
+        self.qs = [ ]
+        numQs = readValue('!Q', binaryFile)
+        for i in range(numQs):
+            if readValue('!B', binaryFile) == 0x00:
+                self.qs.append(None)
+                continue
+            position = (readValue('!f', binaryFile),readValue('!f', binaryFile))
+            nodeIdxes = [ ]
+            numBorders = readValue('!B', binaryFile)
+            for j in range(numBorders):
+                nodeIdxes.append(readValue('!Q', binaryFile))
+            voronoiIdx = readValue('!Q', binaryFile)
+            q = Q(position, nodeIdxes, voronoiIdx)
+            q.elevation = readValue('!f', binaryFile)
+            self.qs.append(q)
+
+        self.cellsRidges = { }
+        numCells = readValue('!Q', binaryFile)
+        for i in range(numCells):
+            cellID = readValue('!Q', binaryFile)
+            numRidges = readValue('!B', binaryFile)
+            for j in range(numRidges):
+                if readValue('!B', binaryFile) < 2:
+                    self.cellsRidges[cellID] = (readValue('!Q', binaryFile))
+                else:
+                    self.cellsRidges[cellID] = (
+                        readValue('!Q', binaryFile),
+                        readValue('!Q', binaryFile)
+                    )
+        
+        self.cellsDownstreamRidges = { }
+        numCells = readValue('!Q', binaryFile)
+        for i in range(numCells):
+            cellID = readValue('!Q', binaryFile)
+            if readValue('!B', binaryFile) == 0xff:
+                self.cellsDownstreamRidges[cellID] = None
+            else:
+                end0x = readValue('!f', binaryFile)
+                end0y = readValue('!f', binaryFile)
+                end1x = readValue('!f', binaryFile)
+                end1y = readValue('!f', binaryFile)
+                self.cellsDownstreamRidges[cellID] = (
+                    (end0x, end0y), (end1x, end1y)
+                )
     def vor_region_id(self, node: int) -> int:
         """Returns the index of the *voronoi region*
 
@@ -537,7 +858,24 @@ class TerrainHoneycomb:
            This method is for internal use. If you are using it from outside this
            class, your approach is definitely breaking a key design principle.
         """
-        return self.vor.point_region[node]
+        return self.point_region[node]
+    def id_vor_region(self, regionID: int) -> int:
+        """ Returns the index of the *node*
+
+        This method is the opposite of :func:`TerrainHoneycomb.vor_region_id`
+
+        :param regionID: The voronoi region id
+        :type regionID: int
+
+        :return: The ID of the hydrology node that this region corresponds to. If this region is not associated with an input point, None is returned
+        :rtype: int
+        .. note::
+            This method is also for internal use
+        """
+        try:
+            return self.region_point[regionID]
+        except:
+            return None # This region does not correspond to an input point
     def ridgePositions(self, node: int) -> typing.List[typing.Tuple[float,float]]:
         """Gets the position of each vertex that makes up the cell
 
@@ -546,21 +884,45 @@ class TerrainHoneycomb:
         :return: A list of points that correspond to the vertices that make the cell
         :rtype: list[tuple[float,float]]
         """
-        ridges = self.vor.regions[self.vor_region_id(node)] # the indices of the vertex boundaries
-        return [self.vor.vertices[x] for x in ridges if x != -1] # positions of all the vertices
-    def cellArea(self, loc: typing.Tuple[float,float]) -> float:
+        ridges = self.regions[self.vor_region_id(node)] # the indices of the vertex boundaries
+        return [self.vertices[x] for x in ridges if x != -1] # positions of all the vertices
+    def cellVertices(self, nodeID: int) -> typing.List[typing.Tuple[float,float]]:
+        """Gets the coordinates of the vertices that define the shape of the node's cell
+
+        .. todo::
+            There are a number of degenerate cases where a cell may not have all of
+            its vertices. This is most common with nodes adjacent to the seeee. In such
+            cases, one or more vertices may not be on land, in which case those vertices
+            will not be returned. This necessitates a number of workarounds in other
+            methods, such as :func:`TerrainHoneycomb.cellArea`,
+            :func:`TerrainHoneycomb.boundingBox`, :func:`TerrainHoneycomb.nodeID`, and
+            anything that calls them. Moreover, :func:`TerrainHoneycomb.isInCell` also
+            needs fixing.
+
+        :param nodeID: The ID of the node whose shape you wish to query
+        :type nodeID: int
+        :return:
+        :rtype: list[tuple[float,float]]
+        """
+        return [self.vertices[vi] for vi in self.regions[self.vor_region_id(nodeID)] if vi != -1 and self.shore.isOnLand(self.vertices[vi])]
+    def cellArea(self, node: HydroPrimitive) -> float:
         """Calculates the (rough) area of the cell that a location is in
 
-        This is a rough estimate. It is derived by counting the number of pixels
-        that correspond to the given cell in an internal raster that is based on
-        the rasters within ShoreModel. Thus, accuracy is proportional to the
-        resolution of the user-supplied rasters. But it is good enough for what
-        it is used for.
+        This method derives the area based on the cell's shape. It is accurate.
+        But in cases where the cell's shape is malformed, this method will not
+        be accurate, and will simply return `resolution**2`, which is essentially
+        the area of a single pixel.
 
         :param loc: Any location within the cell you wish to query
         :type loc: tuple[float,float]
         """
-        return np.count_nonzero(self.imgvoronoi == self.imgvoronoi[int(loc[1]/self.resolution)][int(loc[0]/self.resolution)]) * self.resolution**2
+        try:
+            return Math.convexPolygonArea(
+                node.position,
+                self.cellVertices(node.id)
+            )
+        except:
+            return self.resolution**2
     def cellQs(self, node: int) -> typing.List[Q]:
         """Returns all the Qs binding the cell that corresponds to the given node
 
@@ -569,7 +931,7 @@ class TerrainHoneycomb:
         :return: List of Q instances
         :rtype: list[Q]
         """
-        return [self.qs[vorIdx] for vorIdx in self.vor.regions[self.vor_region_id(node)] if self.qs[vorIdx] is not None]
+        return [self.qs[vorIdx] for vorIdx in self.regions[self.vor_region_id(node)] if self.qs[vorIdx] is not None]
     def allQs(self) -> typing.List[Q]:
         """Simply returns all Qs of the land
 
@@ -587,20 +949,15 @@ class TerrainHoneycomb:
         :return: A tuple indicating the lower X, upper X, lower Y, and upper Y, respectively, in meters
         :rtype: tuple[float,float,float,float]
         """
-        idxes = np.where(self.imgvoronoi==self.vor.point_region[n]+1) # coordinates of all pixels in the voronoi region
-        xllim = min(x for x in idxes[0]) # these lines get the bounding box of the voronoi region
-        xulim = max(x for x in idxes[0])
-        yllim = min(x for x in idxes[1])
-        yulim = max(x for x in idxes[1])
-        # I don't know why he creates another bounding box with opencv
-        b = np.array([[xllim,yllim],[xllim,yulim],[xulim,yllim],[xulim,yulim]])
-        b = cv.minAreaRect(b)
-        pts = cv.boxPoints(b)
-        xllim = int(min(x[0] for x in pts))
-        xulim = int(max(x[0] for x in pts))
-        yllim = int(min(x[1] for x in pts))
-        yulim = int(max(x[1] for x in pts))
-        return (xllim * self.resolution, xulim * self.resolution, yllim * self.resolution, yulim * self.resolution)
+        vertices = self.cellVertices(n) # vertices binding the region
+        if len(vertices) < 1:
+            # If this cell has a malformed shape, don't
+            return (None, None, None, None)
+        xllim = min([v[0] for v in vertices])
+        xulim = max([v[0] for v in vertices])
+        yllim = min([v[1] for v in vertices])
+        yulim = max([v[1] for v in vertices])
+        return (xllim, xulim, yllim, yulim)
     def isInCell(self, p: typing.Tuple[float,float], n: int) -> bool:
         """Determines if a point is within a given cell
 
@@ -614,7 +971,7 @@ class TerrainHoneycomb:
         :return: True of point ``p`` is in the cell that corresponds to ``n``
         :rtype: bool
         """
-        return self.imgvoronoi[int(p[1]/self.resolution)][int(p[0]/self.resolution)]==self.vor.point_region[n]+1
+        return self.shore.isOnLand(p) and Math.pointInConvexPolygon(p, self.cellVertices(n), self.hydrology.node(n).position)
     def cellRidges(self, n: int) -> typing.List[tuple]:
         """Returns the mountain ridges of a cell
 
@@ -655,16 +1012,24 @@ class TerrainHoneycomb:
     def nodeID(self, point: typing.Tuple[float,float]) -> int:
         """Returns the id of the node/cell in which the point is located
 
-        Like :func:`cellArea`, this is not entirely precise, as it is derived
-        from a raster based on those in ShoreModel.
+        Like :func:`cellArea`, this is not entirely precise
 
         :param point: The point you wish to test
         :type point: tuple[float,float]
-        :return: The ID of a node/cell
+        :return: The ID of a node/cell (Returns None if it isn't in a valid cell)
         :rtype: int
         """
-        id = list(self.vor.point_region).index(self.imgvoronoi[int(point[1]/self.resolution)][int(point[0]/self.resolution)]-1)
-        return id if id != -1 else None
+        # check hydrology nodes within a certain distance
+        for id in self.hydrology.query_ball_point(point, self.edgeLength):
+            # if this point is within the voronoi region of one of those nodes,
+            # then that is the point's node
+            vertices = self.cellVertices(id)
+            if len(vertices) < 1:
+                # Ignore cells with malformed shapes
+                continue
+            if Math.pointInConvexPolygon(point, vertices, self.hydrology.node(id).position):
+                return id
+        return None
 
 class T:
     """Terrain primitive
@@ -693,7 +1058,14 @@ class Terrain:
     :param num_points: (Roughly) the number of points in each cell
     :type num_points: int
     """
-    def __init__(self, hydrology, cells, num_points):
+    def __init__(self, hydrology=None, cells=None, num_points=None, binaryFile=None):
+        if binaryFile is not None:
+            self._initReconstitute(binaryFile)
+        elif hydrology is not None and cells is not None and num_points is not None:
+            self._initCreate(hydrology, cells, num_points)
+        else:
+            raise ValueError()
+    def _initCreate(self, hydrology, cells, num_points):
         self.cellTs = { }
         self.tList = [ ]
         
@@ -708,20 +1080,42 @@ class Terrain:
         
         poisson_generator = PoissonGenerator( repeatPattern, first_point_zero)
         points = poisson_generator.find_point_set(num_points, num_iterations, iterations_per_point, num_rotations)
-        for n in range(len(hydrology)):
+        for n in trange(len(hydrology)):
             xllim, xulim, yllim, yulim = cells.boundingBox(n)
+            if xllim is None:
+                # Ignore cells that are too small
+                continue
             
             # I think this applies a mask to the poisson points, and adds those points as Tees for the cell
-            points_projected = [ [p[0]*(yulim-yllim)+yllim,p[1]*(xulim-xllim)+xllim] for p in points ]
+            points_projected = [ [p[0]*(xulim-xllim)+xllim,p[1]*(yulim-yllim)+yllim] for p in points ]
             points_filtered = [ (p[0],p[1]) for p in points_projected if cells.isInCell(p,n) ]
             cellTs = [T(p,n) for p in points_filtered]
             self.cellTs[n] = cellTs
             self.tList += cellTs
-            
-            print(f'\tPrimitives created: {n} of {len(hydrology)} \r', end='')  # use display(f) if you encounter performance issues
-        print()
 
         allpoints_list = [[t.position[0],t.position[1]] for t in self.allTs()]
+        allpoints_nd = np.array(allpoints_list)
+        self.apkd = cKDTree(allpoints_nd)
+    def _initReconstitute(self, binaryFile):
+        self.cellTs = { }
+        self.tList = [ ]
+        allpoints_list = [ ]
+
+        numPrimitives = readValue('!Q', binaryFile)
+        for i in range(numPrimitives):
+            loc = (readValue('!f', binaryFile), readValue('!f', binaryFile))
+            cellID = readValue('!I', binaryFile)
+            elevation = readValue('!f', binaryFile)
+
+            t = T(loc,cellID)
+            t.elevation = elevation
+
+            if cellID not in self.cellTs:
+                self.cellTs[cellID] = [ ]
+            self.cellTs[cellID].append(t)
+            self.tList.append(t)
+            allpoints_list.append(loc)
+
         allpoints_nd = np.array(allpoints_list)
         self.apkd = cKDTree(allpoints_nd)
     def allTs(self) -> typing.List[T]:
@@ -740,6 +1134,15 @@ class Terrain:
         :rtype: list[T]
         """
         return self.Ts[cell].copy()
+    def getT(self, tid: int) -> T:
+        """Gets a terrain primitive identified by its index in the list of all primitives
+
+        :param tid: The index of the primitive you wish to retrieve
+        :type tid: int
+        :return: The terrain primitive
+        :rtype: T
+        """
+        return self.tList[tid]
     def query_ball_point(self, loc: typing.Tuple[float,float], radius: float) -> typing.List[T]:
         """Gets all terrain primitives within a given radius of a given location
 
@@ -751,3 +1154,14 @@ class Terrain:
         :rtype: list[T]
         """
         return [self.tList[i] for i in self.apkd.query_ball_point(loc,radius)]
+    def __len__(self) -> int:
+        """Returns the number of nodes in the forest
+
+        :return: The number of primitives on the map
+        :rtype: int
+        """
+        return len(self.tList)
+
+def readValue(type, stream):
+    buffer = stream.read(struct.calcsize(type))
+    return struct.unpack(type, buffer)[0]

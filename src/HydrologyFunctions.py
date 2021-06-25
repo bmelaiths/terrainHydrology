@@ -1,5 +1,6 @@
 import random
 import math
+import struct
 
 import Math
 
@@ -38,7 +39,7 @@ class HydrologyParameters:
        implement the Factory Pattern to generate the :class:`DataModel.HydrologyNetwork`.
     """
     def __init__(
-        self, shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, riverSlope, slopeRate
+        self, shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength, sigma, eta, zeta, riverSlope, slopeRate, candidates
     ):
         self.shore = shore
         self.hydrology = hydrology
@@ -49,8 +50,48 @@ class HydrologyParameters:
         self.edgeLength = edgeLength
         self.sigma = sigma
         self.eta = eta
+        self.zeta = zeta
         self.riverSlope = riverSlope
         self.slopeRate = slopeRate
+        self.candidates = candidates
+    
+    def toBinary(self):
+        binary =          struct.pack('!f', 0)
+        binary = binary + struct.pack('!f', 0)
+        binary = binary + struct.pack('!f', self.riverSlope.xSize * self.riverSlope.resolution)
+        binary = binary + struct.pack('!f', self.riverSlope.ySize * self.riverSlope.resolution)
+        binary = binary + struct.pack('!f', self.Pa)
+        binary = binary + struct.pack('!f', self.Pc)
+        binary = binary + struct.pack('!f', self.edgeLength)
+        binary = binary + struct.pack('!f', self.sigma)
+        binary = binary + struct.pack('!f', self.eta)
+        binary = binary + struct.pack('!f', self.zeta)
+        binary = binary + struct.pack('!f', self.slopeRate)
+        binary = binary + struct.pack('!H', self.maxTries)
+        binary = binary + struct.pack('!f', self.riverAngleDev)
+
+        binary = binary + struct.pack('!I', self.riverSlope.xSize)
+        binary = binary + struct.pack('!I', self.riverSlope.ySize)
+        binary = binary + struct.pack('!f', self.shore.resolution)
+        binary = binary + self.riverSlope.toBinary()
+
+        # print('ToBinary complete!')
+
+        binary = binary + struct.pack('!I', len(self.candidates))
+        for candidate in self.candidates:
+            binary = binary + struct.pack('!f', float(candidate.x()))
+            binary = binary + struct.pack('!f', float(candidate.y()))
+            binary = binary + struct.pack('!I', candidate.priority)
+            binary = binary + struct.pack('!Q', candidate.contourIndex)
+        
+        binary = binary + struct.pack('!Q', len(self.shore.contour))
+        for point in self.shore.contour:
+            # point = point[0]
+            # points in a contour array are y,x
+            binary = binary + struct.pack('!Q', point[0])
+            binary = binary + struct.pack('!Q', point[1])
+        
+        return binary
 
 def alpha(node: HydroPrimitive, candidates: typing.List[HydroPrimitive], params: HydrologyParameters):         # alpha, as in the expansion rules in Table 1
     """Alpha node expansion rule
@@ -256,61 +297,6 @@ def isAcceptablePosition(point: typing.Tuple[float,float], params: HydrologyPara
             return False
     # otherwise return True
     return True
-
-def calculateHorton_Strahler(selectedCandidate: HydroPrimitive, hydrology: HydrologyNetwork):
-    """Computes the Horton-Strahler classification of a node
-
-    :param selectedCandidate: The node in question
-    :type selectedCandidate: HydroPrimitive
-    :param hydrology: The hydrological network
-    :type params: HydrologyNetwork
-    """
-    #find the leaves from this node and calculate upstream
-    leafs = hydrology.allLeaves(selectedCandidate.id)
-    workingqueue=leafs
-    nextQueue=set()
-    while len(workingqueue)>0:
-        nextQueue=set()
-        for i in range(len(workingqueue)):
-            priority=1
-            children = hydrology.upstream(workingqueue[i].id)
-            childrenPriorities = [child.priority for child in children]
-            if len(children)>0:
-                priority = max(childrenPriorities)
-                if childrenPriorities.count(priority)>1:
-                    priority=priority+1
-            hydrology.node(workingqueue[i].id).priority = priority;
-            parent = hydrology.downstream(workingqueue[i].id)
-            if parent is not None:
-                nextQueue.add(parent)
-        workingqueue=list(nextQueue)
-
-# I don't think this method is called anywhere
-def calculateHorton_Strahler_():
-    """I'm pretty sure this is just an aborted version of :func:`calculateHorton_Strahler`
-
-    .. todo::
-       This block should probably be deleted in a future version, as it is never used.
-    """
-    leafs = [x for x in G.nodes() if G.out_degree(x)==0]
-    workingqueue=leafs
-    nextQueue=set()
-    while len(workingqueue)>0:
-        nextQueue=set()
-        for i in range(len(workingqueue)):
-            priority=1
-            children = G.successors(workingqueue[i])
-            ChildrenPriorities = [G.nodes[x]['priority'] for x in children]
-            if len(ChildrenPriorities)>0:
-                priority = max(ChildrenPriorities)
-                if ChildrenPriorities.count(priority)>1:
-                    priority=priority+1
-            G.nodes[workingqueue[i]]['priority']=priority;
-            parent = G.predecessors(workingqueue[i])
-            parent=[x for x in parent]
-            if len(parent)==1:
-                nextQueue.add(parent[0])
-        workingqueue=list(nextQueue)
 
 def classify(node: HydroPrimitive, hydrology: HydrologyNetwork, edgeLength: float):
     """Computes the Rosgen classification for a stretch of river
