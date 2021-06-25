@@ -2,6 +2,7 @@
 
 import argparse
 import shapefile
+from tqdm.std import trange
 
 import SaveFile
 
@@ -67,7 +68,9 @@ with shapefile.Writer(outputFile, shapeType=1) as w:
     w.field('flow', 'F')
 
     # add every node
-    for node in hydrology.allNodes():
+    for nidx in trange(len(hydrology)):
+        node = hydrology.node(nidx)
+
         if node.parent is not None:
             w.record(
                 node.id, node.parent.id,
@@ -84,8 +87,8 @@ with shapefile.Writer(outputFile, shapeType=1) as w:
         
         # Add node locations. Note that they must be transformed
         w.point(
-            (node.x())-(realShape[0]*0.5),
-            (realShape[1]-node.y())-(realShape[1]*0.5)
+            (node.x())-(realShape[1]*0.5),
+            (realShape[0]-node.y())-(realShape[0]*0.5)
         )
 
     w.close()

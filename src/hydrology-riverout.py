@@ -2,6 +2,7 @@
 
 import argparse
 import shapefile
+from tqdm.std import trange
 
 import SaveFile
 
@@ -61,7 +62,10 @@ with shapefile.Writer(outputFile, shapeType=3) as w:
     w.field('flow', 'F')
 
     # This loop adds rivers in the same way that they were created
-    for node in hydrology.allMouthNodes():
+    #for node in hydrology.allMouthNodes():
+    for nidx in trange(len(hydrology)):
+        node = hydrology.node(nidx)
+
         leaves = hydrology.allLeaves(node.id)
         for leafNode in leaves:
             # Path from the leaf to the sea
@@ -84,6 +88,6 @@ with shapefile.Writer(outputFile, shapeType=3) as w:
 
             coords = list(leafNode.rivers[0].coords)
             # Transform the coordinates
-            coords = [((p[0])-(realShape[0]*0.5),(realShape[1]-p[1])-(realShape[1]*0.5)) for p in coords]
+            coords = [((p[0])-(realShape[1]*0.5),(realShape[0]-p[1])-(realShape[0]*0.5)) for p in coords]
             w.line([list(coords)])
     w.close()
