@@ -65,7 +65,7 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
   rasterXsize = be32toh(rasterXsize);
   rasterYsize = be32toh(rasterYsize);
   resolution = float_swap(resolution);
-  riverSlope = Raster<float>(rasterXsize, rasterYsize, resolution);
+  riverSlope = Raster<float>(rasterYsize, rasterXsize, resolution);
   float riverSlopeIn;
   for (uint32_t y = 0; y < rasterYsize; y++)
   {

@@ -132,13 +132,14 @@ Raster<T>& Raster<T>::operator=(Raster<T>&& other) noexcept
         return *this;
     }
 
-    rows = std::move(rows);
+    rows = std::move(other.rows);
     cols = std::move(other.cols);
     resolution = std::move(other.resolution);
     data = std::move(other.data);
 
     other.rows = 0;
     other.cols = 0;
+    other.resolution = 0;
     other.data = NULL;
 
     return *this;
