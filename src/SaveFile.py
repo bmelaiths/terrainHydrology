@@ -3,7 +3,7 @@ import os
 
 import DataModel
 
-def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hydrology: DataModel.HydrologyNetwork, cells: DataModel.TerrainHoneycomb, Ts: DataModel.Terrain):
+def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hydrology: DataModel.HydrologyNetwork=None, cells: DataModel.TerrainHoneycomb=None, Ts: DataModel.Terrain=None):
     with open(path, 'wb') as file:
         file.write(struct.pack('!H', 2)) # version number. Increment every time a breaking change is made
 
@@ -61,6 +61,20 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
 
         ## Hydrology data structure ##
 
+        if hydrology is None:
+            # Abort writing the file; there's nothing left to write
+
+            ## Write the table of contents ##
+            file.seek(struct.calcsize('!H'))
+            file.write(struct.pack('!Q', tableOfContents['shore']))
+            file.write(struct.pack('!Q', 0))
+            file.write(struct.pack('!Q', 0))
+            file.write(struct.pack('!Q', 0))
+
+            file.close()
+
+            return
+
         tableOfContents['honeycomb'] = tableOfContents['hydrology']
 
         sectionSize = 0
@@ -84,15 +98,34 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
                     file.write(struct.pack('!f', point[1]))
                     file.write(struct.pack('!f', point[2]))
                     sectionSize += struct.calcsize('!f')*3
-            file.write(struct.pack('!f', node.localWatershed))
-            file.write(struct.pack('!f', node.inheritedWatershed))
-            file.write(struct.pack('!f', node.flow))
+            if cells is not None:
+                file.write(struct.pack('!f', node.localWatershed))
+                file.write(struct.pack('!f', node.inheritedWatershed))
+                file.write(struct.pack('!f', node.flow))
+            else:
+                file.write(struct.pack('!f', 0.0))
+                file.write(struct.pack('!f', 0.0))
+                file.write(struct.pack('!f', 0.0))
             sectionSize += struct.calcsize('!I')*2 + struct.calcsize('!H') + struct.calcsize('!f')*6 + struct.calcsize('!B')
 
         print(f"\tHydrology nodes: {sectionSize} bytes")
         tableOfContents['honeycomb'] += sectionSize
 
         ## TerrainHoneycomb data structure ##
+
+        if cells is None:
+            # Abort writing the file; there's nothing left to write
+
+            ## Write the table of contents ##
+            file.seek(struct.calcsize('!H'))
+            file.write(struct.pack('!Q', tableOfContents['shore']))
+            file.write(struct.pack('!Q', tableOfContents['hydrology']))
+            file.write(struct.pack('!Q', tableOfContents['honeycomb']))
+            file.write(struct.pack('!Q', 0))
+
+            file.close()
+
+            return
 
         tableOfContents['primitives'] = tableOfContents['honeycomb']
 
@@ -204,6 +237,20 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
         tableOfContents['primitives'] += sectionSize
 
         ## Terrain primitives ##
+
+        if Ts is None:
+            # Abort writing the file; there's nothing left to write
+
+            ## Write the table of contents ##
+            file.seek(struct.calcsize('!H'))
+            file.write(struct.pack('!Q', tableOfContents['shore']))
+            file.write(struct.pack('!Q', tableOfContents['hydrology']))
+            file.write(struct.pack('!Q', tableOfContents['honeycomb']))
+            file.write(struct.pack('!Q', 0))
+
+            file.close()
+
+            return
 
         sectionSize = 0
 

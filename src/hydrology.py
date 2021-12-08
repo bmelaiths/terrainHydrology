@@ -161,195 +161,228 @@ riverSlope = DataModel.RasterData(inputRiverSlope, resolution)
 
 ## Generate river mouths
 
-hydrology = DataModel.HydrologyNetwork()
+try:
 
-# generate first node
-firstIdx = random.randint(0,len(shore)-1)
-point = shore[firstIdx]
-hydrology.addNode(point, 0, random.randint(1,N_majorRivers), contourIndex=firstIdx)
+    hydrology = DataModel.HydrologyNetwork()
 
-dist = len(shore)/N_majorRivers
-for i in range(1,N_majorRivers):
-    idx = int((firstIdx+i*dist+random.gauss(0, dist/6))%len(shore))
-    point = shore[idx]
-    hydrology.addNode(point, 0, 1, contourIndex=idx)
+    # generate first node
+    firstIdx = random.randint(0,len(shore)-1)
+    point = shore[firstIdx]
+    hydrology.addNode(point, 0, random.randint(1,N_majorRivers), contourIndex=firstIdx)
+
+    dist = len(shore)/N_majorRivers
+    for i in range(1,N_majorRivers):
+        idx = int((firstIdx+i*dist+random.gauss(0, dist/6))%len(shore))
+        point = shore[idx]
+        hydrology.addNode(point, 0, 1, contourIndex=idx)
 
 
-## Generate river nodes
+    ## Generate river nodes
 
-print('Generating rivers...')
+    print('Generating rivers...')
 
-candidates = hydrology.allMouthNodes() # All mouth nodes are candidates
-params = HydrologyFunctions.HydrologyParameters(
-    # These parameters will be needed to generate the hydrology network
-    shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength,
-    sigma, eta, zeta, riverSlope, slopeRate, candidates
-)
-
-start, end = None, None
-
-if not args.accelerate: # Generate the hydrology in Python
-    cyclesRun = 0
-    start = datetime.datetime.now()
-    while len(candidates)!=0:
-        selectedCandidate = HydrologyFunctions.selectNode(candidates,zeta)
-        HydrologyFunctions.alpha(selectedCandidate, candidates, params)
-        print(f'\tCycles: {len(hydrology)}\t{cyclesRun/(datetime.datetime.now()-start).total_seconds()} cycles/sec\r', end='')
-        cyclesRun = cyclesRun + 1
-    end = datetime.datetime.now()
-    print()
-else: # Generate the hydrology using the native module
-    if not os.path.exists(buildRiversExe):
-        print('The executable does not exist. Run "make buildRivers" in the src/ directory to build it.')
-        exit()
-    proc = subprocess.Popen( # start the native module
-        ['./' + buildRiversExe],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE
+    candidates = hydrology.allMouthNodes() # All mouth nodes are candidates
+    params = HydrologyFunctions.HydrologyParameters(
+        # These parameters will be needed to generate the hydrology network
+        shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgeLength,
+        sigma, eta, zeta, riverSlope, slopeRate, candidates
     )
-    proc.stdin.write(params.toBinary()) # send the parameters to the native module
-    print('\tData sent to native module...')
 
-    # Display updates as native module builds the network
-    cyclesRun = 0
-    start = datetime.datetime.now()
-    readByte = proc.stdout.read(1)
-    cyclesRun = cyclesRun + 1
-    while struct.unpack('B', readByte)[0] == 0x2e:
-        print(f'\tCycles: {cyclesRun}\t{cyclesRun/(datetime.datetime.now()-start).total_seconds()} cycles/sec\r', end='')
+    start, end = None, None
+
+    if not args.accelerate: # Generate the hydrology in Python
+        cyclesRun = 0
+        start = datetime.datetime.now()
+        while len(candidates)!=0:
+            selectedCandidate = HydrologyFunctions.selectNode(candidates,zeta)
+            HydrologyFunctions.alpha(selectedCandidate, candidates, params)
+            print(f'\tCycles: {len(hydrology)}\t{cyclesRun/(datetime.datetime.now()-start).total_seconds()} cycles/sec\r', end='')
+            cyclesRun = cyclesRun + 1
+        end = datetime.datetime.now()
+        print()
+    else: # Generate the hydrology using the native module
+        if not os.path.exists(buildRiversExe):
+            print('The executable does not exist. Run "make buildRivers" in the src/ directory to build it.')
+            exit()
+        file = open('src/binaryFile', 'w+b')
+        file.write(params.toBinary())
+        file.close()
+        proc = subprocess.Popen( # start the native module
+            ['./' + buildRiversExe],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE
+        )
+        # proc.stdin.write(params.toBinary()) # send the parameters to the native module
+        print('\tData sent to native module...')
+
+        # Display updates as native module builds the network
+        cyclesRun = 0
+        start = datetime.datetime.now()
         readByte = proc.stdout.read(1)
         cyclesRun = cyclesRun + 1
-    end = datetime.datetime.now()
-    print()
+        while struct.unpack('B', readByte)[0] == 0x2e:
+            print(f'\tCycles: {cyclesRun}\t{cyclesRun/(datetime.datetime.now()-start).total_seconds()} cycles/sec\r', end='')
+            readByte = proc.stdout.read(1)
+            cyclesRun = cyclesRun + 1
+        end = datetime.datetime.now()
+        print()
 
-    # Recreate hydrology with data from the native module
-    print('\tReading data...')
-    hydrology = DataModel.HydrologyNetwork(stream=proc.stdout)
+        # Recreate hydrology with data from the native module
+        print('\tReading data...')
+        hydrology = DataModel.HydrologyNetwork(stream=proc.stdout)
 
-print(f'\tGenerated {len(hydrology)} nodes in {(end-start).total_seconds()} seconds')
-print(f'\tRate: {len(hydrology)/(end-start).total_seconds()} node/sec')
+    print(f'\tGenerated {len(hydrology)} nodes in {(end-start).total_seconds()} seconds')
+    print(f'\tRate: {len(hydrology)/(end-start).total_seconds()} node/sec')
 
+except Exception as e:
+    print('Problem encountered in generating the hydrology. Saving shore model to export file.')
+    print(e)
 
-## Create terrain partition (voronoi cells)
-print('Generating terrain ridges...')
-cells = DataModel.TerrainHoneycomb(shore, hydrology, resolution, edgeLength)
+    print('Saving...')
+    SaveFile.writeDataModel(outputFile, edgeLength, shore, hydrology=None, cells=None, Ts=None)
 
+    exit()
 
-## Calculate watershed areas
-print('Calculating watershed areas...')
+try:
 
-# local watershed areas
-for n in range(len(hydrology)):
-    node = hydrology.node(n)
-    node.localWatershed = cells.cellArea(node)
-    node.inheritedWatershed = 0
+    ## Create terrain partition (voronoi cells)
+    print('Generating terrain ridges...')
+    cells = DataModel.TerrainHoneycomb(shore, hydrology, resolution, edgeLength)
 
-# calculate inherited watershed areas and flow
-for node in hydrology.dfsPostorderNodes():  # search nodes in a depth-first post-ordering manner
-    watershed = node.localWatershed + sum([n.inheritedWatershed for n in hydrology.upstream(node.id)])
-    node.inheritedWatershed=watershed  # calculate total watershed area
-    node.flow = 0.42 * watershed**0.69 # calculate river flow
+    ## Calculate watershed areas
+    print('Calculating watershed areas...')
 
+    # local watershed areas
+    for n in range(len(hydrology)):
+        node = hydrology.node(n)
+        node.localWatershed = cells.cellArea(node)
+        node.inheritedWatershed = 0
 
-## Classify river nodes
-print('Classifying river nodes...')
-for n in range(len(hydrology)):
-    HydrologyFunctions.classify(hydrology.node(n), hydrology, edgeLength)
-
-
-## Calculate ridge elevations
-print('Calculating ridge elevations...')
-
-for q in cells.allQs():
-    if q is None:
-        continue
-    nodes = [hydrology.node(n) for n in q.nodes]
-    maxElevation = max([node.elevation for node in nodes])
-    d = np.linalg.norm(q.position - nodes[0].position)
-    slope = terrainSlopeRate * terrainSlope[q.position[0],q.position[1]] / 255
-    q.elevation = maxElevation + d * slope
+    # calculate inherited watershed areas and flow
+    for node in hydrology.dfsPostorderNodes():  # search nodes in a depth-first post-ordering manner
+        watershed = node.localWatershed + sum([n.inheritedWatershed for n in hydrology.upstream(node.id)])
+        node.inheritedWatershed=watershed  # calculate total watershed area
+        node.flow = 0.42 * watershed**0.69 # calculate river flow
 
 
-## Terrain pattern
-print('Generating terrain primitives...')
-Ts = DataModel.Terrain(hydrology, cells, num_points)
+    ## Classify river nodes
+    print('Classifying river nodes...')
+    for n in range(len(hydrology)):
+        HydrologyFunctions.classify(hydrology.node(n), hydrology, edgeLength)
 
 
-## Generate river paths
-print('Interpolating river paths...')
-for node in hydrology.allMouthNodes():
-    # remember that out_edges gets upstream nodes
-    leaves = hydrology.allLeaves(node.id)
-    for leafNode in leaves: # essentially, this loops through all the highest nodes of a particular mouth
-        # path to the leaf (there's only one, so it's the shortest)
-        path = hydrology.pathToNode(node.id,leafNode.id)
-        path.reverse()
+    ## Calculate ridge elevations
+    print('Calculating ridge elevations...')
 
-        # terminates the path if there is another path with greater flow, and adds the downflow ridge as a point
-        for ni in range(1,len(path)):
-            #print(f'path: {[n.id for n in path]}')
-            #print(f'ni: {ni}')
-            #print(f'Upstream of node {path[ni].id} ({path[ni].position}): {[n.id for n in hydrology.upstream(path[ni].id)]}')
-            upstreamFlow = max([n.flow for n in hydrology.upstream(path[ni].id)])
-            if upstreamFlow > path[ni-1].flow:
-                path = path[0:ni+1]
-                break
-        
-        x = [ ]
-        y = [ ]
-        z = [ ]
-        for pi in range(len(path)):
-            p = path[pi]
-            x.append(p.x())
-            y.append(p.y())
-            z.append(p.elevation)
-            # makes the river flow through the cell's outflow ridge (so it doesn't transect a mountain)
-            if p.parent is not None and pi < len(path)-1 and cells.cellOutflowRidge(p.id) is not None:
-                ridge0, ridge1 = cells.cellOutflowRidge(p.id)
-                x.append((ridge0[0] + ridge1[0])/2)
-                y.append((ridge0[1] + ridge1[1])/2)
-                z.append((p.elevation + p.parent.elevation)/2)
+    for q in cells.allQs():
+        if q is None:
+            continue
+        nodes = [hydrology.node(n) for n in q.nodes]
+        maxElevation = max([node.elevation for node in nodes])
+        d = np.linalg.norm(q.position - nodes[0].position)
+        slope = terrainSlopeRate * terrainSlope[q.position[0],q.position[1]] / 255
+        q.elevation = maxElevation + d * slope
 
-        # it seems to me that, if the path is short, this block
-        # adjusts the positions of the first three nodes
-        if len(x)<4:
-            x1 = (x[0]+x[1])/2
-            x2 = (x[0]+x1)/2
-            y1 = (y[0]+y[1])/2
-            y2 = (y[0]+y1)/2
-            z1 = (z[0]+z[1])/2
-            z2 = (z[0]+z1)/2
-            tmp = x[1:]
-            x = [x[0],x2,x1]+list(tmp)
-            x = np.array(x)
-            tmp=y[1:]
-            y = [y[0],y2,y1]+list(tmp)
-            y = np.array(y)
-            tmp=z[1:]
-            z = [z[0],z2,z1]+list(tmp)
-            z = np.array(z)
-        
-        # I think that this is where the river paths are smoothed
-        tck, u = interpolate.splprep([x, y,z], s=0)
-        unew = np.arange(0, 1.01, 0.05)
-        out = interpolate.splev(unew, tck)
-        
-        lstr=[] # lstr is apparently "line string"
-        dbg=[] # I think this is to verify that altitude increases continually
-        for i in range(len(out[0])): # loops through each coordinate created in interpolation
-            lstr.append((out[0][i],out[1][i],int(out[2][i])))
-            dbg.append(int(out[2][i]))
-        line = asLineString(lstr)
-        
-        for p in path: # for each node in the path to this particular leaf
-            # I'm pretty sure this loop ensures that
-            # the path to the sea is up to date
-            p.rivers.append(line)
+except Exception as e:
+    print('Problem encountered in partitioning the terrain cells. Saving the shore model and hydrology network to file.')
+    print(e)
 
+    print('Saving...')
+    SaveFile.writeDataModel(outputFile, edgeLength, shore, hydrology, cells=None, Ts=None)
+
+    exit()
+
+try:
+
+    ## Terrain pattern
+    print('Generating terrain primitives...')
+    Ts = DataModel.Terrain(hydrology, cells, num_points)
+
+
+    ## Generate river paths
+    print('Interpolating river paths...')
+    for node in hydrology.allMouthNodes():
+        # remember that out_edges gets upstream nodes
+        leaves = hydrology.allLeaves(node.id)
+        for leafNode in leaves: # essentially, this loops through all the highest nodes of a particular mouth
+            # path to the leaf (there's only one, so it's the shortest)
+            path = hydrology.pathToNode(node.id,leafNode.id)
+            path.reverse()
+
+            # terminates the path if there is another path with greater flow, and adds the downflow ridge as a point
+            for ni in range(1,len(path)):
+                #print(f'path: {[n.id for n in path]}')
+                #print(f'ni: {ni}')
+                #print(f'Upstream of node {path[ni].id} ({path[ni].position}): {[n.id for n in hydrology.upstream(path[ni].id)]}')
+                upstreamFlow = max([n.flow for n in hydrology.upstream(path[ni].id)])
+                if upstreamFlow > path[ni-1].flow:
+                    path = path[0:ni+1]
+                    break
+            
+            x = [ ]
+            y = [ ]
+            z = [ ]
+            for pi in range(len(path)):
+                p = path[pi]
+                x.append(p.x())
+                y.append(p.y())
+                z.append(p.elevation)
+                # makes the river flow through the cell's outflow ridge (so it doesn't transect a mountain)
+                if p.parent is not None and pi < len(path)-1 and cells.cellOutflowRidge(p.id) is not None:
+                    ridge0, ridge1 = cells.cellOutflowRidge(p.id)
+                    x.append((ridge0[0] + ridge1[0])/2)
+                    y.append((ridge0[1] + ridge1[1])/2)
+                    z.append((p.elevation + p.parent.elevation)/2)
+
+            # it seems to me that, if the path is short, this block
+            # adjusts the positions of the first three nodes
+            if len(x)<4:
+                x1 = (x[0]+x[1])/2
+                x2 = (x[0]+x1)/2
+                y1 = (y[0]+y[1])/2
+                y2 = (y[0]+y1)/2
+                z1 = (z[0]+z[1])/2
+                z2 = (z[0]+z1)/2
+                tmp = x[1:]
+                x = [x[0],x2,x1]+list(tmp)
+                x = np.array(x)
+                tmp=y[1:]
+                y = [y[0],y2,y1]+list(tmp)
+                y = np.array(y)
+                tmp=z[1:]
+                z = [z[0],z2,z1]+list(tmp)
+                z = np.array(z)
+            
+            # I think that this is where the river paths are smoothed
+            tck, u = interpolate.splprep([x, y,z], s=0)
+            unew = np.arange(0, 1.01, 0.05)
+            out = interpolate.splev(unew, tck)
+            
+            lstr=[] # lstr is apparently "line string"
+            dbg=[] # I think this is to verify that altitude increases continually
+            for i in range(len(out[0])): # loops through each coordinate created in interpolation
+                lstr.append((out[0][i],out[1][i],int(out[2][i])))
+                dbg.append(int(out[2][i]))
+            line = asLineString(lstr)
+            
+            for p in path: # for each node in the path to this particular leaf
+                # I'm pretty sure this loop ensures that
+                # the path to the sea is up to date
+                p.rivers.append(line)
+
+except Exception as e:
+    print('Problem encountered in generating the terrain primitives. Saving shore model, hydrology network, and terrain cells to export file.')
+    print(e)
+
+    print('Saving...')
+    SaveFile.writeDataModel(outputFile, edgeLength, shore, hydrology, cells, Ts=None)
+
+    exit()
 
 ## Calculate elevations of terrain primitives
 print('Calculating terrain primitive elevations...')
 def subroutine(conn: Pipe, q: Queue):
+    # try:
     threadID = conn.recv()
     for ti in range(threadID, len(Ts), numProcs):
         t = Ts.getT(ti)
@@ -420,48 +453,68 @@ def subroutine(conn: Pipe, q: Queue):
 
         q.put(t)
 
-# The terrain primitives will be calculated in parallel
-if not args.accelerate: # Calculate the elevations in Python
-    dataQueue = Queue()
-    pipes = []
-    processes = []
-    for p in range(numProcs):
-        pipes.append(Pipe())
-        processes.append(Process(target=subroutine, args=(pipes[p][1],dataQueue)))
-        processes[p].start()
-        pipes[p][0].send(p)
-    for ti in trange(len(Ts)):
-        Ts.tList[ti] = dataQueue.get()
-    for p in range(numProcs):
-        processes[p].join()
-        pipes[p][0].close()
-else:
-    # Write the binary data to a file
-    with open('src/binaryFile', 'w+b') as file:
-        SaveFile.writeToTerrainModule(file, shore, edgeLength, hydrology, cells, Ts)
-        file.close()
+    # except Exception as e:
+    #     print(e)
 
-    # Run the native module
-    if not os.path.exists(computePrimitivesExe):
-        print('The executable does not exist. Run "make buildRivers" in the src/ directory to build it.')
-        exit()
-    primitivesProc = subprocess.Popen( # start the native module
-        ['./' + computePrimitivesExe],
-        stdout=subprocess.PIPE
-    )
+    #     q.put(None)
 
-    # Display updates as native module calculates the elevations
-    for tid in trange(len(Ts)):
+try:
+
+    # The terrain primitives will be calculated in parallel
+    if not args.accelerate: # Calculate the elevations in Python
+        dataQueue = Queue()
+        pipes = []
+        processes = []
+        for p in range(numProcs):
+            pipes.append(Pipe())
+            processes.append(Process(target=subroutine, args=(pipes[p][1],dataQueue)))
+            processes[p].start()
+            pipes[p][0].send(p)
+        for ti in trange(len(Ts)):
+            t = dataQueue.get()
+            if t is not None:
+                Ts.tList[ti] = t
+            else:
+                raise Exception
+        for p in range(numProcs):
+            processes[p].join()
+            pipes[p][0].close()
+    else:
+        # Write the binary data to a file
+        with open('src/binaryFile', 'w+b') as file:
+            SaveFile.writeToTerrainModule(file, shore, edgeLength, hydrology, cells, Ts)
+            file.close()
+
+        # Run the native module
+        if not os.path.exists(computePrimitivesExe):
+            print('The executable does not exist. Run "make buildRivers" in the src/ directory to build it.')
+            exit()
+        primitivesProc = subprocess.Popen( # start the native module
+            ['./' + computePrimitivesExe],
+            stdout=subprocess.PIPE
+        )
+
+        # Display updates as native module calculates the elevations
+        for tid in trange(len(Ts)):
+            readByte = primitivesProc.stdout.read(1)
         readByte = primitivesProc.stdout.read(1)
-    readByte = primitivesProc.stdout.read(1)
-    assert struct.unpack('B',readByte)[0] == 0x21
+        assert struct.unpack('B',readByte)[0] == 0x21
 
-    for t in Ts.allTs():
-        readByte = primitivesProc.stdout.read(struct.calcsize('!f'))
-        t.elevation = struct.unpack('!f', readByte)[0]
+        for t in Ts.allTs():
+            readByte = primitivesProc.stdout.read(struct.calcsize('!f'))
+            t.elevation = struct.unpack('!f', readByte)[0]
 
-    # clean up
-    os.remove('src/binaryFile')
+        # clean up
+        os.remove('src/binaryFile')
+
+except Exception as e:
+    print('Problem encountered in generating the terrain primitives. Saving shore model, hydrology network, and terrain cells to export file.')
+    print(e)
+
+    print('Saving...')
+    SaveFile.writeDataModel(outputFile, edgeLength, shore, hydrology, cells, Ts=None)
+
+    exit()
 
 ## Save the data
 print('Writing data model...')
