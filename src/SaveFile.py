@@ -1,10 +1,25 @@
 import struct
+import os
 
 import DataModel
 
-def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hydrology: DataModel.HydrologyNetwork, cells: DataModel.TerrainHoneycomb, Ts: DataModel.Terrain):
+def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hydrology: DataModel.HydrologyNetwork=None, cells: DataModel.TerrainHoneycomb=None, Ts: DataModel.Terrain=None):
     with open(path, 'wb') as file:
-        file.write(struct.pack('!H', 1)) # version number. Increment every time a breaking change is made
+        file.write(struct.pack('!H', 2)) # version number. Increment every time a breaking change is made
+
+        ## Contents ##
+        tableOfContents = {
+            'shore': 0,
+            'hydrology': 0,
+            'honeycomb': 0,
+            'primitives': 0
+        }
+        file.write(struct.pack('!Q', 0))
+        file.write(struct.pack('!Q', 0))
+        file.write(struct.pack('!Q', 0))
+        file.write(struct.pack('!Q', 0))
+
+        tableOfContents['shore'] += struct.calcsize('!H') + struct.calcsize('!Q') + struct.calcsize('!Q') + struct.calcsize('!Q') + struct.calcsize('!Q')
 
         ## Parameters ##
 
@@ -12,9 +27,15 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
         file.write(struct.pack('!f', shore.resolution)) # resolution
         file.write(struct.pack('!f', edgeLength))
 
-        print(f"\tBasic parameters: {struct.calcsize('!H') + struct.calcsize('!B') + struct.calcsize('!f')*2} bytes")
+        sectionSize = struct.calcsize('!H') + struct.calcsize('!B') + struct.calcsize('!f')*2
+        print(f"\tBasic parameters: {sectionSize} bytes")
+        tableOfContents['shore'] += sectionSize
 
         ## Shore ##
+
+        tableOfContents['hydrology'] = tableOfContents['shore']
+
+        sectionSize = 0
 
         file.write(struct.pack('!Q', shore.rasterShape[0]))
         file.write(struct.pack('!Q', shore.rasterShape[1]))
@@ -22,7 +43,11 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
             for d1 in range(shore.rasterShape[1]):
                 file.write(struct.pack('!B', shore.imgray[d0][d1]))
 
-        print(f"\tshore.imgray: {struct.calcsize('!Q')*2 + struct.calcsize('!B')*shore.rasterShape[0] * shore.rasterShape[1]} bytes")
+        sectionSize = struct.calcsize('!Q')*2 + struct.calcsize('!B')*shore.rasterShape[0] * shore.rasterShape[1]
+        print(f"\tshore.imgray: {sectionSize} bytes")
+        tableOfContents['hydrology'] += sectionSize
+
+        sectionSize = 0
 
         # write the shore contour
         file.write(struct.pack('!Q', len(shore.contour)))
@@ -30,9 +55,27 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
             file.write(struct.pack('!Q', point[0]))
             file.write(struct.pack('!Q', point[1]))
 
-        print(f"\tShore contour: {struct.calcsize('!Q') + struct.calcsize('!Q') * 2 * len(shore.contour)} bytes")
+        sectionSize = struct.calcsize('!Q') + struct.calcsize('!Q') * 2 * len(shore.contour)
+        print(f"\tShore contour: {sectionSize} bytes")
+        tableOfContents['hydrology'] += sectionSize
 
         ## Hydrology data structure ##
+
+        if hydrology is None:
+            # Abort writing the file; there's nothing left to write
+
+            ## Write the table of contents ##
+            file.seek(struct.calcsize('!H'))
+            file.write(struct.pack('!Q', tableOfContents['shore']))
+            file.write(struct.pack('!Q', 0))
+            file.write(struct.pack('!Q', 0))
+            file.write(struct.pack('!Q', 0))
+
+            file.close()
+
+            return
+
+        tableOfContents['honeycomb'] = tableOfContents['hydrology']
 
         sectionSize = 0
 
@@ -55,14 +98,36 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
                     file.write(struct.pack('!f', point[1]))
                     file.write(struct.pack('!f', point[2]))
                     sectionSize += struct.calcsize('!f')*3
-            file.write(struct.pack('!f', node.localWatershed))
-            file.write(struct.pack('!f', node.inheritedWatershed))
-            file.write(struct.pack('!f', node.flow))
+            if cells is not None:
+                file.write(struct.pack('!f', node.localWatershed))
+                file.write(struct.pack('!f', node.inheritedWatershed))
+                file.write(struct.pack('!f', node.flow))
+            else:
+                file.write(struct.pack('!f', 0.0))
+                file.write(struct.pack('!f', 0.0))
+                file.write(struct.pack('!f', 0.0))
             sectionSize += struct.calcsize('!I')*2 + struct.calcsize('!H') + struct.calcsize('!f')*6 + struct.calcsize('!B')
 
         print(f"\tHydrology nodes: {sectionSize} bytes")
+        tableOfContents['honeycomb'] += sectionSize
 
         ## TerrainHoneycomb data structure ##
+
+        if cells is None:
+            # Abort writing the file; there's nothing left to write
+
+            ## Write the table of contents ##
+            file.seek(struct.calcsize('!H'))
+            file.write(struct.pack('!Q', tableOfContents['shore']))
+            file.write(struct.pack('!Q', tableOfContents['hydrology']))
+            file.write(struct.pack('!Q', tableOfContents['honeycomb']))
+            file.write(struct.pack('!Q', 0))
+
+            file.close()
+
+            return
+
+        tableOfContents['primitives'] = tableOfContents['honeycomb']
 
         sectionSize = 0
 
@@ -75,6 +140,7 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
                 sectionSize += struct.calcsize('!Q')
 
         print(f"\tPoint_Region: {sectionSize} bytes")
+        tableOfContents['primitives'] += sectionSize
 
         # write regions array
 
@@ -93,6 +159,7 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
                 sectionSize += struct.calcsize('!Q')
 
         print(f"\tRegions: {sectionSize} bytes")
+        tableOfContents['primitives'] += sectionSize
 
         # write vertices
         sectionSize = 0
@@ -104,6 +171,7 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
             sectionSize += struct.calcsize('!f')*2
 
         print(f"\tVertices: {sectionSize} bytes")
+        tableOfContents['primitives'] += sectionSize
 
         # qs
         sectionSize = 0
@@ -126,6 +194,7 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
                 sectionSize += struct.calcsize('!Q') + struct.calcsize('!f')*3 + struct.calcsize('!B')*2
 
         print(f"\tQs: {sectionSize} bytes")
+        tableOfContents['primitives'] += sectionSize
 
         # cellsRidges
         sectionSize = 0
@@ -144,6 +213,7 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
             sectionSize += struct.calcsize('!Q') + struct.calcsize('!B')
 
         print(f"\tcellsRidges: {sectionSize} bytes")
+        tableOfContents['primitives'] += sectionSize
 
         # cellsDownstreamRidges
         sectionSize = 0
@@ -164,8 +234,23 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
                 sectionSize += struct.calcsize('!B')
 
         print(f"\tcellsDownstreamRidges {sectionSize} bytes")
+        tableOfContents['primitives'] += sectionSize
 
         ## Terrain primitives ##
+
+        if Ts is None:
+            # Abort writing the file; there's nothing left to write
+
+            ## Write the table of contents ##
+            file.seek(struct.calcsize('!H'))
+            file.write(struct.pack('!Q', tableOfContents['shore']))
+            file.write(struct.pack('!Q', tableOfContents['hydrology']))
+            file.write(struct.pack('!Q', tableOfContents['honeycomb']))
+            file.write(struct.pack('!Q', 0))
+
+            file.close()
+
+            return
 
         sectionSize = 0
 
@@ -179,6 +264,13 @@ def writeDataModel(path: str, edgeLength: float, shore: DataModel.ShoreModel, hy
             sectionSize += struct.calcsize('!I') + struct.calcsize('!f')*3
 
         print(f"\tTerrain primitives: {sectionSize} bytes")
+
+        ## Write the table of contents ##
+        file.seek(struct.calcsize('!H'))
+        file.write(struct.pack('!Q', tableOfContents['shore']))
+        file.write(struct.pack('!Q', tableOfContents['hydrology']))
+        file.write(struct.pack('!Q', tableOfContents['honeycomb']))
+        file.write(struct.pack('!Q', tableOfContents['primitives']))
 
         file.close()
 
@@ -252,8 +344,11 @@ def writeToTerrainModule(pipe, shore, edgeLength, hydrology, cells, Ts):
 def readDataModel(path):
     with open(path, 'rb') as file:
         versionNumber = struct.unpack('!H', file.read(struct.calcsize('!H')))[0]
-        if versionNumber != 1:
-            raise ValueError('This file was not created with the correct version of the hydrology script.')
+        if versionNumber != 2:
+            raise ValueError('This file was created with a previous version of the hydrology script. It is not compatible')
+
+        # Just ignore the TOC for now
+        file.seek(struct.calcsize('!Q') * 4, os.SEEK_CUR)
 
         coordinateType = struct.unpack('!B', file.read(struct.calcsize('!B')))[0]
         rasterResolution = struct.unpack('!f', file.read(struct.calcsize('!f')))[0]
