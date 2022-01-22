@@ -633,6 +633,7 @@ class Q:
         self.position = position
         self.nodes = nodes
         self.vorIndex = iv # the index of the voronoi vertex this represents in vor.vertices
+        self.elevation = 0
 
 class TerrainHoneycomb:
     """This class partitions the land into cells around the river nodes
@@ -674,15 +675,28 @@ class TerrainHoneycomb:
         self.hydrology = hydrology
         
         points = [node.position for node in hydrology.allNodes()]
+
+        # Add corners so that the entire area is covered
         points.append((0,0))
         points.append((0,shore.realShape[1]))
         points.append((shore.realShape[0],0))
         points.append((shore.realShape[0],shore.realShape[1]))
         
         self.vor = Voronoi(points,qhull_options='Qbb Qc Qz Qx')
+
+        # Parallel to points. This indicates which voronoi region the point
+        # is associated with. It is an index in vor.regions
         self.point_region = list(self.vor.point_region)
+
+        # This is a list of lists. For each voronoi region, it is a list of
+        # all the voronoi vertices that bind the region. Each number is an
+        # index in vor.vertices
         self.regions = self.vor.regions
+
+        # A list of coordinates, one for each voronoi vertex
         self.vertices = self.vor.vertices
+
+        # This is just point_region, but for reverse lookup
         self.region_point = {self.point_region[i]: i for i in range(len(self.point_region))}
 
         # sort region vertices so that the polygons are convex
@@ -705,7 +719,12 @@ class TerrainHoneycomb:
             if not shore.isOnLand(self.vertices[iv]):
                 self.qs.append(None)
                 continue
-            nearbyNodes = self.hydrology.query_ball_point(self.vertices[iv], edgeLength*2)
+            nearbyNodes = [ ]
+            tryDistance = edgeLength * 2
+            # Ensure that we at least find _some_ nodes
+            while (len(nearbyNodes) < 1):
+                nearbyNodes = self.hydrology.query_ball_point(self.vertices[iv], tryDistance)
+                tryDistance *= 2
             borderedNodes = [ ]
             for nodeID in nearbyNodes:
                 if iv in self.regions[self.vor_region_id(nodeID)]:
