@@ -60,41 +60,25 @@ realShape = shore.realShape
 with shapefile.Writer(outputFile, shapeType=3) as w:
     w.field('id', 'L')
 
-    for cell in hydrology.allNodes():
+    for ridge in cells.cellsDownstreamRidges.values():
+        coords = [ ]
 
-        for ridge in cells.cellRidges(cell.id):
-            if len(ridge) < 2:
-                continue
+        if ridge is None:
+            continue
 
-            coords = [ ]
+        # print(ridge)
 
-            # print(cells.cellRidges(cell.id))
-
-            coords.append(ridge[0].position)
-            coords.append(ridge[1].position)
-            
-            coords = [((p[0])-(realShape[1]*0.5),(realShape[0]-p[1])-(realShape[0]*0.5)) for p in coords]
-
-            w.record(True)
-
-            w.line([list(coords)])
-
-    # for ridge in cells.cellsRidges.values():
-    #     coords = [ ]
-
-    #     if type(ridge) != int:
-    #         coords.append(cells.qs[ridge[0]].position)
-    #         if len(ridge) > 1:
-    #             coords.append(cells.qs[ridge[1]].position)
-    #     else:
-    #         continue
+        coords.append(
+            (ridge[0][0], ridge[0][1])
+        )
+        coords.append(
+            (ridge[1][0], ridge[1][1])
+        )
         
-    #     coords = [((p[0])-(realShape[1]*0.5),(realShape[0]-p[1])-(realShape[0]*0.5)) for p in coords]
+        coords = [((p[0])-(realShape[1]*0.5),(realShape[0]-p[1])-(realShape[0]*0.5)) for p in coords]
 
-    #     w.record(True)
+        w.record(True)
 
-    #     w.line([list(coords)])
-
-    #     print([list(coords)])
+        w.line([list(coords)])
 
     w.close()

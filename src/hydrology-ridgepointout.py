@@ -19,14 +19,14 @@ parser.add_argument(
 )
 parser.add_argument(
     '--lat',
-    help='Center latitude for the output GeoTIFF',
+    help='Center latitude for the output file',
     dest='latitude',
     metavar='-43.2',
     required=True
 )
 parser.add_argument(
     '--lon',
-    help='Center longitude for the output GeoTIFF',
+    help='Center longitude for the output file',
     dest='longitude',
     metavar='-103.8',
     required=True
@@ -46,6 +46,7 @@ outputFile = args.outputFile
 
 ## Create the .prj file to be read by GIS software
 with open(f'{outputFile}.prj', 'w') as prj:
+    # WKT string with latitude and longitude built in
     prjstr = f'PROJCS["unknown",GEOGCS["GCS_unknown",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137.0,298.257223563]],PRIMEM["Greenwich",0.0],UNIT["Degree",0.0174532925199433]],PROJECTION["Orthographic"],PARAMETER["False_Easting",0.0],PARAMETER["False_Northing",0.0],PARAMETER["Longitude_Of_Center",{args.longitude}],PARAMETER["Latitude_Of_Center",{args.latitude}],UNIT["Meter",1.0]]'
     prj.write(prjstr)
     prj.close()
@@ -57,44 +58,23 @@ resolution, edgeLength, shore, hydrology, cells, Ts = SaveFile.readDataModel(
 
 realShape = shore.realShape
 
-with shapefile.Writer(outputFile, shapeType=3) as w:
-    w.field('id', 'L')
+with shapefile.Writer(outputFile, shapeType=1) as w:
+    # Relevant fields for nodes
+    w.field('elevation', 'F')
 
-    for cell in hydrology.allNodes():
+    # add every primitive
+    for qidx in trange(len(cells.qs)):
+        q = cells.qs[qidx]
 
-        for ridge in cells.cellRidges(cell.id):
-            if len(ridge) < 2:
-                continue
+        if q is None:
+            continue
 
-            coords = [ ]
+        w.record(q.elevation)
 
-            # print(cells.cellRidges(cell.id))
-
-            coords.append(ridge[0].position)
-            coords.append(ridge[1].position)
-            
-            coords = [((p[0])-(realShape[1]*0.5),(realShape[0]-p[1])-(realShape[0]*0.5)) for p in coords]
-
-            w.record(True)
-
-            w.line([list(coords)])
-
-    # for ridge in cells.cellsRidges.values():
-    #     coords = [ ]
-
-    #     if type(ridge) != int:
-    #         coords.append(cells.qs[ridge[0]].position)
-    #         if len(ridge) > 1:
-    #             coords.append(cells.qs[ridge[1]].position)
-    #     else:
-    #         continue
-        
-    #     coords = [((p[0])-(realShape[1]*0.5),(realShape[0]-p[1])-(realShape[0]*0.5)) for p in coords]
-
-    #     w.record(True)
-
-    #     w.line([list(coords)])
-
-    #     print([list(coords)])
+        # Add node locations. Note that they must be transformed
+        w.point(
+            (q.position[0])-(realShape[1]*0.5),
+            (realShape[0]-q.position[1])-(realShape[0]*0.5)
+        )
 
     w.close()
