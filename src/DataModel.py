@@ -838,14 +838,15 @@ class TerrainHoneycomb:
         for i in range(numCells):
             cellID = readValue('!Q', binaryFile)
             numRidges = readValue('!B', binaryFile)
+            self.cellsRidges[cellID] = [ ]
             for j in range(numRidges):
                 if readValue('!B', binaryFile) < 2:
-                    self.cellsRidges[cellID] = (readValue('!Q', binaryFile))
+                    self.cellsRidges[cellID].append( ( self.qs[readValue('!Q', binaryFile)],) )
                 else:
-                    self.cellsRidges[cellID] = (
-                        readValue('!Q', binaryFile),
-                        readValue('!Q', binaryFile)
-                    )
+                    self.cellsRidges[cellID].append((
+                        self.qs[readValue('!Q', binaryFile)],
+                        self.qs[readValue('!Q', binaryFile)]
+                    ))
         
         self.cellsDownstreamRidges = { }
         numCells = readValue('!Q', binaryFile)
