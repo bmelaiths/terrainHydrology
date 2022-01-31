@@ -110,11 +110,25 @@ imgOut = np.ndarray(outputShape, dtype=outputType, buffer=sharedBuffer.buf)
 imgOut[:] = imgInit[:] # Load ocean floor fill
 del imgInit # This matrix is no longer needed
 
+def ijToxy(ij: typing.Tuple[float,float]) -> typing.Tuple[float,float]:
+    ### THIS IS BACKWARDS ###
+    i = ij[0]
+    i -= outputResolution * 0.5
+    i /= (outputResolution * 0.5)
+    i *= (shore.realShape[0] if shore.realShape[0] > shore.realShape[1] else shore.realShape[1]) * 0.5
+
+    j = ij[1]
+    j -= outputResolution * 0.5
+    j /= (outputResolution * 0.5)
+    j *= (shore.realShape[0] if shore.realShape[0] > shore.realShape[1] else shore.realShape[1]) * 0.5
+    
+
+    return (i,j)
+
 ## Functions that calculate the height of a point
 
 # This function calculates the elevation of a single point on the output raster
-def TerrainFunction(prePoint: typing.Tuple[float,float]) -> float:
-    point = [int(prePoint[0] * (shore.realShape[1] / outputResolution)),int(prePoint[1] * (shore.realShape[0] / outputResolution))]
+def TerrainFunction(point: typing.Tuple[float,float]) -> float:
     
     # if imgray[point[1]][point[0]]==0: This is why a new data model was implemented
     if not shore.isOnLand(point):
@@ -240,7 +254,7 @@ def subroutine(threadID: int):
     for i in range(threadID, outputResolution, numProcs):
         # Render a line
         for j in range(outputResolution):
-            imgOut[i,j] = max(oceanFloor,TerrainFunction((j,i)))
+            imgOut[i,j] = max(oceanFloor,TerrainFunction(ijToxy((i,j))))
         # Increment the counter so the master thread can track progress
         with counter.get_lock():
             counter.value += 1
@@ -304,11 +318,11 @@ plt.savefig(outputDir + 'out-color.png')
 ## Write the GeoTIFF
 
 imgOut[imgOut==oceanFloor] = -5000.0 # For actual heightmap output, set 'ocean' to the nodata value
-imgOut = np.flipud(imgOut) # Adjust to GeoTIFF coordinate system
+# imgOut = np.flipud(imgOut) # Adjust to GeoTIFF coordinate system
+imgOut = imgOut.transpose()
 
 projection = f'+proj=ortho +lat_0={latitude} +lon_0={longitude}' # Adjust lat_o and lon_0 for location
-transform = Affine.scale(*(shore.rasterShape[1]*resolution/outputResolution,shore.rasterShape[0]*resolution/outputResolution)) * \
-            Affine.translation(-outputResolution*0.5,-outputResolution*0.5)
+transform = Affine.translation(-shore.realShape[0]*0.5,-shore.realShape[1]*0.5) * Affine.scale(1/outputResolution) * Affine.scale(shore.realShape[0])
 new_dataset = rasterio.open(
     outputDir + '/out-geo.tif',
     'w',

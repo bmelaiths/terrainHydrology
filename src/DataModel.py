@@ -1,3 +1,4 @@
+from re import I
 import cv2 as cv
 from networkx.algorithms.operators import binary
 import numpy as np
@@ -15,6 +16,28 @@ import datetime
 import typing
 
 import Math
+
+def toImageCoordinates(loc: typing.Tuple[float,float], imgSize: typing.Tuple[float,float], resolution: float) -> typing.Tuple[float,float]:
+    x = loc[0]
+    x /= resolution
+    x += imgSize[0] * 0.5
+
+    y = loc[1]
+    y /= resolution
+    y = imgSize[1] * 0.5 - y
+
+    return (x,y)
+
+def fromImageCoordinates(loc: typing.Tuple[float,float], imgSize: typing.Tuple[float,float], resolution: float) -> typing.Tuple[float,float]:
+    x = loc[0]
+    x -= imgSize[0] * 0.5
+    x *= resolution
+
+    y = loc[1]
+    y = imgSize[1] * 0.5 - y
+    y *= resolution
+
+    return (x,y)
 
 class RasterData:
     """A simple abstraction of raster data based on an image.
@@ -34,7 +57,7 @@ class RasterData:
     actual color model does not model, as it will be converted to
     grayscale in the constructor.
     """
-    def __init__(self, inputFileName: str, resolution: float):
+    def __init__(self, inputFileName: str, resolution: float, rectifyYAxis: bool=False):
         self.raster = Image.open(inputFileName)
         self.xSize = self.raster.size[0]
         self.ySize = self.raster.size[1]
@@ -49,7 +72,10 @@ class RasterData:
         :return: The value of the data at loc
         :rtype: float
         """
-        return self.raster[int(loc[0]/self.resolution),int(loc[1]/self.resolution)]
+        # return self.raster[int(loc[0]/self.resolution),int(loc[1]/self.resolution)]
+        loc = toImageCoordinates(loc, (self.xSize,self.ySize), self.resolution)
+
+        return self.raster[int(loc[0]), int(loc[1])]
     def toBinary(self):
         binary = None
         for y in range(self.ySize):
@@ -57,9 +83,9 @@ class RasterData:
             row = None
             for x in range(self.xSize):
                 if row is not None:
-                    row = row + struct.pack('!f', self.raster[x,y])
+                    row = row + struct.pack('!f', self[x,y])
                 else:
-                    row = struct.pack('!f', self.raster[x,y])
+                    row = struct.pack('!f', self[x,y])
             if binary is not None:
                 binary = binary + row
             else:
@@ -145,9 +171,10 @@ class ShoreModel:
         :return: The distance between `loc` and the shore in meters
         :rtype: float
         """
+        loc = toImageCoordinates(loc, self.imgray.shape, self.resolution)
 
         #    for some reason this method is      y, x
-        return cv.pointPolygonTest(self.contour,(loc[1]/self.resolution,loc[0]/self.resolution),True) * self.resolution
+        return cv.pointPolygonTest(self.contour,(loc[1],loc[0]),True) * self.resolution
     def isOnLand(self, loc) -> bool:
         """Determines whether or not a point is on land or not
 
@@ -156,9 +183,10 @@ class ShoreModel:
         :return: True if the point is on land, False if otherwise
         :rtype: bool
         """
+        loc = toImageCoordinates(loc, self.imgray.shape, self.resolution)
         
-        if 0 <= loc[0] < self.realShape[1] and 0 <= loc[1] < self.realShape[0]:
-            return self.imgray[int(loc[1]/self.resolution)][int(loc[0]/self.resolution)] == 255 # != 0
+        if 0 <= loc[0] < self.imgray.shape[1] and 0 <= loc[1] < self.imgray.shape[0]:
+            return self.imgray[int(loc[1])][int(loc[0])] == 255 # != 0
         else:
             return False
     def __getitem__(self, index: int):
@@ -174,7 +202,9 @@ class ShoreModel:
         """
 
         # TODO ensure that points returned are x,y
-        return (self.contour[index][1]*self.resolution,self.contour[index][0]*self.resolution)
+        # return (self.contour[index][1]*self.resolution,self.contour[index][0]*self.resolution)
+
+        return fromImageCoordinates((self.contour[index][1],self.contour[index][0]), self.imgray.shape, self.resolution)
     def __len__(self):
         """The number of points that make up the shore
 
@@ -677,10 +707,16 @@ class TerrainHoneycomb:
         points = [node.position for node in hydrology.allNodes()]
 
         # Add corners so that the entire area is covered
-        points.append((0,0))
-        points.append((0,shore.realShape[1]))
-        points.append((shore.realShape[0],0))
+        
+        ## This is the cause of all your problems in life right here ##
+        # points.append((0,0))
+        # points.append((0,shore.realShape[1]))
+        # points.append((shore.realShape[0],0))
+        # points.append((shore.realShape[0],shore.realShape[1]))
+        points.append((-shore.realShape[0],-shore.realShape[1]))
+        points.append((-shore.realShape[0],shore.realShape[1]))
         points.append((shore.realShape[0],shore.realShape[1]))
+        points.append((shore.realShape[0],-shore.realShape[1]))
         
         self.vor = Voronoi(points,qhull_options='Qbb Qc Qz Qx')
 
@@ -704,6 +740,7 @@ class TerrainHoneycomb:
         for rid in trange(len(self.regions)):
             nodeID = self.id_vor_region(rid)
             if nodeID is None or nodeID >= len(self.hydrology):
+                # breakpoint()
                 continue # if this region is not associated with a node, don't bother
             region = [iv for iv in self.regions[rid] if iv != -1]
             pivotPoint = self.hydrology.node(nodeID).position

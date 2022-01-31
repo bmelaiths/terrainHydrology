@@ -88,6 +88,6 @@ with shapefile.Writer(outputFile, shapeType=3) as w:
 
             coords = list(leafNode.rivers[0].coords)
             # Transform the coordinates
-            coords = [((p[0])-(realShape[1]*0.5),(realShape[0]-p[1])-(realShape[0]*0.5)) for p in coords]
+            coords = [(p[0],p[1]) for p in coords]
             w.line([list(coords)])
     w.close()

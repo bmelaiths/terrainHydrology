@@ -73,7 +73,7 @@ with shapefile.Writer(outputFile, shapeType=3) as w:
             coords.append(ridge[0].position)
             coords.append(ridge[1].position)
             
-            coords = [((p[0])-(realShape[1]*0.5),(realShape[0]-p[1])-(realShape[0]*0.5)) for p in coords]
+            coords = [(p[0],p[1]) for p in coords]
 
             w.record(True)
 
