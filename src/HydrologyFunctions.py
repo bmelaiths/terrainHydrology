@@ -26,6 +26,8 @@ def selectNode(candidate_nodes: typing.List[HydroPrimitive] , zeta: float) -> Hy
     subselection = [n for n in candidate_nodes if n.elevation < lowestCandidateZ+zeta ] # 
     subselection.sort(key = lambda r : r.priority,reverse = True)
     subsubselection=[node for node in subselection if node.priority == subselection[0].priority]
+    if len(subsubselection) > 1:
+        subsubselection.sort(key = lambda n : n.elevation)
     
     return subsubselection[0]
 
