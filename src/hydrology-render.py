@@ -316,7 +316,6 @@ plt.savefig(outputDir + 'out-color.png')
 ## Write the GeoTIFF
 
 imgOut[imgOut==oceanFloor] = -5000.0 # For actual heightmap output, set 'ocean' to the nodata value
-# imgOut = np.flipud(imgOut) # Adjust to GeoTIFF coordinate system
 imgOut = imgOut.transpose()
 
 projection = f'+proj=ortho +lat_0={latitude} +lon_0={longitude}' # Adjust lat_o and lon_0 for location
