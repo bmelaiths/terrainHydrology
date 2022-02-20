@@ -223,7 +223,6 @@ def picknewnodepos(parentnode: HydroPrimitive, params: HydrologyParameters) -> t
     :return: A new position, or None if one could not be found
     :rtype: tuple[float,float] | None
     """
-    # breakpoint()
     parentsparent = params.hydrology.downstream(parentnode.id) # parent node of parentnode
     
     angle = None

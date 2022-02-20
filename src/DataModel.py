@@ -733,7 +733,6 @@ class TerrainHoneycomb:
         for rid in trange(len(self.regions)):
             nodeID = self.id_vor_region(rid)
             if nodeID is None or nodeID >= len(self.hydrology):
-                # breakpoint()
                 continue # if this region is not associated with a node, don't bother
             region = [iv for iv in self.regions[rid] if iv != -1]
             pivotPoint = self.hydrology.node(nodeID).position
