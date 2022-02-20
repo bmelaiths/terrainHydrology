@@ -111,7 +111,6 @@ imgOut[:] = imgInit[:] # Load ocean floor fill
 del imgInit # This matrix is no longer needed
 
 def ijToxy(ij: typing.Tuple[float,float]) -> typing.Tuple[float,float]:
-    ### THIS IS BACKWARDS ###
     i = ij[0]
     i -= outputResolution * 0.5
     i /= (outputResolution * 0.5)
@@ -121,8 +120,7 @@ def ijToxy(ij: typing.Tuple[float,float]) -> typing.Tuple[float,float]:
     j -= outputResolution * 0.5
     j /= (outputResolution * 0.5)
     j *= (shore.realShape[0] if shore.realShape[0] > shore.realShape[1] else shore.realShape[1]) * 0.5
-    
-
+ 
     return (i,j)
 
 ## Functions that calculate the height of a point
