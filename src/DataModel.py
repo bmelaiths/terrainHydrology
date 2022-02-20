@@ -57,7 +57,7 @@ class RasterData:
     actual color model does not model, as it will be converted to
     grayscale in the constructor.
     """
-    def __init__(self, inputFileName: str, resolution: float, rectifyYAxis: bool=False):
+    def __init__(self, inputFileName: str, resolution: float):
         self.raster = Image.open(inputFileName)
         self.xSize = self.raster.size[0]
         self.ySize = self.raster.size[1]
@@ -72,7 +72,6 @@ class RasterData:
         :return: The value of the data at loc
         :rtype: float
         """
-        # return self.raster[int(loc[0]/self.resolution),int(loc[1]/self.resolution)]
         loc = toImageCoordinates(loc, (self.xSize,self.ySize), self.resolution)
 
         return self.raster[int(loc[0]), int(loc[1])]
