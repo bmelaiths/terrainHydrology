@@ -82,9 +82,9 @@ class RasterData:
             row = None
             for x in range(self.xSize):
                 if row is not None:
-                    row = row + struct.pack('!f', self[x,y])
+                    row = row + struct.pack('!f', self.raster[x,y])
                 else:
-                    row = struct.pack('!f', self[x,y])
+                    row = struct.pack('!f', self.raster[x,y])
             if binary is not None:
                 binary = binary + row
             else:
