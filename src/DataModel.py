@@ -706,12 +706,6 @@ class TerrainHoneycomb:
         points = [node.position for node in hydrology.allNodes()]
 
         # Add corners so that the entire area is covered
-        
-        ## This is the cause of all your problems in life right here ##
-        # points.append((0,0))
-        # points.append((0,shore.realShape[1]))
-        # points.append((shore.realShape[0],0))
-        # points.append((shore.realShape[0],shore.realShape[1]))
         points.append((-shore.realShape[0],-shore.realShape[1]))
         points.append((-shore.realShape[0],shore.realShape[1]))
         points.append((shore.realShape[0],shore.realShape[1]))
