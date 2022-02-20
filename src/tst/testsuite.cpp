@@ -390,6 +390,32 @@ namespace
 
         ASSERT_EQ(params.hydrology.numNodes(), 4);
     }
+    TEST(ShoreTests, DistanceToShoreTestI) {
+        /* Create a shoreline */
+        const int r = 1000;
+        cv::Mat src = cv::Mat::zeros( cv::Size( 4*r, 4*r ), CV_8U );
+        std::vector<cv::Point2f> vert(6);
+        vert[0] = cv::Point( 1500, 1340 );
+        vert[1] = cv::Point( 1000, 2000 );
+        vert[2] = cv::Point( 1500, 2860 );
+        vert[3] = cv::Point( 2500, 2860 );
+        vert[4] = cv::Point( 3000, 2000 );
+        vert[5] = cv::Point( 2500, 1340 );
+        for( int i = 0; i < 6; i++ )
+        {
+            cv::line( src, vert[i],  vert[(i+1)%6], cv::Scalar( 255 ), 3 );
+        }
+        std::vector<std::vector<cv::Point> > contours;
+        cv::findContours( 
+            src, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE
+        );
+
+        HydrologyParameters params(Point(1500*2.0,1300*2.0),Point(1550*2.0,1400*2.0));
+        params.shore = Shore(contours[0], 2.0, 4000, 4000);
+
+        EXPECT_NEAR(params.shore.distanceToShore(-600,-1600), 120, 5);
+        EXPECT_NEAR(params.shore.distanceToShore(0,0), 1320, 5);
+    }
     TEST(HydrologyFunctionsTests, IsAcceptablePositionAcceptableTest)
     {
         /* Create a shoreline */
