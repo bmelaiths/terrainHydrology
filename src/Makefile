@@ -23,7 +23,7 @@ testsuite.o : tst/testsuite.cpp kdtree.hpp raster.hpp forest.hpp $(GTEST_HEADERS
 	@ echo "Compiling Tests..."
 	@ g++ $(CPPFLAGS) -isystem $(GTEST_DIR)/include $^ -c
 
-testsuite : testsuite.o gtest-all.o gtest_main.o terrainHoneycomb.o terrainElevation.o hydrologyFunctions.o hydrologyParameters.o hydrology.o floatEndian.o
+testsuite : testsuite.o gtest-all.o gtest_main.o terrainHoneycomb.o terrainElevation.o hydrologyFunctions.o hydrologyParameters.o hydrology.o floatEndian.o shore.o
 	g++ $(CPPFLAGS) $^ -lpthread -lopencv_core -lopencv_imgproc -lgeos_c -o $@
 
 test : testsuite
@@ -39,7 +39,9 @@ hydrologyParameters.o : hydrologyParameters.cpp raster.hpp hydrology.hpp
 
 hydrologyFunctions.o : hydrologyFunctions.cpp hydrologyFunctions.hpp hydrology.hpp hydrologyParameters.hpp
 
-buildRivers: hydrologyFunctions.o hydrologyParameters.o buildRivers.o hydrology.o floatEndian.o
+shore.o : shore.cpp
+
+buildRivers: hydrologyFunctions.o hydrologyParameters.o buildRivers.o hydrology.o floatEndian.o shore.o
 	g++ $^ $(CPPFLAGS) -lopencv_imgproc -lgeos_c -o $@
 
 terrainHoneycomb.o : terrainHoneycomb.cpp terrainHoneycomb.hpp
@@ -52,8 +54,10 @@ ts.o : ts.cpp ts.hpp
 
 processTerrainPrimitives.o : processTerrainPrimitives.cpp
 
-terrainPrimitives: ts.o terrainElevation.o terrainHoneycomb.o hydrology.o floatEndian.o terrainPrimitives.o processTerrainPrimitives.o
+terrainPrimitives: ts.o terrainElevation.o terrainHoneycomb.o hydrology.o floatEndian.o terrainPrimitives.o processTerrainPrimitives.o shore.o
 	g++ $^ $(CPPFLAGS) -lopencv_imgproc -lgeos_c -o $@
+
+native-module: buildRivers terrainPrimitives
 
 clean :
 	@ rm -vf terrainPrimitives buildRivers testsuite *.gch *.o

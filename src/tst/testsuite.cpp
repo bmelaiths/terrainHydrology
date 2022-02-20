@@ -411,66 +411,27 @@ namespace
             src, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE
         );
 
-        // cv::Mat raw_dist( src.size(), CV_32F );
-        // for( int i = 0; i < src.rows; i++ )
-        // {
-        //     for( int j = 0; j < src.cols; j++ )
-        //     {
-        //         raw_dist.at<float>(i,j) = (float)cv::pointPolygonTest( contours[0], cv::Point2f((float)j, (float)i), true );
-        //     }
-        // }
-        // double minVal, maxVal;
-        // cv::Point maxDistPt; // inscribed circle center
-        // cv::minMaxLoc(raw_dist, &minVal, &maxVal, NULL, &maxDistPt);
-        // minVal = abs(minVal);
-        // maxVal = abs(maxVal);
-        // cv::Mat drawing = cv::Mat::zeros( src.size(), CV_8UC3 );
-        // for( int i = 0; i < src.rows; i++ )
-        // {
-        //     for( int j = 0; j < src.cols; j++ )
-        //     {
-        //         if( raw_dist.at<float>(i,j) < 0 )
-        //         {
-        //             drawing.at<cv::Vec3b>(i,j)[0] = (uchar)(255 - abs(raw_dist.at<float>(i,j)) * 255 / minVal);
-        //         }
-        //         else if( raw_dist.at<float>(i,j) > 0 )
-        //         {
-        //             drawing.at<cv::Vec3b>(i,j)[2] = (uchar)(255 - raw_dist.at<float>(i,j) * 255 / maxVal);
-        //         }
-        //         else
-        //         {
-        //             drawing.at<cv::Vec3b>(i,j)[0] = 255;
-        //             drawing.at<cv::Vec3b>(i,j)[1] = 255;
-        //             drawing.at<cv::Vec3b>(i,j)[2] = 255;
-        //         }
-        //     }
-        // }
-        // cv::circle(drawing, maxDistPt, (int)maxVal, cv::Scalar(255,255,255));
-        // cv::imshow( "Source", src );
-        // cv::imshow( "Distance and inscribed circle", drawing );
-        // cv::waitKey(30000);
-
         HydrologyParameters params(Point(1500*2.0,1300*2.0),Point(1550*2.0,1400*2.0));
-        params.contour = contours[0];
+        params.shore = Shore(contours[0], 2.0, 4000, 4000);
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
         params.eta = 0.95;
         params.sigma = 1.1;
 
         Primitive mouth = *params.hydrology.addMouthNode(
-            Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
+            Point(-940,1320), 0.0, 0, 0
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
+            Point(-960,1280), 0.0, 0, mouth.getID()
         );
         Primitive child1 = *params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
+            Point(-920,1280), 0.0, 0, mouth.getID()
         );
         /*Primitive child2 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
+            Point(-920,1220), 0.0, 0, child1.getID()
         );
 
-        EXPECT_TRUE(isAcceptablePosition(Point(1540*params.resolution,1415*params.resolution), 2 * params.edgeLength, 0 ,params));
+        EXPECT_TRUE(isAcceptablePosition(Point(-920,1170), 2 * params.edgeLength, 0 ,params));
     }
     TEST(HydrologyFunctionsTests, IsAcceptablePositionNotOnLandTest)
     {
@@ -494,26 +455,26 @@ namespace
         );
 
         HydrologyParameters params(Point(1500*2.0,1300*2.0),Point(1550*2.0,1400*2.0));
-        params.contour = contours[0];
+        params.shore = Shore(contours[0], 2.0, 4000, 4000);
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
         params.eta = 0.95;
         params.sigma = 1.1;
 
         Primitive mouth = *params.hydrology.addMouthNode(
-            Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
+            Point(-940,1320), 0.0, 0, 0
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
+            Point(-960,1280), 0.0, 0, mouth.getID()
         );
         Primitive child1 = *params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
+            Point(-920,1280), 0.0, 0, mouth.getID()
         );
-        /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
+        /*Primitive child2 = */params.hydrology.addRegularNode(
+            Point(-920,1220), 0.0, 0, child1.getID()
         );
 
-        EXPECT_FALSE(isAcceptablePosition(Point(1560*params.resolution,1330*params.resolution), 2 * params.edgeLength, 0,params)); //not on land
+        EXPECT_FALSE(isAcceptablePosition(Point(-880,1340), 2 * params.edgeLength, 0,params)); //not on land
     }
     TEST(HydrologyFunctionsTests, IsAcceptablePositionTooCloseToNodeTest)
     {
@@ -537,26 +498,26 @@ namespace
         );
 
         HydrologyParameters params(Point(1500*2.0,1300*2.0),Point(1550*2.0,1400*2.0));
-        params.contour = contours[0];
+        params.shore = Shore(contours[0], 2.0, 4000, 4000);
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
         params.eta = 0.95;
         params.sigma = 1.1;
 
         Primitive mouth = *params.hydrology.addMouthNode(
-            Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
+            Point(-940,1320), 0.0, 0, 0
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
+            Point(-960,1280), 0.0, 0, mouth.getID()
         );
         Primitive child1 = *params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
+            Point(-920,1280), 0.0, 0, mouth.getID()
         );
-        /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
+        /*Primitive child2 = */params.hydrology.addRegularNode(
+            Point(-920,1220), 0.0, 0, child1.getID()
         );
 
-        EXPECT_FALSE(isAcceptablePosition(Point(1540*params.resolution,1410*params.resolution),2 * params.edgeLength,0,params)); // too close to a node
+        EXPECT_FALSE(isAcceptablePosition(Point(-920,1180),2 * params.edgeLength,0,params)); // too close to a node
     }
     TEST(HydrologyFunctionsTests, IsAcceptablePositionTooCloseToEdgeTest)
     {
@@ -580,26 +541,26 @@ namespace
         );
 
         HydrologyParameters params(Point(1500*2.0,1300*2.0),Point(1550*2.0,1400*2.0));
-        params.contour = contours[0];
+        params.shore = Shore(contours[0], 2.0, 4000, 4000);
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
         params.eta = 0.95;
         params.sigma = 1.1;
 
         Primitive mouth = *params.hydrology.addMouthNode(
-            Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
+            Point(-940,1320), 0.0, 0, 0
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
+            Point(-960,1280), 0.0, 0, mouth.getID()
         );
         Primitive child1 = *params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
+            Point(-920,1280), 0.0, 0, mouth.getID()
         );
-        /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
+        /*Primitive child2 = */params.hydrology.addRegularNode(
+            Point(-920,1220), 0.0, 0, child1.getID()
         );
 
-        EXPECT_FALSE(isAcceptablePosition(Point(1560*params.resolution,1375*params.resolution),2 * params.edgeLength,0,params)); //too close to an edge
+        EXPECT_FALSE(isAcceptablePosition(Point(-880,1250),2 * params.edgeLength,0,params)); //too close to an edge
     }
     TEST(HydrologyFunctionsTests, IsAcceptablePositionTooCloseToSeeeTest)
     {
@@ -623,62 +584,27 @@ namespace
         );
 
         HydrologyParameters params(Point(1500*2.0,1300*2.0),Point(1550*2.0,1400*2.0));
-        params.contour = contours[0];
+        params.shore = Shore(contours[0], 2.0, 4000, 4000);
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
         params.eta = 0.95;
         params.sigma = 1.1;
 
         Primitive mouth = *params.hydrology.addMouthNode(
-            Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
+            Point(-940,1320), 0.0, 0, 0
         );
         /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
+            Point(-960,1280), 0.0, 0, mouth.getID()
         );
         Primitive child1 = *params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
+            Point(-920,1280), 0.0, 0, mouth.getID()
         );
-        /*Primitive child0 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
+        /*Primitive child2 = */params.hydrology.addRegularNode(
+            Point(-920,1220), 0.0, 0, child1.getID()
         );
 
-        EXPECT_FALSE(isAcceptablePosition(Point(250*params.resolution,134*params.resolution),2 * params.edgeLength,0,params)); //too close to the seeee
+        EXPECT_FALSE(isAcceptablePosition(Point(0,1300),2 * params.edgeLength,0,params)); //too close to the seeee
     }
-    // TEST(HydrologyFunctionsTests, IsAcceptablePositionRealDataTestI)
-    // {
-    //     FILE *input = fopen("./binaryFile", "rb");
-
-    //     if (input == NULL)
-    //     {
-    //         printf("Unable to open file\n");
-    //         exit(1);
-    //     }
-
-    //     HydrologyParameters params = readParamsFromStream(input);
-
-    //     Primitive testNode(10, 6, Point(105000.0, 70100.0), 0.0, 10);
-
-    //     ASSERT_FALSE(isAcceptablePosition(testNode.loc, 6, params));
-    // }
-    // TEST(HydrologyFunctionsTests, IsAcceptablePositionRealDataTestII)
-    // {
-    //     FILE *input = fopen("./binaryFile", "rb");
-
-    //     if (input == NULL)
-    //     {
-    //         printf("Unable to open file\n");
-    //         exit(1);
-    //     }
-
-    //     HydrologyParameters params = readParamsFromStream(input);
-
-    //     Point testLoc(
-    //         params.hydrology.indexedNodes[6].loc.x-params.edgeLength,
-    //         params.hydrology.indexedNodes[6].loc.y
-    //     );
-
-    //     ASSERT_TRUE(isAcceptablePosition(testLoc, 6, params));
-    // }
     TEST(HydrologyFunctionsTests, CoastNormalTest) {
         /*
            NOTE: This test depends on cv::findContours always generating
@@ -706,12 +632,12 @@ namespace
         );
 
         HydrologyParameters params(Point(500*2.0,1000*2.0),Point(3500*2.0,3000*2.0));
-        params.contour = contours[0];
+        params.shore = Shore(contours[0], 2.0, 4000, 4000);
         params.resolution = 2.0; //space units / map unit
 
         const size_t contourIndex = 175;
         Primitive mouth = *params.hydrology.addMouthNode(
-            Point(params.contour[contourIndex].x,params.contour[contourIndex].y),
+            Point(params.shore[contourIndex].x,params.shore[contourIndex].y),
             0.0f, 0, contourIndex
         );
 
@@ -739,26 +665,24 @@ namespace
             src, contours, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE
         );
 
-        HydrologyParameters params(Point(500*2.0,1000*2.0),Point(3500*2.0,3000*2.0));
-        params.contour = contours[0];
+        HydrologyParameters params(Point(1500*2.0,1300*2.0),Point(1550*2.0,1400*2.0));
+        params.shore = Shore(contours[0], 2.0, 4000, 4000);
         params.resolution = 2.0; //space units / map unit
         params.edgeLength = 40.0; //space units
         params.eta = 0.95;
-        params.sigma = 0.95;
-        params.riverAngleDev = 0.05;
-        params.maxTries = 15;
+        params.sigma = 1.1;
 
         Primitive mouth = *params.hydrology.addMouthNode(
-            Point(1530*params.resolution,1340*params.resolution), 0.0, 0, 0
+            Point(-940,1320), 0.0, 0, 0
         );
         Primitive child0 = *params.hydrology.addRegularNode(
-            Point(1520*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
+            Point(-960,1280), 0.0, 0, mouth.getID()
         );
         Primitive child1 = *params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1360*params.resolution), 0.0, 0, mouth.getID()
+            Point(-920,1280), 0.0, 0, mouth.getID()
         );
         /*Primitive child2 = */params.hydrology.addRegularNode(
-            Point(1540*params.resolution,1390*params.resolution), 0.0, 0, child1.getID()
+            Point(-920,1220), 0.0, 0, child1.getID()
         );
 
         LockedPoint newLoc = pickNewNodeLoc(child0, params);

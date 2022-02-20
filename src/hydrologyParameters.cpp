@@ -120,11 +120,13 @@ HydrologyParameters::HydrologyParameters(FILE *stream)
     inPoints[i][Y] = be64toh(inPoints[i][Y]);
     inPoints[i][X] = be64toh(inPoints[i][X]);
   }
+  std::vector<cv::Point> contour;
   for (uint64_t i = 0; i < contourLength; i++)
   {
     // Points in a contour array are y,x
     contour.push_back(cv::Point2f(inPoints[i][Y],inPoints[i][X]));
   }
+  shore = Shore(contour, resolution, rasterXsize, rasterYsize);
 
   distribution = std::normal_distribution<float>(0.0, riverAngleDev);
 }
@@ -143,7 +145,7 @@ HydrologyParameters::HydrologyParameters(const HydrologyParameters& other)
 : Pa(other.Pa), Pc(other.Pc), maxTries(other.maxTries), riverAngleDev(other.riverAngleDev),
   edgeLength(other.edgeLength), sigma(other.sigma), eta(other.eta), zeta(other.zeta),
   slopeRate(other.slopeRate), resolution(other.resolution), riverSlope(other.riverSlope),
-  contour(other.contour)
+  shore(other.shore), candidates(other.candidates)
 {
   omp_init_lock(&candidateVectorLock);
   distribution = std::normal_distribution<float>(0.0, riverAngleDev);
@@ -154,7 +156,8 @@ HydrologyParameters::HydrologyParameters(HydrologyParameters&& other)
   riverAngleDev(std::move(other.riverAngleDev)), edgeLength(std::move(other.edgeLength)),
   sigma(std::move(other.sigma)), eta(std::move(other.eta)), zeta(std::move(other.zeta)),
   slopeRate(std::move(other.slopeRate)), resolution(std::move(other.resolution)),
-  riverSlope(std::move(other.riverSlope)), contour(std::move(other.contour))
+  riverSlope(std::move(other.riverSlope)), shore(std::move(other.shore)),
+  candidates(std::move(other.candidates))
 {
   omp_init_lock(&candidateVectorLock);
   distribution = std::normal_distribution<float>(0.0, riverAngleDev);
@@ -178,7 +181,8 @@ HydrologyParameters& HydrologyParameters::operator=(const HydrologyParameters& o
   slopeRate = other.slopeRate;
   resolution = other.resolution;
   riverSlope = other.riverSlope;
-  contour = other.contour;
+  shore = other.shore;
+  candidates = other.candidates;
 
   omp_init_lock(&candidateVectorLock);
   distribution = std::normal_distribution<float>(0.0, riverAngleDev);
@@ -204,7 +208,8 @@ HydrologyParameters& HydrologyParameters::operator=(HydrologyParameters&& other)
   slopeRate = std::move(other.slopeRate);
   resolution = std::move(other.resolution);
   riverSlope = std::move(other.riverSlope);
-  contour = std::move(other.contour);
+  shore = std::move(other.shore);
+  candidates = std::move(other.candidates);
 
   omp_init_lock(&candidateVectorLock);
   distribution = std::normal_distribution<float>(0.0, riverAngleDev);

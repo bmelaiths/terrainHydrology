@@ -16,6 +16,8 @@ class Raster {
     float resolution;
     T *data;
 
+    void toImageCoordinates(float x, float y, size_t *imageX, size_t *imageY);
+
     public:
     Raster();
     /**
@@ -146,6 +148,17 @@ Raster<T>& Raster<T>::operator=(Raster<T>&& other) noexcept
 }
 
 template<typename T>
+void Raster<T>::toImageCoordinates(float x, float y, size_t *imageX, size_t *imageY) {
+    x /= resolution;
+    x += cols * 0.5;
+    *imageX = x;
+
+    y /= resolution;
+    y = rows * 0.5 - y;
+    *imageY = y;
+}
+
+template<typename T>
 void Raster<T>::set(size_t col, size_t row, T datum) {
     data[row * cols + col] = datum;
 }
@@ -163,8 +176,10 @@ void Raster<T>::set(T datum) {
 
 template<typename T>
 T Raster<T>::get(float x, float y) {
-    size_t col = (size_t) (x / resolution);
-    size_t row = (size_t) (y / resolution);
+    size_t col, row;
+
+    toImageCoordinates(x, y, &col, &row);
+
     return data[row * cols + col];
 }
 

@@ -8,6 +8,7 @@
 
 #include "raster.hpp"
 #include "hydrology.hpp"
+#include "shore.hpp"
 
 /**
  * @brief A struct that holds all the necessary parameters to generate the river network
@@ -53,7 +54,8 @@ class HydrologyParameters
 
     Raster<float> riverSlope;
 
-    std::vector<cv::Point> contour;
+    //std::vector<cv::Point> contour;
+    Shore shore;
 
     /**
      * @brief Acquires a lock on the vector of candidate nodes

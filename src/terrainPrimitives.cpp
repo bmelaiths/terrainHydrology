@@ -39,6 +39,11 @@ PrimitiveParameters::PrimitiveParameters(FILE *stream, GEOSContextHandle_t geosC
   uint64_t contourLength;
   fread(&contourLength, sizeof(uint64_t), 1, stream);
   contourLength = be64toh(contourLength);
+  uint32_t rasterXsize, rasterYsize;
+  fread(&rasterXsize, sizeof(uint32_t), 1, stream);
+  fread(&rasterYsize, sizeof(uint32_t), 1, stream);
+  rasterXsize = be32toh(rasterXsize);
+  rasterYsize = be32toh(rasterYsize);
   uint64_t inPoints[contourLength][2];
   fread(inPoints, sizeof(uint64_t), contourLength * 2, stream);
   #define X 0
@@ -48,11 +53,13 @@ PrimitiveParameters::PrimitiveParameters(FILE *stream, GEOSContextHandle_t geosC
     inPoints[i][Y] = be64toh(inPoints[i][Y]);
     inPoints[i][X] = be64toh(inPoints[i][X]);
   }
+  std::vector<cv::Point> contour;
   for (uint64_t i = 0; i < contourLength; i++)
   {
     // Points in a contour array are y,x
     contour.push_back(cv::Point2f(inPoints[i][Y],inPoints[i][X]));
   }
+  shore = Shore(contour, resolution, rasterXsize, rasterYsize);
 
   /*
     Read in the hydrology nodes

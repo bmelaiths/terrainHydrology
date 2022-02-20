@@ -81,7 +81,7 @@ float lerpRidge(Q *q0, Q *q1, T& t, float dist)
 float computePrimitiveElevation
 (
   T& t, Hydrology& hydrology, TerrainHoneycomb& cells, Terrain& ts,
-  std::vector<cv::Point>& contour, float resolution,
+  Shore shore, float resolution,
   GEOSContextHandle_t geosContext
 )
 {
@@ -149,14 +149,7 @@ float computePrimitiveElevation
     If the shore is closer than the closest ridge, then use that
     instead.
   */
-  float distToGamma = resolution * (float) cv::pointPolygonTest(
-    contour,
-    cv::Point2f(
-      (float) t.getLoc().x() / resolution,
-      (float) t.getLoc().y() / resolution
-    ),
-    true
-  );
+  float distToGamma = shore.distanceToShore(t.getLoc().x(), t.getLoc().y());
   if (closestRidgeDist < 0 || distToGamma < closestRidgeDist)
   {
     closestRidgeDist = distToGamma;
