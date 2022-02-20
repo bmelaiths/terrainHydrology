@@ -54,7 +54,6 @@ class HydrologyParameters
 
     Raster<float> riverSlope;
 
-    //std::vector<cv::Point> contour;
     Shore shore;
 
     /**
