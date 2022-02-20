@@ -270,7 +270,7 @@ def coastNormal(node: HydroPrimitive, params: HydrologyParameters) -> float: # G
     p1 = params.shore[node.contourIndex+3]
     p2 = params.shore[node.contourIndex-3]
     theta = math.atan2(p2[1]-p1[1],p2[0]-p1[0])
-    return theta + 0.5*math.pi
+    return theta - 0.5*math.pi
 
 def isAcceptablePosition(point: typing.Tuple[float,float], params: HydrologyParameters) -> bool:
     """Determines whether or not a point is acceptable as a new node's location

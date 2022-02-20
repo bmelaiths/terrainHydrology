@@ -44,7 +44,7 @@ int main()
   {
     T& t = params.ts.getT(i);
     t.setElevation(computePrimitiveElevation(
-      t, params.hydrology, params.cells, params.ts, params.contour,
+      t, params.hydrology, params.cells, params.ts, params.shore,
       params.resolution, geosContexts[omp_get_thread_num()]
     ));
     fwrite(&anotherNode, sizeof(uint8_t), 1, stdout);

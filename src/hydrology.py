@@ -288,7 +288,7 @@ except Exception as e:
     print(e)
 
     print('Saving...')
-    SaveFile.writeDataModel(outputFile, edgeLength, shore, hydrology, cells=None, Ts=None)
+    SaveFile.writeDataModel(outputFile, edgeLength, shore, hydrology, cells, Ts=None)
 
     exit()
 
@@ -370,9 +370,9 @@ try:
                 # the path to the sea is up to date
                 p.rivers.append(line)
 
-except Exception as e:
+except Exception as ex:
     print('Problem encountered in generating the terrain primitives. Saving shore model, hydrology network, and terrain cells to export file.')
-    print(e)
+    print(ex.with_traceback())
 
     print('Saving...')
     SaveFile.writeDataModel(outputFile, edgeLength, shore, hydrology, cells, Ts=None)
@@ -507,7 +507,7 @@ try:
             t.elevation = struct.unpack('!f', readByte)[0]
 
         # clean up
-        os.remove('src/binaryFile')
+        # os.remove('src/binaryFile')
 
 except Exception as e:
     print('Problem encountered in generating the terrain primitives. Saving shore model, hydrology network, and terrain cells to export file.')

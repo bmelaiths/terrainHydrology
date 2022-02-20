@@ -8,6 +8,7 @@
 #include "hydrology.hpp"
 #include "terrainHoneycomb.hpp"
 #include "ts.hpp"
+#include "shore.hpp"
 
 /**
  * @brief Reads data from the Python module
@@ -18,7 +19,7 @@ class PrimitiveParameters
 public:
   float edgeLength;
   float resolution;
-  std::vector<cv::Point> contour;
+  Shore shore;
   Hydrology hydrology;
   TerrainHoneycomb cells;
   Terrain ts;

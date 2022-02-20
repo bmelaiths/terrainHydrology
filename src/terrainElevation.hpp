@@ -5,6 +5,7 @@
 #include "terrainHoneycomb.hpp"
 #include "terrainPrimitives.hpp"
 #include "point.hpp"
+#include "shore.hpp"
 
 /**
  * @file terrainElevation.hpp
@@ -27,7 +28,7 @@
 float computePrimitiveElevation
 (
   T& t, Hydrology& hydrology, TerrainHoneycomb& cells, Terrain& ts,
-  std::vector<cv::Point>& contour, float resolution,
+  Shore shore, float resolution,
   GEOSContextHandle_t geosContext
 );
 

@@ -73,8 +73,8 @@ with shapefile.Writer(outputFile, shapeType=1) as w:
 
         # Add node locations. Note that they must be transformed
         w.point(
-            (q.position[0])-(realShape[1]*0.5),
-            (realShape[0]-q.position[1])-(realShape[0]*0.5)
+            q.position[0],
+            q.position[1]
         )
 
     w.close()

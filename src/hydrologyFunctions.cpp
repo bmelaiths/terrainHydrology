@@ -122,20 +122,7 @@ float point_segment_distance(float px, float py, float x1, float y1, float x2, f
 }
 
 bool isAcceptablePosition(Point testLoc, float radius, size_t parentID, HydrologyParameters& params) {
-  if (testLoc.x() < 0) // is this a real point?
-  {
-    return false;
-  }
-  
-  // distance to shore (gamma)
-  float distToGamma = params.resolution * (float) cv::pointPolygonTest(
-    params.contour,
-    cv::Point2f(
-      (float) testLoc.x() / params.resolution,
-      (float) testLoc.y() / params.resolution
-    ),
-    true
-  );
+  float distToGamma = params.shore.distanceToShore(testLoc.x(), testLoc.y());
   if (distToGamma < params.edgeLength * params.eta)
   { // if the point is too close to the shore, reject it
     return false;
@@ -162,14 +149,8 @@ bool isAcceptablePosition(Point testLoc, float radius, size_t parentID, Hydrolog
 
 float coastNormal(Primitive candidate, HydrologyParameters& params) {
   //get two points on the shore that are close to the candidate node
-  Point p1(
-    params.contour[candidate.getContourIndex()+3].x,
-    params.contour[candidate.getContourIndex()+3].y
-  );
-  Point p2(
-    params.contour[candidate.getContourIndex()-3].x,
-    params.contour[candidate.getContourIndex()-3].y
-  );
+  Point p1 = params.shore[candidate.getContourIndex()+3];
+  Point p2 = params.shore[candidate.getContourIndex()-3];
   //get an angle that is perpendicular to the shore line
   float theta = atan2(p2.y() - p1.y(), p2.x() - p1.x());
   return theta + M_PI_2f32;

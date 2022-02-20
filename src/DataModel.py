@@ -1,3 +1,4 @@
+from re import I
 import cv2 as cv
 from networkx.algorithms.operators import binary
 import numpy as np
@@ -15,6 +16,28 @@ import datetime
 import typing
 
 import Math
+
+def toImageCoordinates(loc: typing.Tuple[float,float], imgSize: typing.Tuple[float,float], resolution: float) -> typing.Tuple[float,float]:
+    x = loc[0]
+    x /= resolution
+    x += imgSize[0] * 0.5
+
+    y = loc[1]
+    y /= resolution
+    y = imgSize[1] * 0.5 - y
+
+    return (x,y)
+
+def fromImageCoordinates(loc: typing.Tuple[float,float], imgSize: typing.Tuple[float,float], resolution: float) -> typing.Tuple[float,float]:
+    x = loc[0]
+    x -= imgSize[0] * 0.5
+    x *= resolution
+
+    y = loc[1]
+    y = imgSize[1] * 0.5 - y
+    y *= resolution
+
+    return (x,y)
 
 class RasterData:
     """A simple abstraction of raster data based on an image.
@@ -49,7 +72,9 @@ class RasterData:
         :return: The value of the data at loc
         :rtype: float
         """
-        return self.raster[int(loc[0]/self.resolution),int(loc[1]/self.resolution)]
+        loc = toImageCoordinates(loc, (self.xSize,self.ySize), self.resolution)
+
+        return self.raster[int(loc[0]), int(loc[1])]
     def toBinary(self):
         binary = None
         for y in range(self.ySize):
@@ -145,9 +170,10 @@ class ShoreModel:
         :return: The distance between `loc` and the shore in meters
         :rtype: float
         """
+        loc = toImageCoordinates(loc, self.imgray.shape, self.resolution)
 
         #    for some reason this method is      y, x
-        return cv.pointPolygonTest(self.contour,(loc[1]/self.resolution,loc[0]/self.resolution),True) * self.resolution
+        return cv.pointPolygonTest(self.contour,(loc[1],loc[0]),True) * self.resolution
     def isOnLand(self, loc) -> bool:
         """Determines whether or not a point is on land or not
 
@@ -156,9 +182,10 @@ class ShoreModel:
         :return: True if the point is on land, False if otherwise
         :rtype: bool
         """
+        loc = toImageCoordinates(loc, self.imgray.shape, self.resolution)
         
-        if 0 <= loc[0] < self.realShape[1] and 0 <= loc[1] < self.realShape[0]:
-            return self.imgray[int(loc[1]/self.resolution)][int(loc[0]/self.resolution)] == 255 # != 0
+        if 0 <= loc[0] < self.imgray.shape[1] and 0 <= loc[1] < self.imgray.shape[0]:
+            return self.imgray[int(loc[1])][int(loc[0])] == 255 # != 0
         else:
             return False
     def __getitem__(self, index: int):
@@ -174,7 +201,9 @@ class ShoreModel:
         """
 
         # TODO ensure that points returned are x,y
-        return (self.contour[index][1]*self.resolution,self.contour[index][0]*self.resolution)
+        # return (self.contour[index][1]*self.resolution,self.contour[index][0]*self.resolution)
+
+        return fromImageCoordinates((self.contour[index][1],self.contour[index][0]), self.imgray.shape, self.resolution)
     def __len__(self):
         """The number of points that make up the shore
 
@@ -677,10 +706,10 @@ class TerrainHoneycomb:
         points = [node.position for node in hydrology.allNodes()]
 
         # Add corners so that the entire area is covered
-        points.append((0,0))
-        points.append((0,shore.realShape[1]))
-        points.append((shore.realShape[0],0))
+        points.append((-shore.realShape[0],-shore.realShape[1]))
+        points.append((-shore.realShape[0],shore.realShape[1]))
         points.append((shore.realShape[0],shore.realShape[1]))
+        points.append((shore.realShape[0],-shore.realShape[1]))
         
         self.vor = Voronoi(points,qhull_options='Qbb Qc Qz Qx')
 

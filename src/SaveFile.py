@@ -285,6 +285,8 @@ def writeToTerrainModule(pipe, shore, edgeLength, hydrology, cells, Ts):
 
     # write the shore contour
     pipe.write(struct.pack('!Q', len(shore.contour)))
+    pipe.write(struct.pack('!I', shore.imgray.shape[0]))
+    pipe.write(struct.pack('!I', shore.imgray.shape[1]))
     for point in shore.contour:
         pipe.write(struct.pack('!Q', point[0]))
         pipe.write(struct.pack('!Q', point[1]))
