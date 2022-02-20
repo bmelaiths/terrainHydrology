@@ -663,7 +663,7 @@ namespace
 
         const size_t contourIndex = 175;
         Primitive mouth = *params.hydrology.addMouthNode(
-            Point(params.shore[contourIndex].x,params.shore[contourIndex].y),
+            params.shore[contourIndex],
             0.0f, 0, contourIndex
         );
 

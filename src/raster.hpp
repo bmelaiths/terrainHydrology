@@ -38,8 +38,8 @@ class Raster {
     /**
      * @brief Sets the value at a certain location
      * 
-     * @param x X location
-     * @param y Y location
+     * @param x X location in image coordinates
+     * @param y Y location in image coordinates
      * @param datum The value to be set at that location
      */
     void set(size_t x, size_t y, T datum);

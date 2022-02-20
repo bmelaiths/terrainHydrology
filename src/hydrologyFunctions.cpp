@@ -149,14 +149,8 @@ bool isAcceptablePosition(Point testLoc, float radius, size_t parentID, Hydrolog
 
 float coastNormal(Primitive candidate, HydrologyParameters& params) {
   //get two points on the shore that are close to the candidate node
-  Point p1(
-    params.shore[candidate.getContourIndex()+3].x,
-    params.shore[candidate.getContourIndex()+3].y
-  );
-  Point p2(
-    params.shore[candidate.getContourIndex()-3].x,
-    params.shore[candidate.getContourIndex()-3].y
-  );
+  Point p1 = params.shore[candidate.getContourIndex()+3];
+  Point p2 = params.shore[candidate.getContourIndex()-3];
   //get an angle that is perpendicular to the shore line
   float theta = atan2(p2.y() - p1.y(), p2.x() - p1.x());
   return theta + M_PI_2f32;

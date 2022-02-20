@@ -27,6 +27,6 @@ double Shore::distanceToShore(float x, float y) {
     );
 }
 
-cv::Point Shore::operator[](size_t idx) {
-    return contour[idx];
+Point Shore::operator[](size_t idx) {
+    return Point(contour[idx].x,contour[idx].y);
 }
