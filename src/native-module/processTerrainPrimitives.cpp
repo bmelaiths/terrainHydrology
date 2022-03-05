@@ -25,7 +25,7 @@ int main()
   #define INPUT input
   #define FILEINPUT
   #ifdef FILEINPUT
-  FILE *input = fopen("src/binaryFile", "rb");
+  FILE *input = fopen("./src/native-module/bin/binaryFile", "rb");
 
   if (input == NULL)
   {

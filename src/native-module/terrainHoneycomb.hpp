@@ -4,6 +4,8 @@
 #include <vector>
 #include <map>
 
+#include <cstddef>
+
 #include "point.hpp"
 
 /**

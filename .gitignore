@@ -162,6 +162,11 @@ dmypy.json
 *.prj
 *.shp
 *.shx
-out/*
 doc-native/html/
 doc-native/latex
+.vscode/
+src/tst/googletest
+
+# Custom files on my system that I don't want tracked
+
+in/*
