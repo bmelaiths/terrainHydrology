@@ -18,10 +18,10 @@ A list of data structures that will be used:
 
 int main() {
   //gather inputs
-  #define INPUT stdin
-  // #define FILEINPUT
+  #define INPUT input
+  #define FILEINPUT
   #ifdef FILEINPUT
-  FILE *input = fopen("./binaryFile", "rb");
+  FILE *input = fopen("./src/native-module/bin/binaryFile", "rb");
 
   if (input == NULL)
   {

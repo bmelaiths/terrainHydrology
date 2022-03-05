@@ -27,8 +27,8 @@ import HydrologyFunctions
 import Math
 import SaveFile
 
-buildRiversExe = 'src/buildRivers'
-computePrimitivesExe = 'src/terrainPrimitives'
+buildRiversExe = 'src/native-module/bin/buildRivers'
+computePrimitivesExe = 'src/native-module/bin/terrainPrimitives'
 
 # Get inputs
 
@@ -204,11 +204,11 @@ try:
         if not os.path.exists(buildRiversExe):
             print('The executable does not exist. Run "make buildRivers" in the src/ directory to build it.')
             exit()
-        file = open('src/binaryFile', 'w+b')
+        file = open('src/native-module/bin/binaryFile', 'w+b')
         file.write(params.toBinary())
         file.close()
         proc = subprocess.Popen( # start the native module
-            ['./' + buildRiversExe],
+            [buildRiversExe],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE
         )
@@ -483,7 +483,7 @@ try:
             pipes[p][0].close()
     else:
         # Write the binary data to a file
-        with open('src/binaryFile', 'w+b') as file:
+        with open('src/native-module/bin/binaryFile', 'w+b') as file:
             SaveFile.writeToTerrainModule(file, shore, edgeLength, hydrology, cells, Ts)
             file.close()
 

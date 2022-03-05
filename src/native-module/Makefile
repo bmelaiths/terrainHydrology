@@ -45,5 +45,5 @@ $(BIN)/terrainPrimitives: $(GEN)/ts.o $(GEN)/terrainElevation.o $(GEN)/terrainHo
 	g++ $^ $(CPPFLAGS) -lopencv_imgproc -lgeos_c -o $@
 
 clean :
-	@ rm -f $(BIN)/buildRivers $(BIN)/terrainPrimitives $(BIN)/testsuite *.gch $(GEN)/*
+	@ rm -f $(BIN)/buildRivers $(BIN)/terrainPrimitives $(BIN)/testsuite $(BIN)/binaryFile *.gch $(GEN)/*
 	@ cd $(GTEST_DIR)/scripts/test/ && make clean
