@@ -26,6 +26,10 @@ import DataModel
 import HydrologyFunctions
 import Math
 import SaveFile
+import TerrainPrimitiveFunctions
+import RiverInterpolationFunctions
+
+import testcodegenerator
 
 buildRiversExe = 'src/native-module/bin/buildRivers'
 computePrimitivesExe = 'src/native-module/bin/terrainPrimitives'
@@ -302,73 +306,7 @@ try:
     ## Generate river paths
     print('Interpolating river paths...')
     for node in hydrology.allMouthNodes():
-        # remember that out_edges gets upstream nodes
-        leaves = hydrology.allLeaves(node.id)
-        for leafNode in leaves: # essentially, this loops through all the highest nodes of a particular mouth
-            # path to the leaf (there's only one, so it's the shortest)
-            path = hydrology.pathToNode(node.id,leafNode.id)
-            path.reverse()
-
-            # terminates the path if there is another path with greater flow, and adds the downflow ridge as a point
-            for ni in range(1,len(path)):
-                #print(f'path: {[n.id for n in path]}')
-                #print(f'ni: {ni}')
-                #print(f'Upstream of node {path[ni].id} ({path[ni].position}): {[n.id for n in hydrology.upstream(path[ni].id)]}')
-                upstreamFlow = max([n.flow for n in hydrology.upstream(path[ni].id)])
-                if upstreamFlow > path[ni-1].flow:
-                    path = path[0:ni+1]
-                    break
-            
-            x = [ ]
-            y = [ ]
-            z = [ ]
-            for pi in range(len(path)):
-                p = path[pi]
-                x.append(p.x())
-                y.append(p.y())
-                z.append(p.elevation)
-                # makes the river flow through the cell's outflow ridge (so it doesn't transect a mountain)
-                if p.parent is not None and pi < len(path)-1 and cells.cellOutflowRidge(p.id) is not None:
-                    ridge0, ridge1 = cells.cellOutflowRidge(p.id)
-                    x.append((ridge0[0] + ridge1[0])/2)
-                    y.append((ridge0[1] + ridge1[1])/2)
-                    z.append((p.elevation + p.parent.elevation)/2)
-
-            # it seems to me that, if the path is short, this block
-            # adjusts the positions of the first three nodes
-            if len(x)<4:
-                x1 = (x[0]+x[1])/2
-                x2 = (x[0]+x1)/2
-                y1 = (y[0]+y[1])/2
-                y2 = (y[0]+y1)/2
-                z1 = (z[0]+z[1])/2
-                z2 = (z[0]+z1)/2
-                tmp = x[1:]
-                x = [x[0],x2,x1]+list(tmp)
-                x = np.array(x)
-                tmp=y[1:]
-                y = [y[0],y2,y1]+list(tmp)
-                y = np.array(y)
-                tmp=z[1:]
-                z = [z[0],z2,z1]+list(tmp)
-                z = np.array(z)
-            
-            # I think that this is where the river paths are smoothed
-            tck, u = interpolate.splprep([x, y,z], s=0)
-            unew = np.arange(0, 1.01, 0.05)
-            out = interpolate.splev(unew, tck)
-            
-            lstr=[] # lstr is apparently "line string"
-            dbg=[] # I think this is to verify that altitude increases continually
-            for i in range(len(out[0])): # loops through each coordinate created in interpolation
-                lstr.append((out[0][i],out[1][i],int(out[2][i])))
-                dbg.append(int(out[2][i]))
-            line = asLineString(lstr)
-            
-            for p in path: # for each node in the path to this particular leaf
-                # I'm pretty sure this loop ensures that
-                # the path to the sea is up to date
-                p.rivers.append(line)
+        RiverInterpolationFunctions.computeRivers(node, hydrology, cells)
 
 except Exception as ex:
     print('Problem encountered in generating the terrain primitives. Saving shore model, hydrology network, and terrain cells to export file.')
@@ -386,70 +324,8 @@ def subroutine(conn: Pipe, q: Queue):
         threadID = conn.recv()
         for ti in range(threadID, len(Ts), numProcs):
             t = Ts.getT(ti)
-            ridges = cells.cellRidges(t.cell)
-            # find distance to closest sgment, and elevation at that point
-            closestRdist = None
-            ridgeElevation = None
-            for ridge in ridges:
-                if len(ridge) < 2:
-                    q0 = ridge[0]
-                    dist = Math.distance(q0.position,t.position)
-                    if closestRdist is None or dist < closestRdist:
-                        closestRdist = dist
-                        ridgeElevation = q0.elevation
-                    continue
-                
-                q0 = ridge[0]
-                q1 = ridge[1]
-                dist, isToEndpoint = Math.point_segment_distance_is_endpoint(
-                    t.position[0],t.position[1],
-                    q0.position[0],q0.position[1],
-                    q1.position[0],q1.position[1]
-                )
-                if closestRdist is not None and dist > closestRdist:
-                    continue
-                if isToEndpoint:
-                    if Math.distance(q0.position,t.position) < Math.distance(q1.position,t.position):
-                        closestRdist = Math.distance(q0.position,t.position)
-                        ridgeElevation = q0.elevation
-                    else:
-                        closestRdist = Math.distance(q1.position,t.position)
-                        ridgeElevation = q1.elevation
-                else:
-                    closestRdist = dist
-                    try:
-                        ridgeElevation = q0.elevation + (math.sqrt(Math.distance(q0.position,t.position)**2 - dist**2) / Math.distance(q0.position,q1.position)) * (q1.elevation - q0.elevation)
-                    except:
-                        print(f'That math domain error has occured')
-                        print(f'q0.elevation: {q0.elevation}, q0.position: {q0.position}, t.positon: {t.position}, dist: {dist}, q1.position: {q1.position}, q1.elevation: {q1.elevation}')
-                        exit()
             
-            # see if the seeeeee is closer
-            dist_gamma = shore.distanceToShore(t.position)
-            if closestRdist is None or (dist_gamma < closestRdist):
-                closestRdist = dist_gamma
-                ridgeElevation = 0
-            
-            point = geom.Point(t.position[0],t.position[1])
-            projected = None
-            distancefromN = None
-            node = hydrology.node(t.cell)
-            if len(node.rivers) > 0:
-                local_rivers = node.rivers # tries to get a line to the seeeee
-                # gets the river that is closest to the terrain primitive
-                rividx = [point.distance(x) for x in local_rivers].index(min([point.distance(x) for x in local_rivers]))
-                # gets the point along the river that is the distance along the river to the point nearest to the Tee
-                projected = local_rivers[rividx].interpolate(local_rivers[rividx].project(point))
-                distancefromN = point.distance(local_rivers[rividx]) # distance to that point
-            else: # handle cases of stub rivers
-                projected = geom.Point(node.x(),node.y(),node.elevation)
-                distancefromN = point.distance(projected)
-            
-            if distancefromN==0 and closestRdist==0:
-                distancefromN=1
-            
-            lerpedelevation = projected.z*(closestRdist/(closestRdist+distancefromN))+ridgeElevation*(distancefromN/(closestRdist+distancefromN))
-            t.elevation = lerpedelevation
+            t.elevation = TerrainPrimitiveFunctions.computePrimitiveElevation(t, shore, hydrology, cells)
 
             q.put(t)
 
@@ -522,3 +398,12 @@ except Exception as e:
 print('Writing data model...')
 SaveFile.writeDataModel(outputFile, edgeLength, shore, hydrology, cells, Ts)
 print('Complete')
+
+# DEBUG
+code =  testcodegenerator.hydrologyToCode(hydrology)
+code += testcodegenerator.terrainHoneycombToCode(cells)
+code += testcodegenerator.qElevationsToCode(cells)
+code += testcodegenerator.hydrologyAttributesToCode(hydrology)
+code += testcodegenerator.riversToCode(hydrology)
+
+print(code)

@@ -9,12 +9,13 @@ import os.path
 
 import HydrologyFunctions
 from DataModel import *
+import Math
 
-class RasterDataMock:
-    def __init__(self, value: float) -> None:
-        self.value = value
-    def __getitem__(self, loc: typing.Tuple[float,float]) -> float:
-        return self.value
+from TerrainPrimitiveFunctions import computePrimitiveElevation
+from RiverInterpolationFunctions import computeRivers
+
+import testcodegenerator
+from testcodegenerator import RasterDataMock
 
 class HydrologyFunctionTests(unittest.TestCase):
     def setUp(self):
@@ -139,17 +140,6 @@ class HoneycombTests(unittest.TestCase):
             shore, self.hydrology, Pa, Pc, maxTries, riverAngleDev, edgelength,
             sigma, eta, zeta, riverSlope, slopeRate, candidateNodes
         )
-
-        # This was used to generate the network for this test
-        # while len(candidateNodes) != 0:
-        #     selectedCandiate = HydrologyFunctions.selectNode(candidateNodes, zeta)
-        #     HydrologyFunctions.alpha(selectedCandiate, candidateNodes, self.params)
-
-        # for node in self.hydrology.allNodes():
-        #     if node.parent is None:
-        #         print(f'self.hydrology.addNode({node.position}, {node.elevation}, {node.priority}, contourIndex={node.contourIndex}) # ID: {node.id}')
-        #     else:
-        #         print(f'self.hydrology.addNode({node.position}, {node.elevation}, {node.priority}, parent=self.hydrology.node({node.parent.id})) # ID: {node.id}')
         
         self.hydrology.addNode((-132.0, 90.0), 0, 2, contourIndex=21) # ID: 0
         self.hydrology.addNode((-196.0, 6.0), 0, 1, contourIndex=63) # ID: 1
@@ -199,6 +189,50 @@ class HoneycombTests(unittest.TestCase):
     
     def test_test(self) -> None:
         pass
+
+    def tearDown(self) -> None:
+        os.remove('imageFile.png')
+
+class RiverTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.edgeLength, self.shore, self.hydrology, self.cells = testcodegenerator.getPredefinedObjects0()
+    
+    def test_test(self) -> None:
+        node = self.hydrology.node(3)
+        node.rivers = [ ]
+
+        computeRivers(node, self.hydrology, self.cells)
+
+        # ensure that the river does not intersect any of the mountain ridges of any cells that it flows through
+        allRidges = self.cells.cellRidges(3)
+        allRidges += self.cells.cellRidges(14)
+        allRidges += self.cells.cellRidges(27)
+        allRidges += self.cells.cellRidges(34)
+
+        self.assertEqual(1, len(node.rivers))
+
+        river = list(node.rivers[0].coords)
+        for i in range(len(river)-2):
+            p0 = river[i]
+            p1 = river[i+1]
+            for ridge in allRidges:
+                if len(ridge) < 2:
+                    continue
+                self.assertFalse(Math.segments_intersect_tuple(p0, p1, ridge[0].position, ridge[1].position))
+
+    def tearDown(self) -> None:
+        os.remove('imageFile.png')
+
+class TerrainTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.edgeLength, self.shore, self.hydrology, self.cells = testcodegenerator.getPredefinedObjects0()
+
+    def test_test(self) -> None:
+        t = T((1519,-734), 34)
+
+        z = computePrimitiveElevation(t, self.shore, self.hydrology, self.cells)
+        
+        self.assertAlmostEqual(z, 933.975, delta=10.0)
 
     def tearDown(self) -> None:
         os.remove('imageFile.png')
