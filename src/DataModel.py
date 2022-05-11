@@ -246,6 +246,7 @@ class HydroPrimitive:
         self.elevation = elevation
         self.priority = priority
         self.parent = parent
+        self.inheritedWatershed = 0
         self.rivers = [ ]
     def x(self) -> float:
         """Gets the x location of this node
@@ -694,8 +695,6 @@ class TerrainHoneycomb:
             self._initFromBinaryFile(resolution, edgeLength, shore, hydrology, binaryFile)
         elif shore is not None and hydrology is not None and resolution is not None and edgeLength is not None:
             self._initFromModel(shore, hydrology, resolution, edgeLength)
-        else:
-            raise ValueError()
     def _initFromModel(self, shore, hydrology, resolution, edgeLength):
         self.resolution = resolution
         self.edgeLength = edgeLength

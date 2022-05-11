@@ -263,6 +263,7 @@ def terrainHoneycombToCode(cells: TerrainHoneycomb) -> str:
         if q is None:
             q_string += f'cells.qs.append(None) #{i}\n'
         else:
+            # TODO: This needs to record positions as tuples, not lists
             q_string += f'cells.qs.append(Q([{q.position[0]},{q.position[1]}],{q.nodes},{q.vorIndex})) #{i}\n'
         i += 1
     code += q_string
@@ -341,6 +342,9 @@ def getPredefinedObjects0():
 
     hydrology = HydrologyNetwork()
     cells = TerrainHoneycomb()
+
+    cells.shore = shore
+    cells.resolution = resolution
     
     hydrology.addNode((-7768.799999999999, 2059.2), 0, 2, contourIndex=44) # ID: 0
     hydrology.addNode((-8049.599999999999, -2246.3999999999996), 0, 1, contourIndex=90) # ID: 1

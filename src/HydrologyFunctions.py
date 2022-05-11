@@ -329,3 +329,12 @@ def classify(node: HydroPrimitive, hydrology: HydrologyNetwork, edgeLength: floa
             child.rosgen = ['C','D','E','F'][random.randint(0,3)];
         else :
             child.rosgen = 'DA'
+
+def getLocalWatershed(node: HydroPrimitive, cells: DataModel.TerrainHoneycomb) -> float:
+    return cells.cellArea(node)
+
+def getInheritedWatershed(node: HydroPrimitive, hydrology: HydrologyNetwork) -> float:
+    return node.localWatershed + sum([n.inheritedWatershed for n in hydrology.upstream(node.id)])
+
+def getFlow(inheritedWatershed: float) -> float:
+    return 0.42 * inheritedWatershed**0.69

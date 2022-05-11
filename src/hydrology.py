@@ -28,6 +28,7 @@ import Math
 import SaveFile
 import TerrainPrimitiveFunctions
 import RiverInterpolationFunctions
+import TerrainHoneycombFunctions
 
 import testcodegenerator
 
@@ -256,17 +257,11 @@ try:
     ## Calculate watershed areas
     print('Calculating watershed areas...')
 
-    # local watershed areas
-    for n in range(len(hydrology)):
-        node = hydrology.node(n)
-        node.localWatershed = cells.cellArea(node)
-        node.inheritedWatershed = 0
-
     # calculate inherited watershed areas and flow
     for node in hydrology.dfsPostorderNodes():  # search nodes in a depth-first post-ordering manner
-        watershed = node.localWatershed + sum([n.inheritedWatershed for n in hydrology.upstream(node.id)])
-        node.inheritedWatershed=watershed  # calculate total watershed area
-        node.flow = 0.42 * watershed**0.69 # calculate river flow
+        node.localWatershed = HydrologyFunctions.getLocalWatershed(node, cells)
+        node.inheritedWatershed = HydrologyFunctions.getInheritedWatershed(node, hydrology)
+        node.flow = HydrologyFunctions.getFlow(node.inheritedWatershed)
 
 
     ## Classify river nodes
@@ -281,11 +276,7 @@ try:
     for q in cells.allQs():
         if q is None:
             continue
-        nodes = [hydrology.node(n) for n in q.nodes]
-        maxElevation = max([node.elevation for node in nodes])
-        d = np.linalg.norm(q.position - nodes[0].position)
-        slope = terrainSlopeRate * terrainSlope[q.position[0],q.position[1]] / 255
-        q.elevation = maxElevation + d * slope
+        q.elevation = TerrainHoneycombFunctions.getRidgeElevation(q, hydrology, terrainSlope, terrainSlopeRate)
 
 except Exception as e:
     print('Problem encountered in partitioning the terrain cells. Saving the shore model and hydrology network to file.')
