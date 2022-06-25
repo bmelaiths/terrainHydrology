@@ -4,6 +4,7 @@ import datetime
 import argparse
 from os import read
 import random
+import traceback
 import matplotlib.pyplot as plt
 import cv2 as cv
 import numpy as np
@@ -21,6 +22,7 @@ from rasterio.transform import Affine
 import subprocess
 import os.path
 import struct
+import traceback
 
 import DataModel
 import HydrologyFunctions
@@ -252,7 +254,7 @@ try:
 
     ## Create terrain partition (voronoi cells)
     print('Generating terrain ridges...')
-    cells = DataModel.TerrainHoneycomb(shore, hydrology, resolution, edgeLength)
+    cells = TerrainHoneycombFunctions.initializeTerrainHoneycomb(shore, hydrology, resolution, edgeLength)
 
     ## Calculate watershed areas
     print('Calculating watershed areas...')
@@ -291,7 +293,7 @@ try:
 
     ## Terrain pattern
     print('Generating terrain primitives...')
-    Ts = DataModel.Terrain(hydrology, cells, num_points)
+    Ts = TerrainPrimitiveFunctions.initializeTerrain(hydrology, cells, num_points)
 
 
     ## Generate river paths
@@ -320,8 +322,8 @@ def subroutine(conn: Pipe, q: Queue):
 
             q.put(t)
 
-    except Exception as e:
-        print(e)
+    except:
+        traceback.print_exc()
 
         q.put(None)
 
@@ -391,10 +393,10 @@ SaveFile.writeDataModel(outputFile, edgeLength, shore, hydrology, cells, Ts)
 print('Complete')
 
 # DEBUG
-code =  testcodegenerator.hydrologyToCode(hydrology)
-code += testcodegenerator.terrainHoneycombToCode(cells)
-code += testcodegenerator.qElevationsToCode(cells)
-code += testcodegenerator.hydrologyAttributesToCode(hydrology)
-code += testcodegenerator.riversToCode(hydrology)
+# code =  testcodegenerator.hydrologyToCode(hydrology)
+# code += testcodegenerator.terrainHoneycombToCode(cells)
+# code += testcodegenerator.qElevationsToCode(cells)
+# code += testcodegenerator.hydrologyAttributesToCode(hydrology)
+# code += testcodegenerator.riversToCode(hydrology)
 
-print(code)
+# print(code)
