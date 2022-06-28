@@ -13,7 +13,7 @@ import Math
 
 from TerrainPrimitiveFunctions import computePrimitiveElevation
 from RiverInterpolationFunctions import computeRivers
-from TerrainHoneycombFunctions import getRidgeElevation
+from TerrainHoneycombFunctions import getRidgeElevation, initializeTerrainHoneycomb
 
 import testcodegenerator
 from testcodegenerator import RasterDataMock
@@ -123,6 +123,21 @@ class ExtendedHydrologyFunctionTests(unittest.TestCase):
 class HoneycombTests(unittest.TestCase):
     def setUp(self) -> None:
         self.edgeLength, self.shore, self.hydrology, self.cells = testcodegenerator.getPredefinedObjects0()
+
+    def test_rivers_do_not_transect_ridges(self) -> None:
+        self.cells = initializeTerrainHoneycomb(self.shore, self.hydrology, self.shore.resolution, self.edgeLength)
+
+        for node in self.hydrology.allNodes():
+            if node.parent is None:
+                continue
+
+            riverEdge = (node.position, node.parent.position)
+
+            for ridge in self.cells.cellRidges(node.id):
+                if len(ridge) < 2:
+                    continue
+
+                self.assertFalse(Math.segments_intersect_tuple(riverEdge[0], riverEdge[1], ridge[0].position, ridge[1].position))
     
     def test_test(self) -> None:
         q = self.cells.allQs()[24]
