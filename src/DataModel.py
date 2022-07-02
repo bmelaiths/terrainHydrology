@@ -231,7 +231,7 @@ class HydroPrimitive:
     :vartype parent: int | None
     :cvar contourIndex: If this node is on the coast, this is the index in :class:`Shore` that is closest to this node
     :vartype contourIndex: int
-    :cvar rivers: A :class:`LineString` representing the river's actual path. It only flows to a node where it joins with a larger river
+    :cvar rivers: A :class:`LineString` representing the river's actual path. It only flows to a node where it joins with a larger river. This is set in :func:`RiverInterpolationFunctions.computeRivers`
     :vartype rivers: LineString
     :cvar localWatershed: The (rough) area of this cell
     :vartype localWatershed: float
@@ -246,6 +246,7 @@ class HydroPrimitive:
         self.elevation = elevation
         self.priority = priority
         self.parent = parent
+        self.inheritedWatershed = 0
         self.rivers = [ ]
     def x(self) -> float:
         """Gets the x location of this node
@@ -287,7 +288,7 @@ class HydrologyNetwork:
     Internally, the data is held in a :class:`networkx DiGraph<networkx.DiGraph>`. A
     :class:`cKDTree<scipy.spatial.cKDTree>` is used for lookup by area.
     """
-    def __init__(self, stream=None, binaryFile=None):
+    def __init__(self, stream=None, binaryFile: typing.IO=None):
         self.nodeCounter = 0
         self.graph = nx.DiGraph()
         self.mouthNodes = []
@@ -690,124 +691,8 @@ class TerrainHoneycomb:
     edges.
     """
     def __init__(self, shore: ShoreModel=None, hydrology: HydrologyNetwork=None, resolution: float=None, edgeLength: float=None, binaryFile: typing.IO=None):
-        if binaryFile is not None and resolution is not None and edgeLength is not None and shore is not None and hydrology is not None:
+        if shore is not None and hydrology is not None and resolution is not None and edgeLength is not None and binaryFile is not None:
             self._initFromBinaryFile(resolution, edgeLength, shore, hydrology, binaryFile)
-        elif shore is not None and hydrology is not None and resolution is not None and edgeLength is not None:
-            self._initFromModel(shore, hydrology, resolution, edgeLength)
-        else:
-            raise ValueError()
-    def _initFromModel(self, shore, hydrology, resolution, edgeLength):
-        self.resolution = resolution
-        self.edgeLength = edgeLength
-
-        self.shore     = shore
-        self.hydrology = hydrology
-        
-        points = [node.position for node in hydrology.allNodes()]
-
-        # Add corners so that the entire area is covered
-        points.append((-shore.realShape[0],-shore.realShape[1]))
-        points.append((-shore.realShape[0],shore.realShape[1]))
-        points.append((shore.realShape[0],shore.realShape[1]))
-        points.append((shore.realShape[0],-shore.realShape[1]))
-        
-        self.vor = Voronoi(points,qhull_options='Qbb Qc Qz Qx')
-
-        # Parallel to points. This indicates which voronoi region the point
-        # is associated with. It is an index in vor.regions
-        self.point_region = list(self.vor.point_region)
-
-        # This is a list of lists. For each voronoi region, it is a list of
-        # all the voronoi vertices that bind the region. Each number is an
-        # index in vor.vertices
-        self.regions = self.vor.regions
-
-        # A list of coordinates, one for each voronoi vertex
-        self.vertices = self.vor.vertices
-
-        # This is just point_region, but for reverse lookup
-        self.region_point = {self.point_region[i]: i for i in range(len(self.point_region))}
-
-        # sort region vertices so that the polygons are convex
-        print('\tOrganizing vertices into convex polygons...')
-        for rid in trange(len(self.regions)):
-            nodeID = self.id_vor_region(rid)
-            if nodeID is None or nodeID >= len(self.hydrology):
-                continue # if this region is not associated with a node, don't bother
-            region = [iv for iv in self.regions[rid] if iv != -1]
-            pivotPoint = self.hydrology.node(nodeID).position
-            region.sort(key = lambda idx: math.atan2(
-                    self.vertices[idx][1] - pivotPoint[1], # y
-                    self.vertices[idx][0] - pivotPoint[0]  # x
-            ))
-            self.regions[rid] = region
-
-        print('\tCreating ridge primitives...')
-        self.qs = [ ]
-        for iv in trange(len(self.vertices)):
-            if not shore.isOnLand(self.vertices[iv]):
-                self.qs.append(None)
-                continue
-            nearbyNodes = [ ]
-            tryDistance = edgeLength * 2
-            # Ensure that we at least find _some_ nodes
-            while (len(nearbyNodes) < 1):
-                nearbyNodes = self.hydrology.query_ball_point(self.vertices[iv], tryDistance)
-                tryDistance *= 2
-            borderedNodes = [ ]
-            for nodeID in nearbyNodes:
-                if iv in self.regions[self.vor_region_id(nodeID)]:
-                    borderedNodes.append(nodeID)
-            self.qs.append(Q(self.vertices[iv], borderedNodes, iv))
-
-        print('\tClassifying ridges...')
-        self.cellsRidges = { }
-        self.cellsDownstreamRidges = { }
-        # Classify all ridges
-        for ri in trange(len(self.vor.ridge_vertices)):
-            for n in self.vor.ridge_points[ri]: # Each ridge separates exactly two nodes
-                if n >= len(self.hydrology):
-                    continue # Apparently there are nodes that don't exist; skip these
-                node = hydrology.node(n)
-                otherNode = self.vor.ridge_points[ri][self.vor.ridge_points[ri] != n][0]
-                # if this ridge is the outflow ridge for this node, mark it as such and move on
-                if node.parent is not None and node.parent.id == otherNode:
-                    # this ridge is the outflow ridge for this node
-                    v1 = self.vertices[self.vor.ridge_vertices[ri][0]]
-                    v2 = self.vertices[self.vor.ridge_vertices[ri][1]]
-                    if not self.shore.isOnLand(v1) or not self.shore.isOnLand(v2):
-                        # If one or both vertices is not on land, then don't bother
-                        # trying to make the river flow through the ridge neatly
-                        self.cellsDownstreamRidges[n] = None
-                    else:
-                        self.cellsDownstreamRidges[n] = (v1, v2)
-                    break # the outflow ridge of this node is an inflow ridge for the other one
-                if otherNode in [nd.id for nd in hydrology.upstream(n)]:
-                    continue # this is an inflow ridge, so it need not be considered further
-                # the ridge at ri is not transected by a river
-                if n not in self.cellsRidges:
-                    self.cellsRidges[n] = [ ]
-                vertex0 = self.qs[self.vor.ridge_vertices[ri][0]]
-                vertex1 = self.qs[self.vor.ridge_vertices[ri][1]]
-                if vertex0 is None or vertex1 is None:
-                    continue
-                self.cellsRidges[n].append((vertex0,vertex1))
-
-        print('\tFinding unaffiliated vertices...')
-        # Add vertices that are not attached to ridges
-        for n in trange(len(self.hydrology)):
-            verts = self.regions[self.vor_region_id(n)].copy()
-            if n not in self.cellsRidges:
-                self.cellsRidges[n] = [ ]
-            # Eliminate vertices that are attached to ridges
-            for ridge in self.cellsRidges[n]:
-                for q in ridge:
-                    if q is not None and q.vorIndex in verts:
-                        verts.remove(q.vorIndex)
-            for v in verts:
-                if not self.shore.isOnLand(self.vertices[v]):
-                    continue
-                self.cellsRidges[n].append((self.qs[v],))
     def _initFromBinaryFile(self, resolution, edgeLength, shore, hydrology, binaryFile):
         self.edgeLength = edgeLength
         self.shore = shore
@@ -915,9 +800,9 @@ class TerrainHoneycomb:
 
         :param regionID: The voronoi region id
         :type regionID: int
-
         :return: The ID of the hydrology node that this region corresponds to. If this region is not associated with an input point, None is returned
         :rtype: int
+
         .. note::
             This method is also for internal use
         """
@@ -1107,44 +992,9 @@ class Terrain:
     :param num_points: (Roughly) the number of points in each cell
     :type num_points: int
     """
-    def __init__(self, hydrology=None, cells=None, num_points=None, binaryFile=None):
+    def __init__(self, binaryFile: typing.IO=None):
         if binaryFile is not None:
             self._initReconstitute(binaryFile)
-        elif hydrology is not None and cells is not None and num_points is not None:
-            self._initCreate(hydrology, cells, num_points)
-        else:
-            raise ValueError()
-    def _initCreate(self, hydrology, cells, num_points):
-        self.cellTs = { }
-        self.tList = [ ]
-        
-        disk = False                # this parameter defines if we look for Poisson-like distribution on a disk/sphere (center at 0, radius 1) or in a square/box (0-1 on x and y)
-        repeatPattern = True        # this parameter defines if we look for "repeating" pattern so if we should maximize distances also with pattern repetitions
-        num_iterations = 4          # number of iterations in which we take average minimum squared distances between points and try to maximize them
-        first_point_zero = False    # should be first point zero (useful if we already have such sample) or random
-        iterations_per_point = 128  # iterations per point trying to look for a new point with larger distance
-        sorting_buckets = 0         # if this option is > 0, then sequence will be optimized for tiled cache locality in n x n tiles (x followed by y)
-        num_dim = 2                 # 1, 2, 3 dimensional version
-        num_rotations = 1           # number of rotations of pattern to check against
-        
-        poisson_generator = PoissonGenerator( repeatPattern, first_point_zero)
-        points = poisson_generator.find_point_set(num_points, num_iterations, iterations_per_point, num_rotations)
-        for n in trange(len(hydrology)):
-            xllim, xulim, yllim, yulim = cells.boundingBox(n)
-            if xllim is None:
-                # Ignore cells that are too small
-                continue
-            
-            # I think this applies a mask to the poisson points, and adds those points as Tees for the cell
-            points_projected = [ [p[0]*(xulim-xllim)+xllim,p[1]*(yulim-yllim)+yllim] for p in points ]
-            points_filtered = [ (p[0],p[1]) for p in points_projected if cells.isInCell(p,n) ]
-            cellTs = [T(p,n) for p in points_filtered]
-            self.cellTs[n] = cellTs
-            self.tList += cellTs
-
-        allpoints_list = [[t.position[0],t.position[1]] for t in self.allTs()]
-        allpoints_nd = np.array(allpoints_list)
-        self.apkd = cKDTree(allpoints_nd)
     def _initReconstitute(self, binaryFile):
         self.cellTs = { }
         self.tList = [ ]

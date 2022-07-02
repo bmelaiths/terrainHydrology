@@ -329,3 +329,44 @@ def classify(node: HydroPrimitive, hydrology: HydrologyNetwork, edgeLength: floa
             child.rosgen = ['C','D','E','F'][random.randint(0,3)];
         else :
             child.rosgen = 'DA'
+
+def getLocalWatershed(node: HydroPrimitive, cells: DataModel.TerrainHoneycomb) -> float:
+    """Gets the area of the watershed represented by this particular cell. This is just the cell's area.
+    
+    :param node: The node of the cell
+    :type node: HydroPrimitive
+    :param cells: The terrain honeycomb for the terrain
+    :type cells: TerrainHoneycomb
+    :return: The area of the local watershed in square meters
+    :rtype: float
+    """
+    return cells.cellArea(node)
+
+def getInheritedWatershed(node: HydroPrimitive, hydrology: HydrologyNetwork) -> float:
+    """Gets the total area of the watershed.
+
+    This is the area of all the cells that drain into this cell. This includes this cell's area.
+
+    :param node: The node of the cell
+    :type node: HydroPrimitive
+    :param hydrology: The hydrology network for the terrain
+    :type hydrology: HydrologyNetwork
+    :return: The area of the inherited watershed in square meters
+    :rtype: float
+    
+    .. note::
+        To work properly, the nodes must all have their local watershed areas set. Use :func:`HydrologyFunctions.getLocalWatershed` for this.
+    """
+    return node.localWatershed + sum([n.inheritedWatershed for n in hydrology.upstream(node.id)])
+
+def getFlow(inheritedWatershed: float) -> float:
+    """This estimates the flow of water through a cell.
+
+    This is based on a simple formula specified in §5.1 of Geneveaux et al
+
+    :param inheritedWatershed: The total area of the watershed. Use :func:`HydrologyFunctions.getInheritedWatershed`
+    :type inheritedWatershed: float
+    :return: The approximate flow in cubic meters per second
+    :rtype: float
+    """
+    return 0.42 * inheritedWatershed**0.69
