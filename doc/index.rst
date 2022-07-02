@@ -21,7 +21,7 @@ These pages document the data structures used in the terrainHydrology project.
    ./terrainhoneycomb-functions
    ./terrainprimitive-functions
    ./math
-   ./testcodegenerator
+   ./tests
 
 Indices and tables
 ==================
