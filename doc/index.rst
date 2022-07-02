@@ -19,6 +19,7 @@ These pages document the data structures used in the terrainHydrology project.
    ./hydrology-functions
    ./river-interpolation-functions
    ./terrainhoneycomb-functions
+   ./terrainprimitive-functions
    ./math
 
 Indices and tables

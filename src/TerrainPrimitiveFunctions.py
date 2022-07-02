@@ -10,6 +10,15 @@ from DataModel import T, ShoreModel, HydrologyNetwork, TerrainHoneycomb, Terrain
 import Math
 
 def initializeTerrain(hydrology: HydrologyNetwork, cells: TerrainHoneycomb, num_points: int) -> Terrain:
+    """Generates the terrain primitives for the terrain and initializes the Terrain object
+
+    :param hydrology: The hydrology network for the terrain
+    :type hydrology: HydrologyNetwork
+    :param cells: The terrain honeycomb for the terrain
+    :type cells: TerrainHoneycomb
+    :param num_points: The approximate number of points to put in each cell. The actual number will almost always be lower than this because points outside a cell are cropped.
+    :type num_points: int
+    """
     terrain = Terrain()
 
     terrain.cellTs = { }
@@ -46,6 +55,17 @@ def initializeTerrain(hydrology: HydrologyNetwork, cells: TerrainHoneycomb, num_
     return terrain
 
 def computePrimitiveElevation(t: T, shore: ShoreModel, hydrology: HydrologyNetwork, cells: TerrainHoneycomb) -> float:
+    """Computes the elevation of a terrain primitive
+
+    :param t: The terrain primitive to compute an elevation for
+    :type t: T
+    :param shore: The shore of the terrain
+    :type shore: ShoreModel
+    :param hydrology: The hydrology network of the terrain
+    :type hydrology: HydrologyNetwork
+    :param cells: The terrain honeycomb of the terrain
+    :type cells: TerrainHoneycomb
+    """
     ridges = cells.cellRidges(t.cell)
 
     # find distance to closest sgment, and elevation at that point
