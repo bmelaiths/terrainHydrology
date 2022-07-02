@@ -16,6 +16,8 @@ class RasterDataMock:
         return self.value
 
 def createTestImage():
+    """This creates the hexagon image. It actually saves it as a file called "imageFile.png"
+    """
     #create shore
     r = 100
     image = Image.new('L', (4*r,4*r))
@@ -28,174 +30,14 @@ def createTestImage():
 
     image.save('imageFile.png')
 
-def createTestObjects(): #-> typing.Tuple(ShoreModel, HydrologyFunctions.HydrologyParameters, HydrologyNetwork, TerrainHoneycomb):
-    resolution = 2
-    terrainSlopeRate = 1.0
-    num_points = 20
+def hydrologyToCode(hydrology: HydrologyNetwork) -> str:
+    """This takes a HydrologyNetwork and generates Python code that can completely re-create it
 
-    #create shore
-    r = 100
-    image = Image.new('L', (4*r,4*r))
-
-    drawer = ImageDraw.Draw(image)
-
-    #Keep in mind that these are _image_ coordinates
-    drawer.polygon([         (150,134),  (100,200),(150,286),   (250,286),  (300,200),(250,134)], 255)
-    #This should work out to (-100,132), (-200,0), (-100,-172), (100,-172), (200,0),  (100,132)
-
-    image.save('imageFile.png')
-
-    shore = ShoreModel(resolution, 'imageFile.png')
-
-    #create candidate nodes
-    hydrology = HydrologyNetwork()
-
-    for i in range(0, 12):
-        idx = int(42 * (i + 0.5))
-
-        hydrology.addNode(shore[idx], 0, 1, contourIndex=idx)
-    
-    candidateNodes = hydrology.allMouthNodes()
-    
-    #create the parameters object
-    Ps = 0.3
-    Pa = 0
-    Pc = 1 - (Ps + Pa)
-    maxTries = 15
-    riverAngleDev = 1.7
-    edgelength = 50
-    sigma = 0.75
-    eta = 0.5
-    zeta = 14
-    riverSlope = RasterDataMock(100)
-    slopeRate = 0.1
-    params = HydrologyFunctions.HydrologyParameters(
-        shore, hydrology, Pa, Pc, maxTries, riverAngleDev, edgelength,
-        sigma, eta, zeta, riverSlope, slopeRate, candidateNodes
-    )
-
-    # This was used to generate the network for this test
-    while len(candidateNodes) != 0:
-        selectedCandiate = HydrologyFunctions.selectNode(candidateNodes, zeta)
-        HydrologyFunctions.alpha(selectedCandiate, candidateNodes, params)
-
-    cells = TerrainHoneycomb(shore, hydrology, resolution, edgelength)
-
-    ## Calculate watershed areas
-    print('Calculating watershed areas...')
-
-    # local watershed areas
-    for n in range(len(hydrology)):
-        node = hydrology.node(n)
-        node.localWatershed = cells.cellArea(node)
-        node.inheritedWatershed = 0
-
-    # calculate inherited watershed areas and flow
-    for node in hydrology.dfsPostorderNodes():  # search nodes in a depth-first post-ordering manner
-        watershed = node.localWatershed + sum([n.inheritedWatershed for n in hydrology.upstream(node.id)])
-        node.inheritedWatershed=watershed  # calculate total watershed area
-        node.flow = 0.42 * watershed**0.69 # calculate river flow
-
-
-    ## Classify river nodes
-    print('Classifying river nodes...')
-    for n in range(len(hydrology)):
-        HydrologyFunctions.classify(hydrology.node(n), hydrology, edgelength)
-
-
-    ## Calculate ridge elevations
-    print('Calculating ridge elevations...')
-
-    terrainSlope = RasterDataMock(128)
-
-    for q in cells.allQs():
-        if q is None:
-            continue
-        nodes = [hydrology.node(n) for n in q.nodes]
-        maxElevation = max([node.elevation for node in nodes])
-        d = np.linalg.norm(q.position - nodes[0].position)
-        slope = terrainSlopeRate * terrainSlope[q.position[0],q.position[1]] / 255
-        q.elevation = maxElevation + d * slope
-
-    ## Terrain pattern
-    print('Generating terrain primitives...')
-    Ts = Terrain(hydrology, cells, num_points)
-
-
-    ## Generate river paths
-    print('Interpolating river paths...')
-    for node in hydrology.allMouthNodes():
-        # remember that out_edges gets upstream nodes
-        leaves = hydrology.allLeaves(node.id)
-        for leafNode in leaves: # essentially, this loops through all the highest nodes of a particular mouth
-            # path to the leaf (there's only one, so it's the shortest)
-            path = hydrology.pathToNode(node.id,leafNode.id)
-            path.reverse()
-
-            # terminates the path if there is another path with greater flow, and adds the downflow ridge as a point
-            for ni in range(1,len(path)):
-                #print(f'path: {[n.id for n in path]}')
-                #print(f'ni: {ni}')
-                #print(f'Upstream of node {path[ni].id} ({path[ni].position}): {[n.id for n in hydrology.upstream(path[ni].id)]}')
-                upstreamFlow = max([n.flow for n in hydrology.upstream(path[ni].id)])
-                if upstreamFlow > path[ni-1].flow:
-                    path = path[0:ni+1]
-                    break
-            
-            x = [ ]
-            y = [ ]
-            z = [ ]
-            for pi in range(len(path)):
-                p = path[pi]
-                x.append(p.x())
-                y.append(p.y())
-                z.append(p.elevation)
-                # makes the river flow through the cell's outflow ridge (so it doesn't transect a mountain)
-                if p.parent is not None and pi < len(path)-1 and cells.cellOutflowRidge(p.id) is not None:
-                    ridge0, ridge1 = cells.cellOutflowRidge(p.id)
-                    x.append((ridge0[0] + ridge1[0])/2)
-                    y.append((ridge0[1] + ridge1[1])/2)
-                    z.append((p.elevation + p.parent.elevation)/2)
-
-            # it seems to me that, if the path is short, this block
-            # adjusts the positions of the first three nodes
-            if len(x)<4:
-                x1 = (x[0]+x[1])/2
-                x2 = (x[0]+x1)/2
-                y1 = (y[0]+y[1])/2
-                y2 = (y[0]+y1)/2
-                z1 = (z[0]+z[1])/2
-                z2 = (z[0]+z1)/2
-                tmp = x[1:]
-                x = [x[0],x2,x1]+list(tmp)
-                x = np.array(x)
-                tmp=y[1:]
-                y = [y[0],y2,y1]+list(tmp)
-                y = np.array(y)
-                tmp=z[1:]
-                z = [z[0],z2,z1]+list(tmp)
-                z = np.array(z)
-            
-            # I think that this is where the river paths are smoothed
-            tck, u = interpolate.splprep([x, y,z], s=0)
-            unew = np.arange(0, 1.01, 0.05)
-            out = interpolate.splev(unew, tck)
-            
-            lstr=[] # lstr is apparently "line string"
-            dbg=[] # I think this is to verify that altitude increases continually
-            for i in range(len(out[0])): # loops through each coordinate created in interpolation
-                lstr.append((out[0][i],out[1][i],int(out[2][i])))
-                dbg.append(int(out[2][i]))
-            line = asLineString(lstr)
-            
-            for p in path: # for each node in the path to this particular leaf
-                # I'm pretty sure this loop ensures that
-                # the path to the sea is up to date
-                p.rivers.append(line)
-
-    return shore, params, hydrology, cells
-
-def hydrologyToCode(hydrology: HydrologyNetwork):
+    :param hydrology: The hydrology network
+    :type hydrology: HydrologyNetwork
+    :return: Python code that can completely re-create the object
+    :rtype: str
+    """
     code = ''
     for node in hydrology.allNodes():
         if node.parent is None:
@@ -205,6 +47,13 @@ def hydrologyToCode(hydrology: HydrologyNetwork):
     return code
 
 def terrainHoneycombToCode(cells: TerrainHoneycomb) -> str:
+    """This takes a TerrainHoneycomb and generates Python code that can completely re-create it
+
+    :param cells: The terrain honeycomb
+    :type cells: TerrainHoneycomb
+    :return: Python code that can completely re-create the object
+    :rtype: str
+    """
     code = ''
 
     # list
@@ -293,6 +142,13 @@ def terrainHoneycombToCode(cells: TerrainHoneycomb) -> str:
     return code
 
 def riversToCode(hydrology: HydrologyNetwork) -> str:
+    """This takes a HydrologyNetwork and generates Python code that can completely re-create the river system
+
+    :param hydrology: The hydrology network
+    :type hydrology: HydrologyNetwork
+    :return: Python code that can completely re-create the object
+    :rtype: str
+    """
     code = ''
 
     for node in hydrology.allNodes():
@@ -303,6 +159,13 @@ def riversToCode(hydrology: HydrologyNetwork) -> str:
     return code
 
 def qElevationsToCode(cells: TerrainHoneycomb) -> str:
+    """This takes a Terrain Honeycomb and generates Python code that can completely set all of the ridge primitive elevations
+
+    :param hydrology: The terrain honeycomb
+    :type hydrology: TerrainHoneycomb
+    :return: Python code that can completely re-create the state
+    :rtype: str
+    """
     code = ''
     
     i = 0
@@ -316,6 +179,15 @@ def qElevationsToCode(cells: TerrainHoneycomb) -> str:
     return code
 
 def hydrologyAttributesToCode(hydrology: HydrologyNetwork) -> str:
+    """This takes a HydrologyNetwork and generates Python code that can completely set certain extra attributes of its nodes
+
+    The attributes are: localWatershed, interitedWatershed, and flow.
+
+    :param hydrology: The hydrology network
+    :type hydrology: HydrologyNetwork
+    :return: Python code that can completely re-create the state
+    :rtype: str
+    """
     code = ''
     for node in hydrology.allNodes():
         id = node.id
@@ -325,6 +197,8 @@ def hydrologyAttributesToCode(hydrology: HydrologyNetwork) -> str:
     return code
 
 def getPredefinedObjects0():
+    """This gets a set of objects that can be used for testing. This is described in the project wiki on GitHub.
+    """
     edgelength = 2320.5
     resolution = 93.6
     r = 100
