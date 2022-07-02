@@ -5,6 +5,20 @@ from shapely.geometry import asLineString
 from DataModel import HydroPrimitive, HydrologyNetwork, TerrainHoneycomb
 
 def computeRivers(node: HydroPrimitive, hydrology: HydrologyNetwork, cells: TerrainHoneycomb):
+    """Computes the path of a river until it flows into the sea or another river
+
+    This function is intended to be called for every leaf node in the terrain. This will compute all the rivers correctly and set the :attr:`HydroPrimitive.rivers` attribute.
+
+    :param node: The node that the river should start from
+    :type node: HydroPrimitive
+    :param hydrology: The hydrology network for the terrain
+    :type hydrology: HydrologyNetwork
+    :param cells: The terrain honeycomb for the terrain
+    :type cells: TerrainHoneycomb
+
+    .. todo:
+        This function does not consider river classification at all. This should be addressed in issue #35.
+    """
     # remember that out_edges gets upstream nodes
     leaves = hydrology.allLeaves(node.id)
     for leafNode in leaves: # essentially, this loops through all the highest nodes of a particular mouth

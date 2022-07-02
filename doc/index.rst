@@ -17,6 +17,7 @@ These pages document the data structures used in the terrainHydrology project.
 
    ./data-model
    ./hydrology-functions
+   ./river-interpolation-functions
    ./math
 
 Indices and tables

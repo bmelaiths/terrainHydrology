@@ -231,7 +231,7 @@ class HydroPrimitive:
     :vartype parent: int | None
     :cvar contourIndex: If this node is on the coast, this is the index in :class:`Shore` that is closest to this node
     :vartype contourIndex: int
-    :cvar rivers: A :class:`LineString` representing the river's actual path. It only flows to a node where it joins with a larger river
+    :cvar rivers: A :class:`LineString` representing the river's actual path. It only flows to a node where it joins with a larger river. This is set in :func:`RiverInterpolationFunctions.computeRivers`
     :vartype rivers: LineString
     :cvar localWatershed: The (rough) area of this cell
     :vartype localWatershed: float
