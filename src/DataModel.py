@@ -288,7 +288,7 @@ class HydrologyNetwork:
     Internally, the data is held in a :class:`networkx DiGraph<networkx.DiGraph>`. A
     :class:`cKDTree<scipy.spatial.cKDTree>` is used for lookup by area.
     """
-    def __init__(self, stream=None, binaryFile=None):
+    def __init__(self, stream=None, binaryFile: typing.IO=None):
         self.nodeCounter = 0
         self.graph = nx.DiGraph()
         self.mouthNodes = []
@@ -992,7 +992,7 @@ class Terrain:
     :param num_points: (Roughly) the number of points in each cell
     :type num_points: int
     """
-    def __init__(self, binaryFile=None):
+    def __init__(self, binaryFile: typing.IO=None):
         if binaryFile is not None:
             self._initReconstitute(binaryFile)
     def _initReconstitute(self, binaryFile):
