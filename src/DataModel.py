@@ -800,9 +800,9 @@ class TerrainHoneycomb:
 
         :param regionID: The voronoi region id
         :type regionID: int
-
         :return: The ID of the hydrology node that this region corresponds to. If this region is not associated with an input point, None is returned
         :rtype: int
+
         .. note::
             This method is also for internal use
         """
