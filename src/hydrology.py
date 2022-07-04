@@ -158,6 +158,13 @@ numProcs = int(args.num_procs) # The number of processes to use in calculating t
 outputFile = args.outputFile
 
 
+# Check for the native module if the --accelerate flag is specified
+if args.accelerate:
+    if not os.path.exists(buildRiversExe) or not os.path.exists(computePrimitivesExe):
+        print('One or both of the executables does not exist. Run "make" in the src/ directory to build them.')
+        exit()
+
+
 # Load input images
 
 shore = DataModel.ShoreModel(resolution, gammaFileName=inputDomain)
@@ -208,9 +215,6 @@ try:
         end = datetime.datetime.now()
         print()
     else: # Generate the hydrology using the native module
-        if not os.path.exists(buildRiversExe):
-            print('The executable does not exist. Run "make buildRivers" in the src/ directory to build it.')
-            exit()
         file = open('src/native-module/bin/binaryFile', 'w+b')
         file.write(params.toBinary())
         file.close()
@@ -357,9 +361,6 @@ try:
             file.close()
 
         # Run the native module
-        if not os.path.exists(computePrimitivesExe):
-            print('The executable does not exist. Run "make buildRivers" in the src/ directory to build it.')
-            exit()
         primitivesProc = subprocess.Popen( # start the native module
             ['./' + computePrimitivesExe],
             stdout=subprocess.PIPE
