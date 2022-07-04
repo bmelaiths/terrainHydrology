@@ -5,9 +5,9 @@ from shapely.geometry import asLineString
 from DataModel import HydroPrimitive, HydrologyNetwork, TerrainHoneycomb
 
 def computeRivers(node: HydroPrimitive, hydrology: HydrologyNetwork, cells: TerrainHoneycomb):
-    """Computes the path of a river until it flows into the sea or another river
+    """Computes the path of all the rivers that flow through the node.
 
-    This function is intended to be called for every leaf node in the terrain. This will compute all the rivers correctly and set the :attr:`HydroPrimitive.rivers` attribute.
+    This function is intended to be called for every mouth node in the terrain. This will compute all the rivers correctly and set the :attr:`HydroPrimitive.rivers` attribute for all the nodes upstream.
 
     :param node: The node that the river should start from
     :type node: HydroPrimitive
