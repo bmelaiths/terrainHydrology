@@ -174,6 +174,19 @@ class RiverTests(unittest.TestCase):
                 if len(ridge) < 2:
                     continue
                 self.assertFalse(Math.segments_intersect_tuple(p0, p1, ridge[0].position, ridge[1].position))
+    
+    def test_always_rising(self) -> None:
+        node = self.hydrology.node(3)
+        node.rivers = [ ]
+
+        computeRivers(node, self.hydrology, self.cells)
+
+        river = list(node.rivers[0].coords)
+        
+        prevPoint = river[0]
+        for point in river[1:]:
+            self.assertTrue(prevPoint[2] > point[2])
+            prevPoint = point
 
     def tearDown(self) -> None:
         os.remove('imageFile.png')
