@@ -10,7 +10,8 @@ import networkx as nx
 from scipy import interpolate
 import shapely.geometry as geom
 import numpy as np
-from shapely.geometry import asLineString
+#from shapely.geometry import asLineString
+from shapely.geometry import LineString
 from multiprocessing import Process, Pipe, Queue
 from tqdm import trange
 import math
@@ -387,7 +388,7 @@ for node in hydrology.allMouthNodes():
         for i in range(len(out[0])): # loops through each coordinate created in interpolation
             lstr.append((out[0][i],out[1][i],int(out[2][i])))
             dbg.append(int(out[2][i]))
-        line = asLineString(lstr)
+        line = LineString(lstr)
         
         for p in path: # for each node in the path to this particular leaf
             # I'm pretty sure this loop ensures that

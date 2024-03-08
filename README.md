@@ -41,7 +41,7 @@ As this program is in the early stages of development, it produces a number of c
 ### Example
 
 ```
-src/hydrology.py -g example/in/gamma.png -r example/in/riverslope.png -t example/in/terrainslope.png -o example/out/ 
+python3 src/hydrology.py -g example/in/gamma.png -s example/in/riverslope.png -t example/in/terrainslope.png -o example/out/ -ri 87.5 -p 50 -ro 1000
 ```
 
 ## Documentation
