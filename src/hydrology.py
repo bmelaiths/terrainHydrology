@@ -91,6 +91,14 @@ parser.add_argument(
     metavar='1000',
     required=True
 )
+parser.add_argument(
+    '-c',
+    '--num-cities',
+    help="The number of cities to generate",
+    dest="numCities",
+    metavar=5,
+    required=False
+)
 args = parser.parse_args()
 
 outputDir = args.outputDir + '/'
@@ -486,19 +494,50 @@ print()
 
 
 # Try manipulating terrain primitives
-selectedCenter = Ts.allTs()[0]
-for prim in Ts.allTs():
-    if prim.elevation < 100:
+#selectedCenter = Ts.allTs()[0]
+#for prim in Ts.allTs():
+#    if prim.elevation < 100:
         #prim.elevation = 800
-        selectedCenter = prim
-        break
-radius = 1000
-cityPoints = Ts.query_ball_point(selectedCenter.position, radius)
-print("Number of city points: " + str(len(cityPoints)))
-for prim in cityPoints:
-    if prim.elevation < 100:
-        prim.elevation = 800
+#        selectedCenter = prim
+#        break
+#radius = 1000
+#cityPoints = Ts.query_ball_point(selectedCenter.position, radius)
+#print("Number of city points: " + str(len(cityPoints)))
+#for prim in cityPoints:
+#    if prim.elevation < 100:
+#        prim.elevation = 800
 
+
+
+
+occupiedSpots = list()
+import random
+
+highestRiverBed = max([node.elevation for node in hydrology.allNodes()])
+highestRidgeElevation = maxq = max([q.elevation for q in cells.allQs() if q is not None])
+
+
+print("Generating cities")
+def GenerateCity(radius, minElevation, maxElevation):
+    magicRadiusNumber = highestRidgeElevation / 834
+    radius = radius * magicRadiusNumber
+    primitives = Ts.allTs()
+    centerIndex = random.randint(0, len(primitives) - 1)
+    while primitives[centerIndex].elevation >= maxElevation: #makes sure that the centerIndex is under maxElevation
+        #todo max iterations to prevent locking program
+        centerIndex = random.randint(0, len(primitives) - 1)
+    
+    selectedCenter = primitives[centerIndex]
+    cityPoints = Ts.query_ball_point(selectedCenter.position, radius)
+    for prim in cityPoints:
+        if prim.elevation >= minElevation and prim.elevation <= maxElevation:
+            prim.elevation = highestRidgeElevation + 1200 #todo remove
+
+
+numCities = int(args.numCities)
+for i in range(1, numCities + 1):
+    print("Generating city " + str(i))
+    GenerateCity(1000 * i, 0, 100)
 
 
 # DEBUG
@@ -653,6 +692,8 @@ plt.imshow(imgOut, cmap=plt.get_cmap('terrain'))
 plt.colorbar()
 plt.tight_layout()                                # DEBUG
 plt.savefig(outputDir + 'out-color.png')
+plt.gray()
+plt.savefig(outputDir + 'out-gray.png')
 
 imgOut[imgOut==oceanFloor] = -5000.0 # For actual heightmap output, set 'ocean' to the nodata value
 imgOut = np.flipud(imgOut) # Adjust to GeoTIFF coordinate system
