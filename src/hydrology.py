@@ -10,7 +10,6 @@ import networkx as nx
 from scipy import interpolate
 import shapely.geometry as geom
 import numpy as np
-#from shapely.geometry import asLineString
 from shapely.geometry import LineString
 from multiprocessing import Process, Pipe, Queue
 from tqdm import trange
@@ -321,6 +320,7 @@ plt.savefig(outputDir + '8-river-flow-terrain.png')
 print('Generating terrain primitives...')
 Ts = DataModel.Terrain(hydrology, cells, num_points)
 
+
 # Generate river paths
 print('Interpolating river paths...')
 for node in hydrology.allMouthNodes():
@@ -483,6 +483,23 @@ for t in Ts.allTs():
     progressCounter = progressCounter + 1
     print(f'\tPrimitives computed: {progressCounter} out of {numTs} \r', end='')  # use display(f) if you encounter performance issues
 print()
+
+
+# Try manipulating terrain primitives
+selectedCenter = Ts.allTs()[0]
+for prim in Ts.allTs():
+    if prim.elevation < 100:
+        #prim.elevation = 800
+        selectedCenter = prim
+        break
+radius = 1000
+cityPoints = Ts.query_ball_point(selectedCenter.position, radius)
+print("Number of city points: " + str(len(cityPoints)))
+for prim in cityPoints:
+    if prim.elevation < 100:
+        prim.elevation = 800
+
+
 
 # DEBUG
 print('Generating terrain primitives image...')
@@ -658,3 +675,13 @@ new_dataset = rasterio.open(
 new_dataset.write(imgOut, 1)
 print(new_dataset.meta)
 new_dataset.close()
+
+
+def MyFun():
+    for prim in Ts.allTs():
+        #print("cell: " + str(prim.cell))
+        (x, y) = prim.position
+        elevation = prim.elevation
+        print("X: " + str(x) + " Y: " + str(y) + " | elevation: " + str(elevation))
+
+MyFun()
